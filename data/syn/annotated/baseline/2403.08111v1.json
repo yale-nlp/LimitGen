@@ -1,0 +1,1212 @@
+{
+    "title": "AI-Assisted Causal Pathway Diagram for Human-Centered Design",
+    "abstract": "This paper explores the integration of human-centered design (HCD), investigating how this approach can enhance the early stages of the design process. A dedicated plugin for the online collaborative whiteboard platform Miro was developed to streamline design creation and offer real-time AI-driven guidance. Through a user study with designers, we found that this approach supported both divergent and convergent processes during design. It can also facilitate communication among stakeholders. Additionally, we found our plugin significantly reduces designers\u2019 cognitive workload and increases their creativity during brainstorming, highlighting the implications of AI-assisted tools in supporting creative work and evidence-based designs.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1. Introduction",
+            "text": "In this work, we offer several important contributions:\n\n1. Introduction and study of how practitioners can approach human-centered design in the early stages.\n2. Insights into a diagramming tool that helps designers generate and iterate on strategies to guide design.\n3. Insights into the challenges and opportunities of using digital assistance in supporting creative work and evidence-based designs.\n\nThe study revealed that designers are positive about integrating strategic frameworks in the early stages of human-centered design, especially for brainstorming and strategic prioritization. Designers emphasized approaches that directly address the root cause of the problem as a goal-oriented design process. However, designers also highlighted potential consequences of using suggestions irresponsibly and pointed out opportunities to make recommendations more evidence-based.\n\nThe main contributions of this study involve understanding practices in the early design phases and exploring tools that can aid in design processes. The findings underscore the potential for enhancing creative brainstorming and prioritization strategies, while advocating for responsible and evidence-based integration of external suggestions in the design workflow."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2. Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "2.1. Theory Use in Human-Centered Design",
+            "text": "Human-centered design (HCD) is based on the understanding that by thoroughly understanding people, we can create more effective designs (Shneiderman and Plaisant, 2010; Rogers et al., 2002; Carroll, 2003; Benyon, 2013). There is a longstanding tradition of using theory to guide design (Rogers, 2004), such as cognitive science theories for computer interfaces (Carroll, 1991), social psychology theories for online communities (Kraut and Resnick, 2012), and social and behavior theories for behavior change technologies (Consolvo et al., 2009).\n\nVan Turnhout and colleagues identify six key functions of theory in designing technologies (van Turnhout et al., 2019): (1) Description to consistently and clearly identify phenomena; (2) Explanation for exposing underlying causes and relationships; (3) Generative to support novel ideas and design alternatives; (4) Aspirational to define ideals and goals in design; (5) Prediction of effects in various situations; and (6) Prescription providing guidance on design practices.\n\nIn human-centered design, these functions appear in various stages. During brainstorming, theories can suggest ideas and support divergent thinking by identifying areas for exploration. They help consider how strategies influence user behavior and identify barriers. Theories assist in creating hypotheses about potential design outcomes. In the convergence stages, theories guide decisions on prototypes and implementations to optimize design goals. During evaluation, they inform study design and interpretation of findings. Theories also facilitate communication with stakeholders by explaining design goals and supporting design decisions.\n\nDespite the benefits, gaps between research and practice exist (Colusso et al., 2019; Norman, 2010; Gray et al., 2014; Roedl and Stolterman, 2013; Rogers, 2004). Effectively using theories in design poses challenges (Dourish, 2006; Schon, 1983). Barriers include designers' lack of training in basic science fields, making theory-driven approaches difficult (Beck and Stolterman, 2016; Colusso et al., 2017). Additionally, translating theoretical insights into real-world contexts is challenging (Rogers, 2004). Understanding when to engage theory and how to fit it into existing design processes is crucial for effective theory usage (Colusso et al., 2017, 2018)."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "2.2. Causal Pathway Diagramming (CPD)",
+            "text": "In this paper, we aim to explore methods that guide theory-driven human-centered design by examining how structured approaches can enhance design processes. In implementation science, evidence- or theory-based design is crucial to achieving intended changes, especially in health care and public health settings, where many implementations struggle to reach their goals. Structured approaches could contribute to different stages of design by informing strategy development, supporting brainstorming, increasing impact, and helping prioritize strategies for specific contexts.\n\nThere is a long-established history of using visual representations to describe relationships within variables across various fields. These representations are widely utilized in social and behavioral sciences and statistics. Such visual frameworks provide a way to plan and evaluate systems effectively, supporting nonprofits and philanthropy in adopting an evidence-based approach. However, the use of such visual mapping in human-centered design remains underutilized. Especially outside global health, where such methods are more commonly integrated, there is less reference to these approaches in human-centered design and human-computer interaction literature.\n\nOur work is grounded in a method developed by the OPTICC Center, focused on optimizing evidence-based intervention implementation. This method includes a formalized structure, starting with the intervention strategy, followed by mechanisms, barriers, and outcomes. Understanding these components can guide users in structuring their strategies more effectively. While having a structured syntax can improve consistency, it may also pose challenges in understanding and applying the approach. Hence, another research question we pursue is whether a tool can be developed to facilitate the use of structured pathways in design processes."
+        },
+        {
+            "section_id": "2.3",
+            "parent_section_id": "2",
+            "section_name": "2.3. Potential Use of CPD During Ideation",
+            "text": "Many tools have been designed to support creativity in HCD (Frich et al., 2019; Wang and Nickerson, 2017; Gabriel et al., 2016). However, few of these creativity support tools (CSTs) have been developed with an emphasis on supporting the generation of ideas in an evidence or theory-driven way. One set of CSTs simply stimulates designers to think creatively. These tools are not specific to the design context and often just contain inspirational images or words (Eames and Eames, 1952; Hsieh et al., 2023), or provocative concepts (Vines et al., 2012). Others support brainstorming by suggesting additional relevant ideas based on a set of existing ideas inputted by the user (Clark et al., 2018; Wan and Lu, 2023; Bunian et al., 2021; Feng et al., 2022; Lu et al., 2024; Wang et al., 2010; Andolina et al., 2015, 2017; Ferdowsi and Saad, 2023). Often, these tools help surface inspirational stimuli by varying the analogical distance, commonness, and modality of the example ideas (Chan et al., 2011; Lawton et al., 2023; Zhang et al., 2022; Cai et al., 2023; Zamfirescu-Pereira et al., 2023a). IdeaExpander, for example, draws on the conversations of group brainstorming and provides recommendations of related pictures to stimulate a divergent brainstorming process (Wang et al., 2010). Clark et al.\u2019s work on creative writing suggests related information based on existing user inputs, which helped with ideating possible slogans and stories (Clark et al., 2018). VINS is a system that recommends relevant UI examples to support UI design brainstorming (Bunian et al., 2021). While these tools could help designers come up with more innovative ideas more efficiently, without the integration of evidence from user research or published research, it is unclear if the generated ideas will work when addressing the design problem."
+        },
+        {
+            "section_id": "2.3.1",
+            "parent_section_id": "2.3",
+            "section_name": "2.3.1. AI-assisted creativity support tools",
+            "text": "Thanks to the ability of AI to model data and extract knowledge (Hwang, 2022; Kun et al., 2019), creativity support tools have explored the use of AI in their design. One line of research is on using machine learning models fine-tuned to a specific domain to support a specific type of design and ideation task (e.g., Wan and Lu, 2023; Bunian et al., 2021; Clark et al., 2018; Feng et al., 2022; Lu et al., 2024; Wang et al., 2010). For example, VINS uses an attention-based neural network to retrieve related UI examples from a given collection to support the brainstorming process (Bunian et al., 2021), and recent work by Wan et al. (Wan and Lu, 2023) used GAN (generative adversarial network) trained with relevant research data to support visual brainstorming and help designers explore the semantic space of diagramming ideation. Despite the efficacy of such approaches, however, they are limited in that the set of evidence or resources these AI-assisted CSTs could draw on is quite limited. As most machine learning systems like these CSTs are trained specifically for one domain, they cannot easily generalize to other contexts. In addition, the evidence they use is often restricted in number or the range of content, as the sets were either hand-curated or drawn from a specific online resource."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3. Design of the Plugin",
+            "text": "To streamline the process of supporting designers, we developed a plugin in Miro, a widely used diagramming platform. Miro lets users create diverse visual elements, such as text boxes, circles, and rectangles on a collaborative board. It is also often used in the early stages of Human-Centered Design (HCD) for brainstorming and ideation purposes. The simplicity of interactions and design elements within Miro, coupled with its plugin-friendly architecture, made it an appropriate platform for deploying and testing our concept.\n\nBelow we describe the design and implementation details of the key features embedded in our plugin. Our plugin uses a multi-tab design, where each feature of the plugin can be used separately and independently. We provide a more detailed visual walkthrough of each component in Appendix C."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1. Key Features of the Plugin",
+            "text": "I'm sorry, I need the text of the section in order to make the required modifications. Please provide the text you'd like me to revise."
+        },
+        {
+            "section_id": "3.1.1",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.1. Component",
+            "text": "For each item shown in the panel, users can easily drag and drop them onto the Miro board. Once the user drags and drops an element, the plugin creates an empty entity complemented by a hyperlinked title that directs users to the page that contains the definition of the entity. This not only facilitates quick access to the definition but also streamlines the process of element creation on the Miro platform, sparing users the hassle of manually having to locate the shape in the platform. Plus, the plugin shows the definition of the element in a tooltip when the user hovers their mouse over the element."
+        },
+        {
+            "section_id": "3.1.2",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.2. Wizard",
+            "text": "To streamline the creation of educational models, we designed and developed a form-based wizarding tool that guides the user in a step-by-step manner. This functionality navigates users through the generation process by eliciting inputs for each component. We guide the creation using backward mapping, where participants focus on the distal outcome first, then work backward to the barrier, proximal outcome, strategy, and mechanism. For each component, the user is provided with an explanation of the component (e.g., Barrier - \u201dWhat is the obstacle that is getting in the way of achieving the desired outcome?\u201d).\n\nOne of the challenges with the creation of educational models may be a lack of knowledge about relevant theory. In the long run, our plan is to establish a repository and to recommend factors from our repository. Until such a repository is well populated, we sought innovative methods to provide recommendations. \n\nOnce the user finalizes all components, users can easily drag & drop to a specific area on the board, creating a complete model populated with their inputs on a designated position."
+        },
+        {
+            "section_id": "3.1.3",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.3. Brainstorming",
+            "text": "Our plugin provides users with the ability to explore potential candidates for a specific component. This feature supports expanding innovative thinking about addressing barriers. Users select a specific component they wish to brainstorm, and the plugin requests information regarding related components. With these inputs, the plugin generates and recommends candidates for the component."
+        },
+        {
+            "section_id": "3.1.4",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.4. Checking",
+            "text": "In contrast to the previous features that primarily aim to initially create or brainstorm components, the checking feature is designed to help users verify the structures they have already generated. Specifically, our checking feature lets users diagnose if any of the following issues are present:\nOne or more required elements are missing\nOne or more elements are not connected correctly\nOne or more elements are connected in the wrong order\nThe structure does not start / end with specific elements\n\nThis feature mainly focuses on checking the basic correctness of what has been created. To start, users should select a generated structure on the board, including its components and connections between components. Then, users should click on the \u201ccheck\u201d button to perform the checking. If the selected structure does not contain any of the listed issues, we provide positive confirmation such as \u201cNo syntax issues!\u201d If the selected structure contains one or more of these issues, we provide suggestive feedback about the specific problems, such as \u201cYou might consider adding the following components.\u201d"
+        },
+        {
+            "section_id": "3.1.5",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.5. Help / Glossary",
+            "text": "Finally, the help feature allows users to easily access the definition of an element that is already on the board. By selecting an existing element on the board and clicking on the \"learn more\" button, the plugin promptly displays the element's definition (i.e., strategy - \"Strategy is an element that the diagram is intended to unpack. It is important to make the strategy concrete, to write it as it would be performed in that particular setting.\")."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2. Implementation",
+            "text": "Our system was built on a Javascript-based framework (SvelteKit), and deployed on the Miro SDK 2.0, which allowed the system to interact with the Miro board (e.g., add/detect items on the board)."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4. User Study",
+            "text": "To understand the use of CPD and our plugin to support human-centered design, we conducted a user study with design practitioners."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1. Procedure",
+            "text": "###figure_3### The study was a one-hour, within-subjects online study. First, we provided participants with an introduction to CPD, explaining its different components, and gave a tutorial on the process of generating a CPD using an example. We then asked participants to complete two 10-minute design sprints. For each design sprint, participants were given a design prompt, a user persona, and a scenario explaining the issues the persona was encountering in that context. Figure 3  ###reference_### shows an example design sprint. Participants were asked to generate CPDs to ideate possible solutions. We structured our study as design sprints as they are commonly used design methods during early-stage design to explore design ideas (Banfield et al., 2015  ###reference_b8###) and have been used in prior work to support the ideation of theory-driven designs (Colusso et al., 2018  ###reference_b22###).\nFor one of the design sprints, participants were given the plugin to help generate CPDs. In the other design sprint, they were not given the plugin. We randomized the order in which a participant would use the plugin, as well as the order of the design sprints to account for any ordering effects. After each design sprint, we asked participants questions about their experiences with using CPD (and the plugin when in the plugin condition). Details of these questions are shared in subsection 4.4  ###reference_###. After the design sprints, we interviewed participants to further understand their experiences. A detailed version of the protocol can be found in Appendix B  ###reference_###."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2. Recruitment & Participants",
+            "text": "We recruited participants by posting a screener survey on social media. Of those who expressed interest, we were able to recruit 20 people to participate in our study. The study lasted an hour. All participants except one completed both design sprints. One participant had to leave early due to personal reasons and only completed one of the design sprints (one without the plugin). We provided a compensation of $50 gift card in compensation for an hour of the participants\u2019 time. 13 of our participants are professional UX designers, while others are enrolled in design-related programs. 15 of the participants have at least 2 years of design experience, and all participants had no knowledge of causal pathway diagrams prior to the study. Detailed demographic information of the participants is shared in Appendix A  ###reference_###."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "4.3. Qualitative Analysis",
+            "text": "Each study session was recorded and transcribed using Zoom. We used thematic analysis on the transcripts. One researcher first used thematic analysis on five transcripts. Then four researchers discussed the excerpts extracted until they decided on a final codebook. The final codebook includes themes such as CPD facilitates brainstorming in the early stages of design, CPD helps establish a common language between designers, and AI recommendations help paraphrase ideas. The first author then used the codebook to code all 20 transcripts. Throughout the coding process, the researchers mainly focused on how designers used CPD in human-centered design, and how they used the plugin to generate CPDs."
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "4.4. Measures & Statistical Analysis",
+            "text": "After each design sprint, we asked participants to rate their experience on a Likert scale of 1-7, exploring whether having access to the plug-in influenced their experience generating CPDs. Specifically, we asked them to rate \u201chow hard/easy it was to design a CPD\u201d, \u201chow hard/easy it was to create each component of CPD graphically\u201d, and \u201chow hard/easy it was to brainstorm the content of each component of CPD.\u201d We also asked participants to rate their confidence in the structural correctness (all components are connected and ordered in the right way) and content usefulness (the likelihood of using the generated solution in the next stage of HCD) of the CPD generated. We analyzed these measures using paired sample t-tests to show how the use of the plugin influenced people\u2019s experience using CPD for design.\nApart from the self-reported ratings, we also measured the amount of time participants spent on each design sprint and the number of CPD pathways designers generated for that sprint. We similarly performed paired sample t-tests to analyze the results."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5. Results",
+            "text": "We focused our analysis on two aspects. First, we identified how the use of CPD facilitated evidence-based HCD. Secondly, we analyzed how our AI-assisted plugin helped UX practitioners more easily work with CPDs, identifying its potential to increase creativity and provide evidence-based support.\nRecall that creating CPDs involves mapping out factors of relevance and their relationships (e.g.\u201cwhat is the distal outcome\u201d, and \u201cwhat is the barrier that may occur given this outcome\u201d). Participants pointed out that when they performed this mapping, they had to think about the relevant constraints upfront. Thinking through all the possible barriers that may prevent strategies from achieving the outcome is a \u201crealistic and down-to-the-ground strategy\u201d (P7), and helps save time in the design process. For instance, P12 articulated that \u201cinstead of thinking about the happy and perfect best case user flow, it is more important to know the constraints.\u201d P5 also pointed out that \u201claying out the barriers, setting up the constraints very very quickly\u201d immediately highlights the pain point, so that \u201caddressing these barriers would make the design goals quite tangible when thinking implementation strategies.\u201d The close attention to the constraints behind a design prompt helps designers quickly break down the task at hand, and helps them focus their effort.\nAdditionally, participants appreciated the goal-oriented process, rather than free-form or solution-oriented as most existing design processes are (e.g., user journey map, whiteboarding, storyboarding, etc.). In many design sessions, practitioners may use whiteboarding to \u201csimply throw out ideas, then sort out the details, whether an idea is a barrier or a mechanism at a later time.\u201d (P7) Or they may use storyboarding, which starts at the beginning, and work from the solution to \u201cplay out how the solution impacts the outcome.\u201d (P18)\nIn contrast, CPD starts from \u201cthe high-level vision of why focus on this particular problem, the distal outcome,\u201d (P6) and \u201cnot just jumping into solutions.\u201d (P2) The generation of a CPD emphasizes the answer to the question of \u201cwhat is the long-term goal\u201d and not to \u201cwhat are some ways to solve this prompt\u201d (P17). Starting the brainstorming process from these questions, the outcome of the design, is actually \u201ca natural way of thinking, especially when tackling complex problems.\u201d (P11) P16 pointed out that one needs to know \u201cthe root cause of the problem\u201d as well as \u201cthe impact involved in resolving the issue\u201d before \u201cidentifying the most effective way to address it.\u201d (P16) Thus, CPD is effective in facilitating goal-oriented design because it offers \u201ca direct connection between everything on the users\u2019 side to the larger context side, from a visual standpoint.\u201d (P6) Furthermore, CPD\u2019s emphasis on the outcome helps designers pay attention to\u201cthe realistic and practical goal of the design,\u201d (P15) and \u201caddressing the most fundamental issue in the design context,\u201d (P7) instead of thinking about \u201cdesigning prettier solutions.\u201d (P20)\nAs discussed in our quantitative findings, the use of the plugin increased the number of pathways designers were able to generate. Participants\u2019 comments corroborated this observation and highlighted that some AI-generated content helped increase their creativity. For example, when given the same design sprints (Figure 5  ###reference_###), P13 (without tool) only generated one pathway, while P8 (with tool) not only generated a similar path as P13, but also generated a distinct second path.\nSpecifically, P8 commented that the brainstorming feature \u201cprompted me to think about a new direction as I was thinking about what barriers there are in the problem space.\u201d And P8 described that he would not have thought about \u201cthe idea of running an ad campaign in a short timeframe if I were just throwing out ideas by myself. But seeing the suggestions by the tool immediately clicked for me. So I also explored this path in the CPD.\u201d Further, of the path that P13 and P8 generated that were similar, P8 also was able to consider a different mechanism. These differences would have allowed P8 a richer design space (that is still evidence-based) to explore. P9 shared a similar perspective: \u201chaving the AI on the side was like having lots of teammates with really different viewpoints.\u201d Additionally, AI can be used to expand creativity by using it to weed out the wrong directions: \u201cIn any design, your first 50 ideas are going to be trashed, but you have to get them out to get to idea 51, which is how the AI can help.\u201d (P14)\nAI did not always generate new ideas that the participants had not already thought of. When designers\u2019 ideas overlapped with AI recommendations, designers found that how AI phrased these ideas was helpful. Participants noted that AI articulates these ideas in \u201ceffective, condensed phrasings,\u201d or the AI \u201cuses expressive terminologies (i.e. route optimization algorithms) to summarize\u201d (P3). Reading the AI suggestions helped designers \u201cbuild the idea firmly in the mind in a clear and direct way.\u201d (P14) AI\u2019s articulation and clarification of the concepts helped participants focus more of their energy on the \u201cmeaning and impact of the ideas\u201d (P14), rather than \u201cdrilling on how to best describe them.\u201d (P20). For example, when communicating the same barrier in their CPD (4(a)  ###reference_sf1### & 4(b)  ###reference_sf2###), P13 (without tool) had to use a full sentence to describe the barrier: \u201cpeople are concerned that the metro does not follow the schedule\u201d whereas P8 (using the tool) was able to describe it more succinctly \u201cconcerns about inconsistent schedule.\u201d\nThough participants were generally positive about AI recommendations, they did point out that some of the AI recommendations were too generic and unhelpful, especially when users did not provide sufficient context information in existing components. For example, when P17 inputted (\u201cimprove bus schedule\u201d) as a generic distal outcome in the Wizard, the plugin was not able to create specific and contextualized examples of barriers. Instead, the generated suggestions were \u201coversimplistic and did not seem to fit the problem context.\u201d (P17) P14 had a similar issue, where the AI provided out-of-context suggestions when it was given non-descriptive component content to work with. Additionally, P6 said that in his previous encounters with AI recommendations, it is common for the AI to get repetitive, and it had the tendency to constantly resort to  \u201crecommending designing an immersive VR experience\u201d for any given design problem when he did not define it with excruciating detail.\nAnother challenge with using the AI recommendations is the lack of information about where the recommendations came from. Participants discussed the importance of determining whether the suggestions actually address the specific problem space. Making that determination requires that the designers \u201cunderstand what is the background of this specific concept recommended.\u201d (P12) For example, in our study, participants were careful about using AI-generated content and only chose to proceed if they had previously studied the concept or knew of its background research. But very often, designers do not know everything about the AI recommendations (e.g., \u201cwhat is the meaning of the suggestions\u201d (P2), \u201cwhy is it being recommended\u201d (P19), etc.). Participants expressed concerns about what designers may do in these situations. P3 highlighted that \u201cnot knowing the research behind these recommendations would sow doubt in my mind about my design, which is not a good sign.\u201d P2 also emphasized that there could be significant consequences in product deployment if irresponsible designers just choose to \u201cclick through AI suggestions in Wizard without judging whether it actually fits the problem.\u201d Participants noted that this could be addressed in the future by providing more context information for each recommendation. For instance, seeing \u201cexternal links and research papers to explain the reasoning behind\u201d (P18) would help them more easily understand and contextualize the AI recommendations. Plus, as the participants pointed out, seeing \u201cthe background research through external sources\u201d (P20) would also validate that the AI is not hallucinating, addressing another common concern that participants shared when they were unfamiliar with the AI-generated content."
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "5.1. RQ1: Use of CPD in Human-Centered Design",
+            "text": "Recall that creating CPDs involves mapping out factors of relevance and their relationships (e.g.\u201cwhat is the distal outcome\u201d, and \u201cwhat is the barrier that may occur given this outcome\u201d). Participants pointed out that when they performed this mapping, they had to think about the relevant constraints upfront. Thinking through all the possible barriers that may prevent strategies from achieving the outcome is a \u201crealistic and down-to-the-ground strategy\u201d (P7), and helps save time in the design process. For instance, P12 articulated that \u201cinstead of thinking about the happy and perfect best case user flow, it is more important to know the constraints.\u201d P5 also pointed out that \u201claying out the barriers, setting up the constraints very very quickly\u201d immediately highlights the pain point, so that \u201caddressing these barriers would make the design goals quite tangible when thinking implementation strategies.\u201d The close attention to the constraints behind a design prompt helps designers quickly break down the task at hand, and helps them focus their effort.\nAdditionally, participants appreciated the goal-oriented process, rather than free-form or solution-oriented as most existing design processes are (e.g., user journey map, whiteboarding, storyboarding, etc.). In many design sessions, practitioners may use whiteboarding to \u201csimply throw out ideas, then sort out the details, whether an idea is a barrier or a mechanism at a later time.\u201d (P7) Or they may use storyboarding, which starts at the beginning, and work from the solution to \u201cplay out how the solution impacts the outcome.\u201d (P18)\nIn contrast, CPD starts from \u201cthe high-level vision of why focus on this particular problem, the distal outcome,\u201d (P6) and \u201cnot just jumping into solutions.\u201d (P2) The generation of a CPD emphasizes the answer to the question of \u201cwhat is the long-term goal\u201d and not to \u201cwhat are some ways to solve this prompt\u201d (P17). Starting the brainstorming process from these questions, the outcome of the design, is actually \u201ca natural way of thinking, especially when tackling complex problems.\u201d (P11) P16 pointed out that one needs to know \u201cthe root cause of the problem\u201d as well as \u201cthe impact involved in resolving the issue\u201d before \u201cidentifying the most effective way to address it.\u201d (P16) Thus, CPD is effective in facilitating goal-oriented design because it offers \u201ca direct connection between everything on the users\u2019 side to the larger context side, from a visual standpoint.\u201d (P6) Furthermore, CPD\u2019s emphasis on the outcome helps designers pay attention to\u201cthe realistic and practical goal of the design,\u201d (P15) and \u201caddressing the most fundamental issue in the design context,\u201d (P7) instead of thinking about \u201cdesigning prettier solutions.\u201d (P20)"
+        },
+        {
+            "section_id": "5.1.1",
+            "parent_section_id": "5.1",
+            "section_name": "5.1.1. Established an effective and guided design process",
+            "text": "Overall, participants found that utilizing CPD helped them design more effectively for the design sprint challenges. The use of CPD helped direct participants to think more about the constraints involved in the design, as well as the outcome of the design process.\nRecall that creating CPDs involves mapping out factors of relevance and their relationships (e.g.\u201cwhat is the distal outcome\u201d, and \u201cwhat is the barrier that may occur given this outcome\u201d). Participants pointed out that when they performed this mapping, they had to think about the relevant constraints upfront. Thinking through all the possible barriers that may prevent strategies from achieving the outcome is a \u201crealistic and down-to-the-ground strategy\u201d (P7), and helps save time in the design process. For instance, P12 articulated that \u201cinstead of thinking about the happy and perfect best case user flow, it is more important to know the constraints.\u201d P5 also pointed out that \u201claying out the barriers, setting up the constraints very very quickly\u201d immediately highlights the pain point, so that \u201caddressing these barriers would make the design goals quite tangible when thinking implementation strategies.\u201d The close attention to the constraints behind a design prompt helps designers quickly break down the task at hand, and helps them focus their effort.\nAdditionally, participants appreciated the goal-oriented process, rather than free-form or solution-oriented as most existing design processes are (e.g., user journey map, whiteboarding, storyboarding, etc.). In many design sessions, practitioners may use whiteboarding to \u201csimply throw out ideas, then sort out the details, whether an idea is a barrier or a mechanism at a later time.\u201d (P7) Or they may use storyboarding, which starts at the beginning, and work from the solution to \u201cplay out how the solution impacts the outcome.\u201d (P18)\nIn contrast, CPD starts from \u201cthe high-level vision of why focus on this particular problem, the distal outcome,\u201d (P6) and \u201cnot just jumping into solutions.\u201d (P2) The generation of a CPD emphasizes the answer to the question of \u201cwhat is the long-term goal\u201d and not to \u201cwhat are some ways to solve this prompt\u201d (P17). Starting the brainstorming process from these questions, the outcome of the design, is actually \u201ca natural way of thinking, especially when tackling complex problems.\u201d (P11) P16 pointed out that one needs to know \u201cthe root cause of the problem\u201d as well as \u201cthe impact involved in resolving the issue\u201d before \u201cidentifying the most effective way to address it.\u201d (P16) Thus, CPD is effective in facilitating goal-oriented design because it offers \u201ca direct connection between everything on the users\u2019 side to the larger context side, from a visual standpoint.\u201d (P6) Furthermore, CPD\u2019s emphasis on the outcome helps designers pay attention to\u201cthe realistic and practical goal of the design,\u201d (P15) and \u201caddressing the most fundamental issue in the design context,\u201d (P7) instead of thinking about \u201cdesigning prettier solutions.\u201d (P20)"
+        },
+        {
+            "section_id": "5.1.2",
+            "parent_section_id": "5.1",
+            "section_name": "5.1.2. Ideation",
+            "text": "When participants were introduced to the concept of CPD, they were intrigued by its potential as a tool for ideation. This is because CPD diagrams can expand into branches, and thus help \u201clay out all of the possible solutions\u201d (P5) and \u201cgenerate a breadth of ideas\u201d (P14). Multiple barriers could emerge, each having numerous potential mechanisms and strategies. During the brainstorming sessions, the CPD \u201cturned into a huge diagram with a bunch of possibilities, moving in so many diverse directions.\u201d (P7) Additionally, even after designers have identified a set of barriers and have started working on the design solutions, it is easy to \u201cbacktrack and simply extend another branch\u201d (P18) if another barrier pops into their mind.\nAs designers expand the CPDs in multiple branches, a key step is to think about the causal connections between components. These causal connections kept designers\u2019 attention span contained throughout the ideation process. As P19 said, \u201ccreative people are either hyper-focused or are not motivated. But CPD guides you through the brainstorming by asking you to connect from one component to another.\u201d (P19) Similarly, P6 pointed out that \u201cthe set of questions highlights the connection between the component I\u2019m working on and the other ones I\u2019ve created, which kept me on track, dragging me back to the problem space.\u201d\nHowever, some participants found that focusing on how the components should be connected to one another at a high level distracted them from brainstorming the individual elements. Specifically, they found that their attention was split between \u201cideating additional possibilities of an individual element\u201d and \u201cfollowing the step-by-step process to brainstorm the next component.\u201d (P19) P15 found herself \u201cmoving between the list of questions of the CPD process, jotting down the barrier, but then moving to list out strategies and connecting them to mechanisms.\u201d Essentially, participants knew that they needed to implement both individual elements and the causal connections eventually. So they tried to multitask but found \u201cthe thoughts scattered across.\u201d (P2) However, participants also pointed out this issue could be addressed by handling elements and the connections separately. P9 said that she would \u201cfocus on individual elements first,\u201d then \u201ccome back to the connections in a second design session.\u201d This process would ensure that one can focus their thoughts on either just component content or just high-level causal relationships."
+        },
+        {
+            "section_id": "5.1.3",
+            "parent_section_id": "5.1",
+            "section_name": "5.1.3. Strategic prioritization",
+            "text": "CPDs emphasize the connections between the components, which helps designers play out how a design solution addresses the design prompt, and assist in strategic evaluation. The directional relationships represented by causal connections in CPDs \u201cserved as a guardrail to keep track of why a component is created, how each component is addressing this design scenario.\u201d (P14) The \u201csimple but powerful\u201d (P14) causal connections between components make it \u201ceasy to trace back through each pathway and figure out how a solution or a strategy plays out to its mechanisms, resolves the barriers, and achieves its final outcome.\u201d (P20)\nIn addition, since CPD is able to demonstrate how each solution addresses the design problem, participants also used it to compare and prioritize different solutions. Designers shared that CPD is able to present various solutions on multiple branches without becoming too complex. Even as a CPD expands into a large tree with multiple pathways, its main structure retains a \u201csimple and straightforward\u201d nature due to the interconnection of components through causal relationships (P11). In addition, the different branches helped designers see \u201chow the different design solutions are influenced by various barriers,\u201d which is useful for them to then \u201cevaluate the likelihood of each barrier, the significance of that barrier, and determine overall which corresponding solution to actually implement and prototype.\u201d (P20)"
+        },
+        {
+            "section_id": "5.1.4",
+            "parent_section_id": "5.1",
+            "section_name": "5.1.4. Facilitating communication",
+            "text": "The use of CPD can also help facilitate communication with stakeholders. P10 pointed out that CPD helps establish a common language among designers in a team setting: \u201cevery designer has their own language, and I\u2019ve noticed how common it is to have miscommunication issues with others about an idea in brainstorming sessions.\u201d P20 also said that having a \u201cclear and straightforward\u201d process that everyone understands could \u201calign the way we [designers] see each others\u2019 ideas, banding to the same wavelength.\u201d Furthermore, \u201creducing the cost of communication\u201d means that designers could \u201cfocus more on the ideas themselves and not how to present them.\u201d (P5)\nAdditionally, participants expressed that CPD can bridge the communication gap between designers and the executive team. As discussed before, the process of CPD underscores the goal of the design, which aligns with how product managers and sales consultants think about \u201cstrategizing a product and conducting business-level market research.\u201d (P16) P9 also described that \u201cthe distal outcome in CPD\u201d corresponds exactly to product managers\u2019 viewpoint of \u201cwhy this problem matters\u201d and \u201cwhat is the long-term business goal of the product.\u201d Such correspondence means that CPD could easily and effectively communicate designers\u2019 ideas to product managers. Furthermore, CPD offers \u201cthe visual clarity for people to easily trace through the logic\u201d due to its simplistic structure and causal connections (P11). Such a benefit lowers the barrier of communication between designers and product managers."
+        },
+        {
+            "section_id": "5.1.5",
+            "parent_section_id": "5.1",
+            "section_name": "5.1.5. Concerns about potential misuse",
+            "text": "Because the CPD process was positively perceived to help with ideation and strategic evaluation, participants expressed concerns that it may be used as \u201ca tool to oversimplify complex conversations without any proof.\u201d (P8) As P20 further explains, \u201cI\u2019m concerned people would just use this without research, and that could mean putting in random things and coming up with solutions that don\u2019t work.\u201d Instead, CPD should be used as \u201ca guided process that helps organize the results of user research.\u201d (P17) P7 summarized this sentiment with \u201cA useful tool such as this would only be effective when in the right hands. Simplifying and lowering the barrier to brainstorming is certainly great. But we also need responsible designers who do their due diligence, and do the right user research, before using the CPD to lay out their thoughts.\u201d (P7)"
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "5.2. RQ2: Use of Plugin in Generating CPDs",
+            "text": "As discussed in our quantitative findings, the use of the plugin increased the number of pathways designers were able to generate. Participants\u2019 comments corroborated this observation and highlighted that some AI-generated content helped increase their creativity. For example, when given the same design sprints (Figure 5  ###reference_###  ###reference_###), P13 (without tool) only generated one pathway, while P8 (with tool) not only generated a similar path as P13, but also generated a distinct second path.\nSpecifically, P8 commented that the brainstorming feature \u201cprompted me to think about a new direction as I was thinking about what barriers there are in the problem space.\u201d And P8 described that he would not have thought about \u201cthe idea of running an ad campaign in a short timeframe if I were just throwing out ideas by myself. But seeing the suggestions by the tool immediately clicked for me. So I also explored this path in the CPD.\u201d Further, of the path that P13 and P8 generated that were similar, P8 also was able to consider a different mechanism. These differences would have allowed P8 a richer design space (that is still evidence-based) to explore. P9 shared a similar perspective: \u201chaving the AI on the side was like having lots of teammates with really different viewpoints.\u201d Additionally, AI can be used to expand creativity by using it to weed out the wrong directions: \u201cIn any design, your first 50 ideas are going to be trashed, but you have to get them out to get to idea 51, which is how the AI can help.\u201d (P14)\nAI did not always generate new ideas that the participants had not already thought of. When designers\u2019 ideas overlapped with AI recommendations, designers found that how AI phrased these ideas was helpful. Participants noted that AI articulates these ideas in \u201ceffective, condensed phrasings,\u201d or the AI \u201cuses expressive terminologies (i.e. route optimization algorithms) to summarize\u201d (P3). Reading the AI suggestions helped designers \u201cbuild the idea firmly in the mind in a clear and direct way.\u201d (P14) AI\u2019s articulation and clarification of the concepts helped participants focus more of their energy on the \u201cmeaning and impact of the ideas\u201d (P14), rather than \u201cdrilling on how to best describe them.\u201d (P20). For example, when communicating the same barrier in their CPD (4(a)  ###reference_sf1###  ###reference_sf1### & 4(b)  ###reference_sf2###  ###reference_sf2###), P13 (without tool) had to use a full sentence to describe the barrier: \u201cpeople are concerned that the metro does not follow the schedule\u201d whereas P8 (using the tool) was able to describe it more succinctly \u201cconcerns about inconsistent schedule.\u201d\nThough participants were generally positive about AI recommendations, they did point out that some of the AI recommendations were too generic and unhelpful, especially when users did not provide sufficient context information in existing components. For example, when P17 inputted (\u201cimprove bus schedule\u201d) as a generic distal outcome in the Wizard, the plugin was not able to create specific and contextualized examples of barriers. Instead, the generated suggestions were \u201coversimplistic and did not seem to fit the problem context.\u201d (P17) P14 had a similar issue, where the AI provided out-of-context suggestions when it was given non-descriptive component content to work with. Additionally, P6 said that in his previous encounters with AI recommendations, it is common for the AI to get repetitive, and it had the tendency to constantly resort to  \u201crecommending designing an immersive VR experience\u201d for any given design problem when he did not define it with excruciating detail.\nAnother challenge with using the AI recommendations is the lack of information about where the recommendations came from. Participants discussed the importance of determining whether the suggestions actually address the specific problem space. Making that determination requires that the designers \u201cunderstand what is the background of this specific concept recommended.\u201d (P12) For example, in our study, participants were careful about using AI-generated content and only chose to proceed if they had previously studied the concept or knew of its background research. But very often, designers do not know everything about the AI recommendations (e.g., \u201cwhat is the meaning of the suggestions\u201d (P2), \u201cwhy is it being recommended\u201d (P19), etc.). Participants expressed concerns about what designers may do in these situations. P3 highlighted that \u201cnot knowing the research behind these recommendations would sow doubt in my mind about my design, which is not a good sign.\u201d P2 also emphasized that there could be significant consequences in product deployment if irresponsible designers just choose to \u201cclick through AI suggestions in Wizard without judging whether it actually fits the problem.\u201d Participants noted that this could be addressed in the future by providing more context information for each recommendation. For instance, seeing \u201cexternal links and research papers to explain the reasoning behind\u201d (P18) would help them more easily understand and contextualize the AI recommendations. Plus, as the participants pointed out, seeing \u201cthe background research through external sources\u201d (P20) would also validate that the AI is not hallucinating, addressing another common concern that participants shared when they were unfamiliar with the AI-generated content."
+        },
+        {
+            "section_id": "5.2.1",
+            "parent_section_id": "5.2",
+            "section_name": "5.2.1. Quantitative results",
+            "text": "###figure_4### Our analysis of the participants\u2019 self-reported ratings showed that they had a positive attitude toward the plugin. As shown in Figure 4  ###reference_###, their self-reported rating of the ease of creating each component (, ) and ease of using the CPD process to design (, ) increased when they had access to the plugin. Additionally, the plugin increased participants\u2019 rating of the easiness of brainstorming the content of each component (, ).\nIn addition to the self-reported perception towards the use of our plugin, participants\u2019 self-rated confidence level of the generated CPD\u2019s correctness (, ) and usefulness (, ) increased when they had access to the plugin (Figure 4  ###reference_###).\nWhen analyzing the CPDs generated, we also found that when using the tool, participants created more pathways in their diagrams ( vs. ; ), using about the same or less time ( vs. ; ). For examples of CPDs generated without and with the tool, see 4(b)  ###reference_sf2### and 4(a)  ###reference_sf1###.\nOverall, our quantitative analyses demonstrated the plugin helped designers more easily navigate the use of CPD, helped them brainstorm more possibilities, and increased their confidence in the work produced.\n###figure_5### ###figure_6###"
+        },
+        {
+            "section_id": "5.2.2",
+            "parent_section_id": "5.2",
+            "section_name": "5.2.2. Alleviated cognitive workload",
+            "text": "Generating CPD involves remembering the framework itself, which could distract designers from attacking the problem. The plugin provided the framework details in an easily consumable way and guided users through the process of creating a CPD in an orderly fashion, allowing participants to focus on the design task. By reducing the cognitive workload involved, the plugin not only expedited participants\u2019 design process but also increased their confidence in the work they produced.\nWhen participants did the design sprints without any additional help, they expressed that it was particularly difficult to remember the association between each component and its corresponding shapes, such as \u201cremembering if the shape for the barrier is a diamond or an octagon.\u201d (P7) They also struggled with the naming of the components, pointing out that \u201clooking at the term \u2018mechanism\u2019 does not inform much about its meaning and functionality.\u201d (P17) Thinking about the CPD framework distracted designers from the ideation process, as they felt like their brain was \u201csplit in half with one focusing on building shapes, the other on the design.\u201d (P16) This burden of multitasking was alleviated by using the Components feature of the plugin. With an easy drag-and-drop feature where users can generate each component without thinking about its corresponding shape, the tool greatly \u201cexpedites the time\u201d (P6) because participants were \u201cless caught up by the framework itself to actually think about the problem.\u201d (P5)\nParticipants also struggled with how CPD components should be interconnected, including \u201cwhat follows after a mechanism,\u201d or \u201cwhether it is a barrier or strategy that should come up next.\u201d (P3) They constantly referred to the generation process before diving into the design details. But the step-by-step process of the Wizard feature helped participants \u201cfocus attention on the answer for each component and not worry about the order of them.\u201d (P3) P19 also testified that \u201cbypassing thinking about the ordering made me more empowered to keep searching for a clearer picture of what the design should be.\u201d Since participants were able to \u201cthink through each component without the disturbance of the shapes or how they should be ordered,\u201d using the plugin, they felt \u201cmore sure and more confident\u201d (P13) of their design. Similarly, P9 said that \u201cusing the Wizard feature, I knew that I followed the right procedure,\u201d and \u201cI had more confidence in my design because I spent all my energy on it.\u201d"
+        },
+        {
+            "section_id": "5.2.3",
+            "parent_section_id": "5.2",
+            "section_name": "5.2.3. Increased creativity with the support of AI-generated recommendations",
+            "text": "Utilizing LLM, our plugin offered suggestions of component content when prompted in the Wizard and the Brainstorming features. Details of the prompts used were discussed in section 3  ###reference_###. Generally, participants expressed positive attitudes toward using AI-generated content in designing CPD helped them clarify their ideas and sparked innovative thinking during brainstorming. However, they also expressed concerns about blindly using the suggested content.\nAs discussed in our quantitative findings, the use of the plugin increased the number of pathways designers were able to generate. Participants\u2019 comments corroborated this observation and highlighted that some AI-generated content helped increase their creativity. For example, when given the same design sprints (Figure 5  ###reference_###  ###reference_###  ###reference_###), P13 (without tool) only generated one pathway, while P8 (with tool) not only generated a similar path as P13, but also generated a distinct second path.\nSpecifically, P8 commented that the brainstorming feature \u201cprompted me to think about a new direction as I was thinking about what barriers there are in the problem space.\u201d And P8 described that he would not have thought about \u201cthe idea of running an ad campaign in a short timeframe if I were just throwing out ideas by myself. But seeing the suggestions by the tool immediately clicked for me. So I also explored this path in the CPD.\u201d Further, of the path that P13 and P8 generated that were similar, P8 also was able to consider a different mechanism. These differences would have allowed P8 a richer design space (that is still evidence-based) to explore. P9 shared a similar perspective: \u201chaving the AI on the side was like having lots of teammates with really different viewpoints.\u201d Additionally, AI can be used to expand creativity by using it to weed out the wrong directions: \u201cIn any design, your first 50 ideas are going to be trashed, but you have to get them out to get to idea 51, which is how the AI can help.\u201d (P14)\nAI did not always generate new ideas that the participants had not already thought of. When designers\u2019 ideas overlapped with AI recommendations, designers found that how AI phrased these ideas was helpful. Participants noted that AI articulates these ideas in \u201ceffective, condensed phrasings,\u201d or the AI \u201cuses expressive terminologies (i.e. route optimization algorithms) to summarize\u201d (P3). Reading the AI suggestions helped designers \u201cbuild the idea firmly in the mind in a clear and direct way.\u201d (P14) AI\u2019s articulation and clarification of the concepts helped participants focus more of their energy on the \u201cmeaning and impact of the ideas\u201d (P14), rather than \u201cdrilling on how to best describe them.\u201d (P20). For example, when communicating the same barrier in their CPD (4(a)  ###reference_sf1###  ###reference_sf1###  ###reference_sf1### & 4(b)  ###reference_sf2###  ###reference_sf2###  ###reference_sf2###), P13 (without tool) had to use a full sentence to describe the barrier: \u201cpeople are concerned that the metro does not follow the schedule\u201d whereas P8 (using the tool) was able to describe it more succinctly \u201cconcerns about inconsistent schedule.\u201d\nThough participants were generally positive about AI recommendations, they did point out that some of the AI recommendations were too generic and unhelpful, especially when users did not provide sufficient context information in existing components. For example, when P17 inputted (\u201cimprove bus schedule\u201d) as a generic distal outcome in the Wizard, the plugin was not able to create specific and contextualized examples of barriers. Instead, the generated suggestions were \u201coversimplistic and did not seem to fit the problem context.\u201d (P17) P14 had a similar issue, where the AI provided out-of-context suggestions when it was given non-descriptive component content to work with. Additionally, P6 said that in his previous encounters with AI recommendations, it is common for the AI to get repetitive, and it had the tendency to constantly resort to  \u201crecommending designing an immersive VR experience\u201d for any given design problem when he did not define it with excruciating detail.\nAnother challenge with using the AI recommendations is the lack of information about where the recommendations came from. Participants discussed the importance of determining whether the suggestions actually address the specific problem space. Making that determination requires that the designers \u201cunderstand what is the background of this specific concept recommended.\u201d (P12) For example, in our study, participants were careful about using AI-generated content and only chose to proceed if they had previously studied the concept or knew of its background research. But very often, designers do not know everything about the AI recommendations (e.g., \u201cwhat is the meaning of the suggestions\u201d (P2), \u201cwhy is it being recommended\u201d (P19), etc.). Participants expressed concerns about what designers may do in these situations. P3 highlighted that \u201cnot knowing the research behind these recommendations would sow doubt in my mind about my design, which is not a good sign.\u201d P2 also emphasized that there could be significant consequences in product deployment if irresponsible designers just choose to \u201cclick through AI suggestions in Wizard without judging whether it actually fits the problem.\u201d Participants noted that this could be addressed in the future by providing more context information for each recommendation. For instance, seeing \u201cexternal links and research papers to explain the reasoning behind\u201d (P18) would help them more easily understand and contextualize the AI recommendations. Plus, as the participants pointed out, seeing \u201cthe background research through external sources\u201d (P20) would also validate that the AI is not hallucinating, addressing another common concern that participants shared when they were unfamiliar with the AI-generated content."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6. Discussion",
+            "text": "In this work, we explored how CPD\u2014originating in implementation science\u2014may be used to support theory-driven design in the domain of HCD. We then conducted a user study with practitioners, where we found that CPD may be helpful in supporting divergent and convergent work within the early stages of design. Modern design practice is not purely idiosyncratic as Sch\u00f6n described, and CPD shows promise in making both divergent and convergent processes more predictable. Below we discuss our interpretations of the study findings in more detail.\n\nFirst, our work demonstrated that the use of CPD facilitated both divergent and convergent thinking through an evidence-based lens. During the divergent processes of addressing the design sprint (e.g., ideation), CPD allowed practitioners to easily diverge and expand their innovative thinking. In an ideation context, this can support the create activity as noted in Shneiderman\u2019s framework. With the use of visual elements, designers found it easy to organize their ideas and branch off to explore new factors and new paths. Additionally, backward mapping enabled designers to start with the desired distal outcome and work backward to explore relevant factors in a step-by-step manner, specifying the causal, moderating, or mediating relationships. CPD helped designers reflect on relevant evidence related to the design problems, reflecting the support of the collecting activity. Instead of impeding creativity, these \u201cguardrails\u201d helped remind designers of the design objective and provided a clear structure for evidence-based thinking through the mapping of outcomes, barriers, mechanisms, and strategies.\n\nCPD can also support convergent processes in HCD. During our sprints, CPD helped designers with strategic prioritization, converging their ideas to select a solution for the next stage of HCD. After initial brainstorming, the generated CPD may have multiple branches, each suggesting potential solutions. To determine which ones to prototype, designers were able to examine across branches and contrast the effectiveness of each solution. Using the identified goals and constraints, they were able to strategically select the ones they believed to have more influence on the problem context and prioritize the implementation of that solution. In practice, we would expect designers to make these judgements by referring back to relevant user research and optimizing on the paths given their contexts.\n\nOur study also uncovered CPD\u2019s potential as a communication tool. Within an ideation context, this is relevant for both the relating and donating activities, but this type of communication support is also critical throughout HCD. Since each designer often has their own language to describe a design idea and articulate how to approach that idea, it becomes difficult for them to brainstorm together in a team setting. Design professionals\u2019 drawing practices serve to communicate their ideas instead of illustrating designs accurately. In our study, we observed how CPD supported such a process of visual representation of complex ideas. CPD could help provide an established and easy-to-understand framework. For instance, CPD can guide a team of designers together through the process, starting from the outcome of the design, to barriers, and then to strategy. Throughout the process, CPD\u2019s procedure ensures that team members are brainstorming the same component. This suggests a promising future research direction\u2013exploring the use of CPD during team ideation and iteration. Additionally, designers highlighted the potential of CPD as a tool to present their ideas to business stakeholders and product managers. They found that the questions a CPD is asking coincide with the questions the executive teams ask them. Future work could further investigate how product managers respond to CPD and how effective CPD may be in facilitating meetings between designers and product managers.\n\nFurther, based on our observations, it seems that CPD may also help support designers (and user researchers) to build and communicate their own theories more effectively. In this sense, CPD can support\u2014as been noted in prior work\u2014the theorizing, which is often done by practitioners in practice. Practice is a type of theorizing, and different concepts and relationships are uncovered and tested in practice and can be useful if bubble up to research. This makes CPD more than just a tool to help solve a design problem, but also supports the testing of novel theories from the bottom-up and is in itself a knowledge contribution.\n\nIn addition to studying CPD\u2019s potential use in HCD, our research also explores the use of a dedicated tool to support CPD usage. We found that our plugin helped designers learn and apply CPD. In particular, the Components feature helped them easily generate components without thinking about which shape to use. The step-by-step CPD building Wizard feature also guided them through the process without being concerned about how the components should be linked. Participants reported higher perceived ease of use of CPD with our tool. By reducing their cognitive workload, the tool helped designers spend more of their energy on the design itself, and participants reported feeling more confident in the accuracy and usefulness of their CPDs created. One thing to note, however, is that while backward mapping through CPD provides"
+        },
+        {
+            "section_id": "6.1",
+            "parent_section_id": "6",
+            "section_name": "6.1. Supporting Ideation with AI-Assisted Tools",
+            "text": "Overall, our study provided insights into AI-assisted ideation tools and their impact on design processes. Participants in our study reported that AI assistance offered suggestions from different viewpoints, similar to working with colleagues. These recommendations were seen as constructive and diverse, expanding their perspectives on the problem. Participants noted that AI helped rephrase and reframe ideas more directly and effectively, using succinct terminologies that clarified their thoughts on a conceptual level, reducing their mental workload.\n\nAnother observed benefit of using AI in ideation is its potential to mitigate design fixation, where designers converge on one idea rather than exploring multiple solutions. Our findings suggest that AI-assisted tools can increase the number of ideas generated, enhancing creativity and minimizing fixation. Participants appreciated the AI-generated recommendations, expressing a positive outlook on integrating such tools in future work. However, they also noted that some suggested factors were too generic and not always context-specific enough. This was often linked to the initial information provided, which could have been high-level. Improving the tool to offer more tailored recommendations could involve guiding users to generate more specific and informative outputs, possibly through tutorials on effective prompting or examples of desired specificity levels.\n\nDespite its usefulness, participants raised concerns about the AI\u2019s tendency to propose inaccurate content, leading to hesitation in using some recommendations. This highlights the importance of offering AI-generated suggestions with data-backed support to enhance credibility. Ensuring users trust AI suggestions is crucial, especially when the information proposed is expected to be accurate and relevant. One way to address this might be providing information provenance, detailing where the ideas came from. This could help improve trust and help designers make informed decisions.\n\nWhile our study focused on a digital AI-assisted tool in remote settings, the tool could also support in-person design sessions. Facilitators might project the tool on a screen, prompting discussion and collaboration. Participants could use physical materials, like Post-Its, for brainstorming and idea selection, enhancing understanding through sketches or facilitating a voting process. Future research could explore the best ways to support these in-person activities to ensure effective design outcomes."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "7. Limitation & Future Work",
+            "text": "The design sprints we used for our work have both strengths and weaknesses. Although the sprints allowed us to study the use of CPD for HCD in a more controlled setting, these design sprints are stylized design tasks that are often used in the early stages of design. They did not allow us to examine the use of CPD to support design in-situ, and across later stages of design. Additional research is needed to further explore how CPD and our plugin can be integrated into the existing design process and be used to support different phases of design."
+        },
+        {
+            "section_id": "8",
+            "parent_section_id": null,
+            "section_name": "8. Conclusion",
+            "text": "This paper explores the potential synergy between Human-Centered Design (HCD) and AI-assisted design tools. Designers benefited from AI-enhanced tools as a means to emphasize goal-oriented design by addressing root causes, particularly for brainstorming and strategic prioritization. To address the conceptual and practical challenges inherent in adopting these tools, we introduced a user-friendly plugin with generative AI capabilities. This tool helped streamline the design process and encouraged evidence-based thinking and creativity among designers. Our findings shed light on the opportunities and responsibilities associated with integrating AI assistance into creative, evidence-based design practices, offering valuable insights for both the HCD and implementation science communities."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Demographics",
+            "text": "Table 1  ###reference_### shows the demographic information of participants in the study:"
+        },
+        {
+            "section_id": "Appendix 2",
+            "parent_section_id": null,
+            "section_name": "Appendix B User Study Protocol",
+            "text": ""
+        },
+        {
+            "section_id": "Appendix 3",
+            "parent_section_id": null,
+            "section_name": "Appendix C Key Screens of Our Plugin",
+            "text": "###figure_7### ###figure_8### ###figure_9### ###figure_10### ###figure_11###"
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T1\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.T1.2.1.1\" style=\"font-size:90%;\">Table 1</span>. </span><span class=\"ltx_text\" id=\"A1.T1.3.2\" style=\"font-size:90%;\">Demographics information of participants. * indicates the participant only completed one of the design sprints</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"A1.T1.4\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T1.4.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.1.1\">PID</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T1.4.1.1.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A1.T1.4.1.1.2.1\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.1.1.2.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.1.1.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.2.1.1.1.1\">Age</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.1.1.2.1.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.1.1.2.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.2.1.2.1.1\">range</span></td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T1.4.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.3.1\">Gender</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T1.4.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.4.1\">Occupation</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T1.4.1.1.5\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A1.T1.4.1.1.5.1\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.1.1.5.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.1.1.5.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.5.1.1.1.1\">Experience</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.1.1.5.1.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.1.1.5.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T1.4.1.1.5.1.2.1.1\">with design</span></td>\n</tr>\n</table>\n</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T1.4.2.1.1\">P1</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T1.4.2.1.2\">30-39</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T1.4.2.1.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A1.T1.4.2.1.3.1\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.2.1.3.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.2.1.3.1.1.1\">Prefer</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.2.1.3.1.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.2.1.3.1.2.1\">not to say</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T1.4.2.1.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T1.4.2.1.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.3.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.3.2.1\">P2</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.3.2.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.3.2.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.3.2.4\">Product designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.3.2.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.4.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.4.3.1\">P3</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.4.3.2\">18-23</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.4.3.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.4.3.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.4.3.5\">1 year</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.5.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.1\">P4</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.2\">18-23</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A1.T1.4.5.4.3.1\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.5.4.3.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.3.1.1.1\">Gender-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.5.4.3.1.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.3.1.2.1\">non</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.5.4.3.1.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.3.1.3.1\">conforming</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.5.4.5\">1-2 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.6.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.6.5.1\">P5</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.6.5.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.6.5.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.6.5.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.6.5.5\">\u00bf 5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.7.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.7.6.1\">P6</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.7.6.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.7.6.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.7.6.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.7.6.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.8.7\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.8.7.1\">P7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.8.7.2\">30-39</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.8.7.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.8.7.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.8.7.5\">\u00bf 5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.9.8\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.9.8.1\">P8</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.9.8.2\">30-39</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.9.8.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.9.8.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.9.8.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.10.9\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.1\">P9</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.4\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A1.T1.4.10.9.4.1\">\n<tr class=\"ltx_tr\" id=\"A1.T1.4.10.9.4.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.4.1.1.1\">Pharmaceutical</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.10.9.4.1.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.4.1.2.1\">scientist</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.10.9.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.11.10\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.11.10.1\">P10</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.11.10.2\">18-23</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.11.10.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.11.10.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.11.10.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.12.11\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.12.11.1\">P11</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.12.11.2\">18-23</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.12.11.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.12.11.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.12.11.5\">1-2 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.13.12\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.13.12.1\">P12</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.13.12.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.13.12.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.13.12.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.13.12.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.14.13\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.14.13.1\">P13</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.14.13.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.14.13.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.14.13.4\">Graduate student</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.14.13.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.15.14\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.15.14.1\">P14</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.15.14.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.15.14.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.15.14.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.15.14.5\">\u00bf 5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.16.15\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.16.15.1\">P15*</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.16.15.2\">N/A</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.16.15.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.16.15.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.16.15.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.17.16\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.17.16.1\">P16</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.17.16.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.17.16.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.17.16.4\">Product designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.17.16.5\">1-2 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.18.17\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.18.17.1\">P17</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.18.17.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.18.17.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.18.17.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.18.17.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.19.18\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.19.18.1\">P18</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.19.18.2\">30-39</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.19.18.3\">F</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.19.18.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.19.18.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.20.19\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.20.19.1\">P19</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.20.19.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.20.19.3\">M</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.20.19.4\">Product Designer</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T1.4.20.19.5\">2-5 years</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T1.4.21.20\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T1.4.21.20.1\">P20</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T1.4.21.20.2\">24-29</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T1.4.21.20.3\">F</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T1.4.21.20.4\">UX designer</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T1.4.21.20.5\">1-2 years</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 1. Demographics information of participants. * indicates the participant only completed one of the design sprints"
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.08111v1_figure_1.png",
+            "caption": "Figure 1. An example of causal pathway diagram of increasing clients\u2019 physical activities"
+        },
+        "2": {
+            "figure_path": "2403.08111v1_figure_2.png",
+            "caption": "Figure 2. Key screens of our plugin. Consisting of five features, the plugin streamlines the creation and validation of CPD"
+        },
+        "3": {
+            "figure_path": "2403.08111v1_figure_3.png",
+            "caption": "Figure 3. An example design sprint"
+        },
+        "4": {
+            "figure_path": "2403.08111v1_figure_4.png",
+            "caption": "Figure 4. Quantitative results of our user study. Bars indicate standard errors (*: p<.05\ud835\udc5d.05p<.05italic_p < .05, **: p<.01\ud835\udc5d.01p<.01italic_p < .01)"
+        },
+        "5": {
+            "figure_path": "2403.08111v1_figure_5.png",
+            "caption": "(a) A CPD generated by P13 under the condition without access to the tool"
+        },
+        "6": {
+            "figure_path": "2403.08111v1_figure_6.png",
+            "caption": "(b) A CPD generated by P8 under the condition with access to the tool"
+        },
+        "7": {
+            "figure_path": "2403.08111v1_figure_7.png",
+            "caption": "Figure 6. Interaction flow of the \u2018Component\u2019 feature. From the (1) plugin panel, users can (2) drag & drop each component to the board and (3) type the content inside it."
+        },
+        "8": {
+            "figure_path": "2403.08111v1_figure_8.png",
+            "caption": "Figure 6. Interaction flow of the \u2018Component\u2019 feature. From the (1) plugin panel, users can (2) drag & drop each component to the board and (3) type the content inside it."
+        },
+        "9": {
+            "figure_path": "2403.08111v1_figure_9.png",
+            "caption": "Figure 8. Interaction flow of the \u2018Brainstorming\u2019 feature. The plugin first asks the user to provide (1) the component they would like to brainstorm and (2) the preceding / (3) the following components of it. Then, the feature prompts the user to drag & drop to the board, which then generates five recommendations for the component."
+        },
+        "10": {
+            "figure_path": "2403.08111v1_figure_10.png",
+            "caption": "Figure 8. Interaction flow of the \u2018Brainstorming\u2019 feature. The plugin first asks the user to provide (1) the component they would like to brainstorm and (2) the preceding / (3) the following components of it. Then, the feature prompts the user to drag & drop to the board, which then generates five recommendations for the component."
+        },
+        "11": {
+            "figure_path": "2403.08111v1_figure_11.png",
+            "caption": "Figure 10. Interaction flow of the \u2018Help / Glossary\u2019 feature. (1) Once the user selects the component that they want to learn more about and clicks the \u2018Learn more\u2019 button on the panel, (2) the plugin shows the details of the selected component."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Artificial Hallucinations in ChatGPT: Implications in Scientific Writing.",
+                "author": "Hussam Alkaissi and Samy I McFarlane. 2023.",
+                "venue": "Cureus 15, 2 (2023).",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Prompting for Discovery: Flexible Sense-Making for AI Art-Making with Dreamsheets.",
+                "author": "Shm Garanganao Almeda, JD Zamfirescu-Pereira, Kyu Won Kim, Pradeep Mani Rathnam, and Bjoern Hartmann. 2023.",
+                "venue": "arXiv preprint arXiv:2310.09985 (2023).",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Are AI tools going to be the new designers? A taxonomy for measuring the level of automation of design activities. In Proceedings of the Design Society: DESIGN Conference, Vol. 1. Cambridge University Press, 81\u201390.",
+                "author": "Stefania Altavilla and E Blanco. 2020.",
+                "venue": "https://doi.org/10.1017/dsd.2020.286",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "InspirationWall: Supporting Idea Generation Through Automatic Information Exploration. In Proceedings of the 2015 ACM SIGCHI Conference on Creativity and Cognition. 103\u2013106.",
+                "author": "Salvatore Andolina, Khalil Klouche, Diogo Cabral, Tuukka Ruotsalo, and Giulio Jacucci. 2015.",
+                "venue": "https://doi.org/10.1145/2757226.2757252",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Crowdboard: Augmenting In-Person Idea Generation with Real-Time Crowds. In Proceedings of the 2017 ACM SIGCHI Conference on Creativity and Cognition. 106\u2013118.",
+                "author": "Salvatore Andolina, Hendrik Schneider, Joel Chan, Khalil Klouche, Giulio Jacucci, and Steven Dow. 2017.",
+                "venue": "https://doi.org/10.1145/3059454.3059477",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Spellburst: A Node-based Interface for Exploratory Creative Coding with Natural Language Prompts. In Proceedings of the 36th Annual ACM Symposium on User Interface Software and Technology. 1\u201322.",
+                "author": "Tyler Angert, Miroslav Suzara, Jenny Han, Christopher Pondoc, and Hariharan Subramonyam. 2023.",
+                "venue": "https://doi.org/10.1145/3586183.3606719",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Design Sprint: A Practical Guidebook for Building Great Digital Products.",
+                "author": "Richard Banfield, C Todd Lombardo, and Trace Wax. 2015.",
+                "venue": "O\u2019Reilly Media, Inc.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "The Theory-Practice Gap as Generative Metaphor. In Proceedings of the 2018 CHI Conference on Human Factors in Computing Systems. 1\u201311.",
+                "author": "Jordan Beck and Hamid R Ekbia. 2018.",
+                "venue": "https://doi.org/10.1145/3173574.3174194",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Examining Practical, Everyday Theory Use in Design Research.",
+                "author": "Jordan Beck and Erik Stolterman. 2016.",
+                "venue": "She Ji: The Journal of Design, Economics, and Innovation 2, 2 (2016), 125\u2013140.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "The Craft of Information Visualization: Readings and Reflections.",
+                "author": "Benjamin B Bederson and Ben Shneiderman. 2003.",
+                "venue": "Morgan Kaufmann.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Designing interactive systems: A comprehensive guide to HCI, UX and interaction design.",
+                "author": "David Benyon. 2013.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "On the Opportunities and Risks of Foundation Models.",
+                "author": "Rishi Bommasani, Drew A Hudson, Ehsan Adeli, Russ Altman, Simran Arora, Sydney von Arx, Michael S Bernstein, Jeannette Bohg, Antoine Bosselut, Emma Brunskill, et al. 2021.",
+                "venue": "arXiv preprint arXiv:2108.07258 (2021).",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Sparks of Artificial General Intelligence: Early experiments with GPT-4.",
+                "author": "S\u00e9bastien Bubeck, Varun Chandrasekaran, Ronen Eldan, Johannes Gehrke, Eric Horvitz, Ece Kamar, Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lundberg, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.12712 (2023).",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "VINS: Visual Search for Mobile User Interface Design. In Proceedings of the 2021 CHI Conference on Human Factors in Computing Systems. 1\u201314.",
+                "author": "Sara Bunian, Kai Li, Chaima Jemmali, Casper Harteveld, Yun Fu, and Magy Seif Seif El-Nasr. 2021.",
+                "venue": "https://doi.org/10.1145/3411764.3445762",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "DesignAID: Using Generative AI and Semantic Diversity for Design Inspiration. In Proceedings of The ACM Collective Intelligence Conference. 1\u201311.",
+                "author": "Alice Cai, Steven R Rick, Jennifer L Heyman, Yanxia Zhang, Alexandre Filipowicz, Matthew Hong, Matt Klenk, and Thomas Malone. 2023.",
+                "venue": "https://doi.org/10.1145/3582269.3615596",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Designing Interaction: Psychology at the Human-Computer Interface.",
+                "author": "John Millar Carroll. 1991.",
+                "venue": "CUP Archive.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "HCI Models, Theories, and Frameworks: Toward a Multidisciplinary Science.",
+                "author": "John M Carroll. 2003.",
+                "venue": "Elsevier.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "On the benefits and pitfalls of analogies for innovative design: Ideation performance based on analogical distance, commonness, and modality of examples.",
+                "author": "Joel Chan, Katherine Fu, Christian Schunn, Jonathan Cagan, Kristin Wood, and Kenneth Kotovsky. 2011.",
+                "venue": "(2011).",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Creative Writing with a Machine in the Loop: Case Studies on Slogans and Stories. In 23rd International Conference on Intelligent User Interfaces. 329\u2013340.",
+                "author": "Elizabeth Clark, Anne Spencer Ross, Chenhao Tan, Yangfeng Ji, and Noah A Smith. 2018.",
+                "venue": "https://doi.org/10.1145/3172944.3172983",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Translational Resources: Reducing the Gap Between Academic Research and HCI Practice. In Proceedings of the 2017 Conference on Designing Interactive Systems. 957\u2013968.",
+                "author": "Lucas Colusso, Cynthia L Bennett, Gary Hsieh, and Sean A Munson. 2017.",
+                "venue": "https://doi.org/10.1145/3064663.3064667",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Behavior Change Design Sprints. In Proceedings of the 2018 Designing Interactive Systems Conference. 791\u2013803.",
+                "author": "Lucas Colusso, Tien Do, and Gary Hsieh. 2018.",
+                "venue": "https://doi.org/10.1145/3196709.3196739",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "A Translational Science Model for HCI. In Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems. 1\u201313.",
+                "author": "Lucas Colusso, Ridley Jones, Sean A Munson, and Gary Hsieh. 2019.",
+                "venue": "https://doi.org/10.1145/3290605.3300231",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Applying a Theory of Change Approach to the Evaluation of Comprehensive Community Initiatives: Progress, Prospects, and Problems.",
+                "author": "James P Connell and Anne C Kubisch. 1998.",
+                "venue": "New Approaches to Evaluating Community Initiatives 2, 15-44 (1998), 1\u201316.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Theory-Driven Design Strategies for Technologies that Support Behavior Change in Everyday Life. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 405\u2013414.",
+                "author": "Sunny Consolvo, David W McDonald, and James A Landay. 2009.",
+                "venue": "https://doi.org/10.1145/1518701.1518766",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Fostering implementation of health services research findings into practice: a consolidated framework for advancing implementation science.",
+                "author": "Laura J Damschroder, David C Aron, Rosalind E Keith, Susan R Kirsh, Jeffery A Alexander, and Julie C Lowery. 2009.",
+                "venue": "Implementation Science 4, 1 (2009), 1\u201315.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "The Idea Machine: LLM-based Expansion, Rewriting, Combination, and Suggestion of Ideas. In Proceedings of the 14th Conference on Creativity and Cognition. 623\u2013627.",
+                "author": "Giulia Di Fede, Davide Rocchesso, Steven P Dow, and Salvatore Andolina. 2022.",
+                "venue": "https://doi.org/10.1145/3527927.3535197",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Aligning implementation and user-centered design strategies to enhance the impact of health services: results from a concept mapping study.",
+                "author": "Alex R Dopp, Kathryn E Parisi, Sean A Munson, and Aaron R Lyon. 2020.",
+                "venue": "Implementation Science Communications 1, 1 (2020), 1\u201313.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Implications for Design. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 541\u2013550.",
+                "author": "Paul Dourish. 2006.",
+                "venue": "https://doi.org/10.1145/1124772.1124855",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Scratch Copilot Evaluation: Assessing AI-Assisted Creative Coding for Families.",
+                "author": "Stefania Druga and Nancy Otero. 2023.",
+                "venue": "arXiv preprint arXiv:2305.10417 (2023).",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Eames House of Cards.",
+                "author": "Charles Eames and Ray Eames. 1952.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Backward Mapping: Implementation Research and Policy Decisions.",
+                "author": "Richard F Elmore. 1979.",
+                "venue": "Political Science Quarterly 94, 4 (1979), 601\u2013616.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "When happy accidents spark creativity: Bringing collaborative speculation to life with generative AI.",
+                "author": "Ziv Epstein, Hope Schroeder, and Dava Newman. 2022.",
+                "venue": "arXiv preprint arXiv:2206.00533 (2022).",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Gallery D.C: auto-created GUI component gallery for design search and knowledge discovery. In Proceedings of the ACM/IEEE 44th International Conference on Software Engineering: Companion Proceedings. 80\u201384.",
+                "author": "Sidong Feng, Chunyang Chen, and Zhenchang Xing. 2022.",
+                "venue": "https://doi.org/10.1145/3510454.3516873",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Brainstorming Generative Adversarial Networks (BGANs): Towards Multi-Agent Generative Models With Distributed Datasets.",
+                "author": "Aidin Ferdowsi and Walid Saad. 2023.",
+                "venue": "IEEE Internet of Things Journal (2023).",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "AI in design idea development: A workshop on creativity and human-AI collaboration.",
+                "author": "Fabio Antonio Figoli, Lucia Rampino, Francesca Mattioli, et al. 2022.",
+                "venue": "PROCEEDINGS OF DRS (2022), 1\u201317.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "To Make Is To Grasp. In 5th Intermational Congress of International Association of Societies of Design Research (IASDR), 26-30 August 2013, Tokyo.",
+                "author": "JW Frens and BJ Hengeveld. 2013.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Mapping the Landscape of Creativity Support Tools in HCI. In Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems. 1\u201318.",
+                "author": "Jonas Frich, Lindsay MacDonald Vermeulen, Christian Remy, Michael Mose Biskjaer, and Peter Dalsgaard. 2019.",
+                "venue": "https://doi.org/10.1145/3290605.3300619",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Creativity support systems: A systematic mapping study.",
+                "author": "Alex Gabriel, Davy Monticolo, Mauricio Camargo, and Mario Bourgault. 2016.",
+                "venue": "Thinking Skills and Creativity 21 (2016), 109\u2013122.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "How a Stylistic, Machine-Generated Thesaurus Impacts a Writer\u2019s Process.",
+                "author": "Katy Ilonka Gero and Lydia B Chilton. 2019a.",
+                "venue": "In Proceedings of the 2019 Conference on Creativity and Cognition. 597\u2013603.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Metaphoria: An Algorithmic Companion for Metaphor Creation. In Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems. 1\u201312.",
+                "author": "Katy Ilonka Gero and Lydia B Chilton. 2019b.",
+                "venue": "https://doi.org/10.1145/3290605.3300526",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Tim Brown, Change by Design: How Design Thinking Transforms Organizations and Inspires Innovation (2009).",
+                "author": "Esra Gonen. 2020.",
+                "venue": "Markets, Globalization & Development Review 4, 2 (2020).",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Reprioritizing the Relationship Between HCI Research and Practice: Bubble-Up and Trickle-Down Effects. In Proceedings of the 2014 Conference on Designing Interactive Systems. 725\u2013734.",
+                "author": "Colin M Gray, Erik Stolterman, and Martin A Siegel. 2014.",
+                "venue": "https://doi.org/10.1145/2598510.2598595",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Integrated Workflows: Generating Feedback Between Digital and Physical Realms. In Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems. 1\u201315.",
+                "author": "Emrecan Gulay and Andr\u00e9s Lucero. 2019.",
+                "venue": "https://doi.org/10.1145/3290605.3300290",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Mind the Theoretical Gap: Interpreting, Using, and Developing Behavioral Theory in HCI Research. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 3307\u20133316.",
+                "author": "Eric B Hekler, Predrag Klasnja, Jon E Froehlich, and Matthew P Buman. 2013.",
+                "venue": "https://doi.org/10.1145/2470654.2466452",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "C2Ideas: Supporting Creative Interior Color Design Ideation with Large Language Model.",
+                "author": "Yihan Hou, Manling Yang, Hao Cui, Lei Wang, Jie Xu, and Wei Zeng. 2024.",
+                "venue": "arXiv preprint arXiv:2401.12586 (2024).",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "Large Language Models are Zero-Shot Rankers for Recommender Systems.",
+                "author": "Yupeng Hou, Junjie Zhang, Zihan Lin, Hongyu Lu, Ruobing Xie, Julian McAuley, and Wayne Xin Zhao. 2023.",
+                "venue": "arXiv preprint arXiv:2305.08845 (2023).",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "What is in the Cards: Exploring Uses, Patterns, and Trends in Design Cards. In Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u201318.",
+                "author": "Gary Hsieh, Brett A Halperin, Evan Schmitz, Yen Nee Chew, and Yuan-Chi Tseng. 2023.",
+                "venue": "https://doi.org/10.1145/3544548.3580712",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Too Late to be Creative? AI-Empowered Tools in Creative Processes. In CHI Conference on Human Factors in Computing Systems Extended Abstracts. 1\u20139.",
+                "author": "Angel Hsing-Chi Hwang. 2022.",
+                "venue": "https://doi.org/10.1145/3491101.3503549",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "FashionQ: An AI-Driven Creativity Support Tool for Facilitating Ideation in Fashion Design. In Proceedings of the 2021 CHI Conference on Human Factors in Computing Systems. 1\u201318.",
+                "author": "Youngseung Jeon, Seungwan Jin, Patrick C Shih, and Kyungsik Han. 2021.",
+                "venue": "https://doi.org/10.1145/3411764.3445093",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "Comparing the Ideation Quality of Humans With Generative Artificial Intelligence.",
+                "author": "J Joosten, V Bilgram, A Hahn, and D Totzek. 2024.",
+                "venue": "IEEE Engineering Management Review (2024).",
+                "url": null
+            }
+        },
+        {
+            "51": {
+                "title": "Supporting Reinterpretation in Computer-Aided Conceptual Design. In EUROGRAPHICS Workshop on Sketch-Based Interfaces and Modeling. 151\u2013158.",
+                "author": "Iestyn Jowers, Miquel Prats, Sungwoo Lim, Alison McKay, Steve Garner, and Scott Chase. 2008.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "52": {
+                "title": "Mechanical Novel: Crowdsourcing Complex Work through Reflection and Revision. In Proceedings of the 2017 ACM Conference on Computer Supported Cooperative Work and Social Computing. 233\u2013245.",
+                "author": "Joy Kim, Sarah Sterman, Allegra Argent Beal Cohen, and Michael S Bernstein. 2017.",
+                "venue": "https://doi.org/10.1145/2998181.2998196",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "Metaphorian: Leveraging Large Language Models to Support Extended Metaphor Creation for Science Writing. In Proceedings of the 2023 ACM Designing Interactive Systems Conference. 115\u2013135.",
+                "author": "Jeongyeon Kim, Sangho Suh, Lydia B Chilton, and Haijun Xia. 2023b.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "DiaryMate: Exploring the Roles of Large Language Models in Facilitating AI-mediated Journaling. In CHI 2023 Workshop on Intelligent and Interactive Writing Assistants (In2Writing).",
+                "author": "Taewan Kim, Donghoon Shin, Young-Ho Kim, and Hwajung Hong. 2023a.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "55": {
+                "title": "Beyond the Obvious-Towards a Creativity Support System using AI-driven Inspiration. In AMCIS.",
+                "author": "Hans Christian Klein, Frederike Marie Oschinsky, Sebastian Weber, Bastian Kordyaka, and Bjoern Niehaves. 2020.",
+                "venue": "https://aisel.aisnet.org/amcis2020/cognitive_in_is/cognitive_in_is/7",
+                "url": null
+            }
+        },
+        {
+            "56": {
+                "title": "Large-scale Text-to-Image Generation Models for Visual Artists\u2019 Creative Works. In Proceedings of the 28th International Conference on Intelligent User Interfaces. 919\u2013933.",
+                "author": "Hyung-Kwon Ko, Gwanmo Park, Hyeon Jeon, Jaemin Jo, Juho Kim, and Jinwook Seo. 2023.",
+                "venue": "https://doi.org/10.1145/3581641.3584078",
+                "url": null
+            }
+        },
+        {
+            "57": {
+                "title": "Building Successful Online Communities: Evidence-Based Social Design.",
+                "author": "Robert E Kraut and Paul Resnick. 2012.",
+                "venue": "MIT Press.",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Creative Data Work in the Design Process.",
+                "author": "Peter Kun, Ingrid Mulder, Amalia De G\u00f6tzen, and Gerd Kortuem. 2019.",
+                "venue": "In Proceedings of the 2019 on Creativity and Cognition. 346\u2013358.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "A Theory of Change for Guiding the Integration of Human-Centered Design Into Global Health Programming.",
+                "author": "Anne LaFond and Montana Cherney. 2021.",
+                "venue": "Global Health: Science and Practice 9, Supplement 2 (2021), S209\u2013S216.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Drawing with Reframer: Emergence and Control in Co-Creative AI. In Proceedings of the 28th International Conference on Intelligent User Interfaces. 264\u2013277.",
+                "author": "Tomas Lawton, Francisco J Ibarrola, Dan Ventura, and Kazjon Grace. 2023.",
+                "venue": "https://doi.org/10.1145/3581641.3584095",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "CoAuthor: Designing a Human-AI Collaborative Writing Dataset for Exploring Language Model Capabilities. In Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems. 1\u201319.",
+                "author": "Mina Lee, Percy Liang, and Qian Yang. 2022.",
+                "venue": "https://doi.org/10.1145/3491102.3502030",
+                "url": null
+            }
+        },
+        {
+            "62": {
+                "title": "Optimizing Implementation in Cancer Control (OPTICC): protocol for an implementation science center.",
+                "author": "Cara C Lewis, Peggy A Hannon, Predrag Klasnja, Laura-Mae Baldwin, Rene Hawkes, Janell Blackmer, and Ashley Johnson. 2021.",
+                "venue": "Implementation Science Communications 2, 1 (2021), 1\u201316.",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "The mechanics of implementation strategies and measures: advancing the study of implementation mechanisms.",
+                "author": "Cara C Lewis, Predrag Klasnja, Aaron R Lyon, Byron J Powell, Rebecca Lengnick-Hall, Gretchen Buchanan, Rosemary D Meza, Michelle C Chan, Marcella H Boynton, and Bryan J Weiner. 2022.",
+                "venue": "Implementation Science Communications 3, 1 (2022), 1\u201311.",
+                "url": null
+            }
+        },
+        {
+            "64": {
+                "title": "From Classification to Causality: Advancing Understanding of Mechanisms of Change in Implementation Science.",
+                "author": "Cara C Lewis, Predrag Klasnja, Byron J Powell, Aaron R Lyon, Leah Tuzzio, Salene Jones, Callie Walsh-Bailey, and Bryan Weiner. 2018.",
+                "venue": "Frontiers in Public Health 6 (2018), 136.",
+                "url": null
+            }
+        },
+        {
+            "65": {
+                "title": "Questioning the AI: Informing Design Practices for Explainable AI User Experiences. In Proceedings of the 2020 CHI Conference on Human Factors in Computing Systems. 1\u201315.",
+                "author": "Q Vera Liao, Daniel Gruen, and Sarah Miller. 2020.",
+                "venue": "https://doi.org/10.1145/3313831.3376590",
+                "url": null
+            }
+        },
+        {
+            "66": {
+                "title": "TurKit: human computation algorithms on mechanical turk. In Proceedings of the 23nd annual ACM Symposium on User Interface Software and Technology. 57\u201366.",
+                "author": "Greg Little, Lydia B Chilton, Max Goldman, and Robert C Miller. 2010.",
+                "venue": "https://doi.org/10.1145/1866029.1866040",
+                "url": null
+            }
+        },
+        {
+            "67": {
+                "title": "AI Assistance for UX: A Literature Review Through Human-Centered AI.",
+                "author": "Yuwen Lu, Yuewen Yang, Qinyi Zhao, Chengzhi Zhang, and Toby Jia-Jun Li. 2024.",
+                "venue": "arXiv preprint arXiv:2402.06089 (2024).",
+                "url": null
+            }
+        },
+        {
+            "68": {
+                "title": "Bridging HCI and Implementation Science for Innovation Adoption and Public Health Impact. In Extended Abstracts of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u20137.",
+                "author": "Aaron Lyon, Sean A Munson, Madhu Reddy, Stephen M Schueller, Elena Agapie, Svetlana Yarosh, Alex Dopp, Ulrica von Thiele Schwarz, Gavin Doherty, Andrea K Graham, et al. 2023.",
+                "venue": "https://doi.org/10.1145/3544549.3574132",
+                "url": null
+            }
+        },
+        {
+            "69": {
+                "title": "Leveraging Human-Centered Design to Implement Modern Psychological Science: Return on an Early Investment.",
+                "author": "Aaron R Lyon, Stephanie K Brewer, and Patricia A Are\u00e1n. 2020.",
+                "venue": "American Psychologist 75, 8 (2020), 1067.",
+                "url": null
+            }
+        },
+        {
+            "70": {
+                "title": "Destroy All Humans: The Dematerialisation of the Designer in an Age of Automation and its Impact on Graphic Design\u2014A Literature Review.",
+                "author": "Benjamin Matthews, Barrie Shannon, and Mark Roxburgh. 2023.",
+                "venue": "International Journal of Art & Design Education 42, 3 (2023), 367\u2013383.",
+                "url": null
+            }
+        },
+        {
+            "71": {
+                "title": "Human-AI Synergy in Creativity and Innovation.",
+                "author": "Tony McCaffrey. 2018.",
+                "venue": "Artificial Intelligence: Emerging Trends and Applications; IntechOpen: London, UK (2018), 143.",
+                "url": null
+            }
+        },
+        {
+            "72": {
+                "title": "Causal pathway diagrams: A toolkit for improving the impact of implementation strategies.",
+                "author": "Rosemary D Meza, Bryan J Weiner, Cara C Lewis, Michael D Pullman, and Pedja Klasnja. 2023.",
+                "venue": "(2023).",
+                "url": null
+            }
+        },
+        {
+            "73": {
+                "title": "Miro.",
+                "author": "Miro. 2023.",
+                "venue": "https://miro.com",
+                "url": null
+            }
+        },
+        {
+            "74": {
+                "title": "Co-Writing Screenplays and Theatre Scripts with Language Models: Evaluation by Industry Professionals. In Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u201334.",
+                "author": "Piotr Mirowski, Kory W Mathewson, Jaylen Pittman, and Richard Evans. 2023.",
+                "venue": "https://doi.org/10.1145/3544548.3581225",
+                "url": null
+            }
+        },
+        {
+            "75": {
+                "title": "A Multidisciplinary Survey and Framework for Design and Evaluation of Explainable AI Systems.",
+                "author": "Sina Mohseni, Niloofar Zarei, and Eric D Ragan. 2021.",
+                "venue": "ACM Transactions on Interactive Intelligent Systems 11, 3-4 (2021), 1\u201345.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Can Generalist Foundation Models Outcompete Special-Purpose Tuning? Case Study in Medicine.",
+                "author": "Harsha Nori, Yin Tat Lee, Sheng Zhang, Dean Carignan, Richard Edgar, Nicolo Fusi, Nicholas King, Jonathan Larson, Yuanzhi Li, Weishung Liu, Renqian Luo, Scott Mayer McKinney, Robert Osazuwa Ness, Hoifung Poon, Tao Qin, Naoto Usuyama, Chris White, and Eric Horvitz. 2023.",
+                "venue": "arXiv preprint arXiv:2311.16452.",
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "The Research-Practice Gap: The Need for Translational Developers.",
+                "author": "Donald A Norman. 2010.",
+                "venue": "Interactions 17, 4 (2010), 9\u201312.",
+                "url": null
+            }
+        },
+        {
+            "78": {
+                "title": "Multiple Regression in Behavioral Research: Explanation and Prediction.",
+                "author": "Elazar J Pedhazur and Fred Nichols Kerlinger. 1982.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "79": {
+                "title": "AngleKindling: Supporting Journalistic Angle Ideation with Large Language Models. In Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u201316.",
+                "author": "Savvas Petridis, Nicholas Diakopoulos, Kevin Crowston, Mark Hansen, Keren Henderson, Stan Jastrzebski, Jeffrey V Nickerson, and Lydia B Chilton. 2023.",
+                "venue": "https://doi.org/10.1145/3544548.3580907",
+                "url": null
+            }
+        },
+        {
+            "80": {
+                "title": "Making Design Theory.",
+                "author": "Johan Redstrom. 2017.",
+                "venue": "MIT Press.",
+                "url": null
+            }
+        },
+        {
+            "81": {
+                "title": "Supermind Ideator: Exploring generative AI to support creative problem-solving.",
+                "author": "Steven R Rick, Gianni Giacomelli, Haoran Wen, Robert J Laubacher, Nancy Taubenslag, Jennifer L Heyman, Max Sina Knicker, Younes Jeddi, Hendrik Maier, Stephen Dwyer, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2311.01937 (2023).",
+                "url": null
+            }
+        },
+        {
+            "82": {
+                "title": "Design Research at CHI and its Applicability to Design Practice. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 1951\u20131954.",
+                "author": "David J Roedl and Erik Stolterman. 2013.",
+                "venue": "https://doi.org/10.1145/2470654.2466257",
+                "url": null
+            }
+        },
+        {
+            "83": {
+                "title": "New theoretical approaches for HCI.",
+                "author": "Yvonne Rogers. 2004.",
+                "venue": "Annual review of information science and technology 38, 1 (2004), 87\u2013143.",
+                "url": null
+            }
+        },
+        {
+            "84": {
+                "title": "HCI Theory: Classical, Modern, and Contemporary.",
+                "author": "Yvonne Rogers. 2022.",
+                "venue": "Springer Nature.",
+                "url": null
+            }
+        },
+        {
+            "85": {
+                "title": "Interaction Design: Beyond Human-Computer Interaction.",
+                "author": "Yvonne Rogers, Helen Sharp, and Jenny Preece. 2002.",
+                "venue": "(2002).",
+                "url": null
+            }
+        },
+        {
+            "86": {
+                "title": "Simulating the Human in HCD with ChatGPT: Redesigning Interaction Design with AI.",
+                "author": "Albrecht Schmidt, Passant Elagroudy, Fiona Draxler, Frauke Kreuter, and Robin Welsch. 2024.",
+                "venue": "Interactions 31, 1 (2024), 24\u201331.",
+                "url": null
+            }
+        },
+        {
+            "87": {
+                "title": "The Reflective Practitioner: How Professionals Think in Action.",
+                "author": "Donald A Schon. 1983.",
+                "venue": "Basic Books New York.",
+                "url": null
+            }
+        },
+        {
+            "88": {
+                "title": "Creativity Support Tools.",
+                "author": "Ben Shneiderman. 2002.",
+                "venue": "Commun. ACM 45, 10 (2002), 116\u2013120.",
+                "url": null
+            }
+        },
+        {
+            "89": {
+                "title": "Designing the User Interface: Strategies for Effective Human-Computer Interaction.",
+                "author": "Ben Shneiderman and Catherine Plaisant. 2010.",
+                "venue": "Pearson.",
+                "url": null
+            }
+        },
+        {
+            "90": {
+                "title": "Theory of Change.",
+                "author": "Dana H Taplin, Hel\u00e9ne Clark, Eoin Collins, and David C Colby. 2013.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "91": {
+                "title": "A Practical Take on Theory in HCI.",
+                "author": "Koen van Turnhout, Marjolein Jacobs, Miriam Losse, Thea van der Geest, and Ren\u00e9 Bakker. 2019.",
+                "venue": "White paper (2019).",
+                "url": null
+            }
+        },
+        {
+            "92": {
+                "title": "Questionable Concepts: Critique as a Resource for Designing with Eighty Somethings. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 1169\u20131178.",
+                "author": "John Vines, Mark Blythe, Stephen Lindsay, Paul Dunphy, Andrew Monk, and Patrick Olivier. 2012.",
+                "venue": "https://doi.org/10.1145/2207676.2208567",
+                "url": null
+            }
+        },
+        {
+            "93": {
+                "title": "\u201dIt Felt Like Having a Second Mind\u201d: Investigating Human-AI Co-creativity in Prewriting with Large Language Models.",
+                "author": "Qian Wan, Siying Hu, Yu Zhang, Piaohong Wang, Bo Wen, and Zhicong Lu. 2023.",
+                "venue": "arXiv preprint arXiv:2307.10811 (2023).",
+                "url": null
+            }
+        },
+        {
+            "94": {
+                "title": "Investigating Semantically-enhanced Exploration of GAN Latent Space via a Digital Mood Board. In Extended Abstracts of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u20135.",
+                "author": "Qian Wan and Zhicong Lu. 2023.",
+                "venue": "https://doi.org/10.1145/3544549.3585740",
+                "url": null
+            }
+        },
+        {
+            "95": {
+                "title": "Idea Expander: Supporting Group Brainstorming with Conversationally Triggered Visual Thinking Stimuli. In Proceedings of the 2010 ACM Conference on Computer Supported Cooperative Work. 103\u2013106.",
+                "author": "Hao-Chuan Wang, Dan Cosley, and Susan R Fussell. 2010.",
+                "venue": "https://doi.org/10.1145/1718918.1718938",
+                "url": null
+            }
+        },
+        {
+            "96": {
+                "title": "A literature review on individual creativity support systems.",
+                "author": "Kai Wang and Jeffrey V Nickerson. 2017.",
+                "venue": "Computers in Human Behavior 74 (2017), 139\u2013151.",
+                "url": null
+            }
+        },
+        {
+            "97": {
+                "title": "Chain-of-thought prompting elicits reasoning in large language models.",
+                "author": "Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou, et al. 2022.",
+                "venue": "Advances in Neural Information Processing Systems 35 (2022), 24824\u201324837.",
+                "url": null
+            }
+        },
+        {
+            "98": {
+                "title": "A Prompt Pattern Catalog to Enhance Prompt Engineering with ChatGPT.",
+                "author": "Jules White, Quchen Fu, Sam Hays, Michael Sandborn, Carlos Olea, Henry Gilbert, Ashraf Elnashar, Jesse Spencer-Smith, and Douglas C Schmidt. 2023.",
+                "venue": "arXiv preprint arXiv:2302.11382 (2023).",
+                "url": null
+            }
+        },
+        {
+            "99": {
+                "title": "A Survey on Large Language Models for Recommendation.",
+                "author": "Likang Wu, Zhi Zheng, Zhaopeng Qiu, Hao Wang, Hongchao Gu, Tingjia Shen, Chuan Qin, Chen Zhu, Hengshu Zhu, Qi Liu, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2305.19860 (2023).",
+                "url": null
+            }
+        },
+        {
+            "100": {
+                "title": "Scaling Up and Down: Extraction Trials in Architectural Design.",
+                "author": "Albena Yaneva. 2005.",
+                "venue": "Social Studies of Science 35, 6 (2005), 867\u2013894.",
+                "url": null
+            }
+        },
+        {
+            "101": {
+                "title": "Evaluating ChatGPT: Generative AI in UX Design and Web Development Pedagogy. In Proceedings of the 41st ACM International Conference on Design of Communication. 197\u2013201.",
+                "author": "Eric York. 2023.",
+                "venue": "https://doi.org/10.1145/3615335.3623035",
+                "url": null
+            }
+        },
+        {
+            "102": {
+                "title": "Design fixation: Classifications and modern methods of prevention.",
+                "author": "Robert J Youmans and Thomaz Arciszewski. 2014.",
+                "venue": "Artificial Intelligence for Engineering Design, Analysis and Manufacturing 28, 2 (2014), 129\u2013137.",
+                "url": null
+            }
+        },
+        {
+            "103": {
+                "title": "Cooks or Cobblers? Crowd Creativity through Combination. In Proceedings of the SIGCHI Conference on Human Factors in Computing Systems. 1393\u20131402.",
+                "author": "Lixiu Yu and Jeffrey V Nickerson. 2011.",
+                "venue": "https://doi.org/10.1145/1978942.1979147",
+                "url": null
+            }
+        },
+        {
+            "104": {
+                "title": "Wordcraft: Story Writing With Large Language Models. In 27th International Conference on Intelligent User Interfaces. 841\u2013852.",
+                "author": "Ann Yuan, Andy Coenen, Emily Reif, and Daphne Ippolito. 2022.",
+                "venue": "https://doi.org/10.1145/3490099.3511105",
+                "url": null
+            }
+        },
+        {
+            "105": {
+                "title": "Towards Image Design Space Exploration in Spreadsheets with LLM Formulae. In Adjunct Proceedings of the 36th Annual ACM Symposium on User Interface Software and Technology. 1\u20133.",
+                "author": "JD Zamfirescu-Pereira, Shm Garanganao Almeda, Kyu Won Kim, and Bjoern Hartmann. 2023a.",
+                "venue": "https://doi.org/10.1145/3586182.3615790",
+                "url": null
+            }
+        },
+        {
+            "106": {
+                "title": "Why Johnny Can\u2019t Prompt: How Non-AI Experts Try (and Fail) to Design LLM Prompts. In Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems. 1\u201321.",
+                "author": "JD Zamfirescu-Pereira, Richmond Y Wong, Bjoern Hartmann, and Qian Yang. 2023b.",
+                "venue": "https://doi.org/10.1145/3544548.3581388",
+                "url": null
+            }
+        },
+        {
+            "107": {
+                "title": "StoryDrawer: A Child\u2013AI Collaborative Drawing System to Support Children\u2019s Creative Visual Storytelling. In Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems. 1\u201315.",
+                "author": "Chao Zhang, Cheng Yao, Jiayi Wu, Weijia Lin, Lijuan Liu, Ge Yan, and Fangtian Ying. 2022.",
+                "venue": "https://doi.org/10.1145/3491102.3501914",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.08111v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2",
+            "2.3",
+            "2.3.1"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.1.1",
+            "3.1.2",
+            "3.1.3",
+            "3.1.4",
+            "3.1.5",
+            "3.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "5",
+            "5.1",
+            "5.1.1",
+            "5.1.2",
+            "5.1.3",
+            "5.1.4",
+            "5.1.5",
+            "5.2",
+            "5.2.1",
+            "5.2.2",
+            "5.2.3"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4.1",
+            "4.4",
+            "5",
+            "5.1.1",
+            "5.2",
+            "5.2.1",
+            "5.2.3",
+            "6.1"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.08111v1",
+        "paper_title": "AI-Assisted Causal Pathway Diagram for Human-Centered Design",
+        "research_background": "### Paper's Motivation:\nThe motivation behind this paper is to explore how causal pathway diagrams (CPD), originally used in implementation science, can be adapted and utilized within the realm of human-centered design (HCD). The authors aim to address the challenges that prevent designers from easily adopting CPD in their workflows and to leverage AI to facilitate this integration. The end goal is to enhance design outcomes through evidence-based thinking and structured strategic planning.\n\n### Research Problem:\nThe research problem addressed in this paper is the difficulty design practitioners face in integrating CPD into human-centered design. The authors identify several barriers that include the different level of abstraction required for CPD, unfamiliarity with CPD components and syntax, and the practical burden of drawing, sharing, and iterating causal diagrams. The study focuses on whether a CPD plugin for the collaborative platform Miro, enhanced with AI-based recommendations, can mitigate these challenges and support HCD practitioners.\n\n### Relevant Prior Work:\nThe paper builds on prior work in various areas:\n1. **Causal Pathway Diagrams (CPD):** \n   - CPD as a tool in implementation science to represent causal relationships and to design theory-driven behavioral implementation strategies (Lewis et al., 2018; Meza et al., 2023).\n   - CPD's role in mapping out implementation strategies, identifying barriers, mechanisms, moderators, and preconditions (Lewis et al., 2022).\n\n2. **Intersection of HCI and Implementation Science:**\n   - Calls for integrating methods and ideas from implementation science into human-centered design (HCD) to strengthen methodological exchanges (Lyon et al., 2020; Dopp et al., 2020; Lyon et al., 2023).\n\n3. **Challenges in Adopting CPD:**\n   - Conceptual challenges in adapting CPD's abstract, evidence-based planning to the design practitioners\u2019 workflow (Lewis et al., 2018).\n   - Practical issues in creating, modifying, and sharing visual causal diagrams.\n\n4. **Use of CPD in Design:**\n   - How CPD can be valuable throughout a design project by identifying relevant factors and mechanisms at the start, addressing barriers during implementation, and evaluating outcomes at the end (Lewis et al., 2022).\n\nThe contributions of this paper lie in providing a practical AI-assisted tool to facilitate the use of CPD in HCD and evaluating its effectiveness through a user study. The authors seek to bridge the conceptual and practical gaps that have previously hindered the adoption of CPD in design-thinking.",
+        "methodology": "**Proposed Method/Model:** AI-Assisted Causal Pathway Diagram for Human-Centered Design\n\n**Key Components and Innovations:**\n\n1. **Platform Choice:**\n   - **Miro Integration:** The proposed method leverages Miro, a widely used diagramming platform known for its ease of use and versatility in creating visual elements. Miro's plugin-friendly architecture facilitates the deployment of the concept geared toward supporting designers in generating and iterating on Causal Pathway Diagrams (CPDs).\n\n2. **Plugin Objectives:**\n   - **Streamlining CPD Creation:** The primary aim of the plugin is to streamline the process of creating and iterating on CPDs, enhancing the efficiency of designers during the Human-Centered Design (HCD) process.\n   - **Designer Support:** The plugin is designed to provide robust support to designers throughout the CPD creation process, leveraging Miro's collaborative features.\n\n3. **Design and Implementation:**\n   - **Multi-Tab Design:** The plugin features a multi-tab design, allowing users to access and utilize each feature separately and independently. This modular approach ensures that different functionalities can be employed as needed without complexity.\n\n4. **Visual Walkthrough:**\n   - **Appendix C:** The document references Appendix C for a more detailed visual description of each component, providing users with a thorough understanding of the plugin\u2019s features and how to use them effectively within Miro.\n\nIn summary, the methodology describes the development of a Miro plugin designed to assist in the creation and iterative improvement of CPDs for Human-Centered Design. It emphasizes the use\u2019s multi-tab design for independent functionality and the integration within Miro to take advantage of its widespread use in early HCD stages and its collaborative capabilities.",
+        "main_experiment_and_results": "The original text does not provide sufficient details about the main experiment setup, including datasets, baselines, and evaluation metrics, nor does it specify the main experimental results. If additional details from the paper are accessible, such as specifics on the design practitioners involved, the methodology of the user study, metrics assessed, or any key findings, please provide those for a more comprehensive summary."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Investigate the effectiveness of a CPD plugin in assisting designers during the early stages of the design process, specifically focusing on how it influences creativity and cognitive load.",
+            "experiment_process": "The study was a one-hour, within-subjects online study in which participants completed two 10-minute design sprints. For each sprint, participants were provided with a design prompt, a user persona, and a scenario. In one sprint, participants used the CPD plugin to generate causal pathway diagrams (CPDs), while in the other sprint, they did not use the plugin. The order of tool use and sprints was randomized. Participants rated their experiences and confidence in CPD correctness and usefulness on a Likert scale. Time spent on tasks and the number of pathways generated were recorded. Semi-structured interviews were conducted post-sprints to gain deeper insights.",
+            "result_discussion": "Using the CPD plugin increased the number of pathways generated by designers and improved their self-reported ratings on the ease of creating CPD components, using the CPD process, and brainstorming content. Designers appreciated the plugin for enhancing creativity and providing evidence-based support. However, the AI recommendations sometimes lacked specificity and contextual relevance, especially when given high-level inputs. Some participants were cautious about blindly using AI-generated suggestions without understanding the background. Overall, the plugin was well received but highlighted a need for more context-specific recommendations and transparency regarding AI suggestions.",
+            "ablation_id": "2403.08111v1.No1"
+        },
+        {
+            "research_objective": "Examine the impact of AI-assisted recommendations on designers\u2019 creativity and the breadth of ideas generated during design sprints.",
+            "experiment_process": "Participants performed two design sprints, one with the CPD plugin that included AI-generated recommendations and one without. They were asked to generate CPDs for given design prompts. The number of pathways and the variety of ideas generated were tracked. Participants provided feedback on how the AI recommendations influenced their thought process and creativity. Both quantitative measures (e.g., number of pathways) and qualitative insights (e.g., participant comments) were collected and analyzed.",
+            "result_discussion": "The AI-assisted CPD plugin increased the number of pathways designers generated, with participants noting that AI recommendations introduced new directions they hadn't considered. Some found that AI suggestions, even when overlapping with their ideas, helped clarify and articulate concepts more effectively. However, generic and contextually irrelevant suggestions were noted when inputs were too high-level. Participants valued the diversity of viewpoints the AI simulated but stressed the importance of understanding the background of AI recommendations to ensure their relevance to the problem space.",
+            "ablation_id": "2403.08111v1.No2"
+        }
+    ]
+}

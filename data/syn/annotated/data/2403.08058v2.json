@@ -1,0 +1,1175 @@
+{
+    "title": "CHAI: Clustered Head Attention for Efficient LLM Inference",
+    "abstract": "Large Language Models (LLMs) with hundreds of billions of parameters have transformed the field of machine learning. However, serving these models at inference time\nis both compute and memory intensive, where a single request can require multiple GPUs and tens of Gigabytes of memory.\nMulti-Head Attention is one of the key components of LLMs, which can account for over 50% of LLMs memory and compute requirement. We observe that there is a high amount of redundancy across heads on which tokens they pay attention to. Based on this insight, we propose Clustered Head Attention (CHAI). CHAI combines\nheads with a high amount of correlation for self-attention at runtime, thus reducing both memory and compute.\nIn our experiments, we show that CHAI is able to reduce the memory requirements for storing K,V cache by up to 21.4% and inference time latency by up to  without any fine-tuning required. CHAI achieves this with a maximum 3.2% deviation in accuracy across 3 different models (i.e. OPT-66B, LLaMa-7B, LLaMa-33B) and 5 different evaluation datasets.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "LLMs have demonstrated remarkable performance on language modelling tasks ranging from question answering, text summarizing, language translation.\nHowever, such performance has been achieved by scaling models to trillions of parameters, and existing works (Hoffmann et al., 2022  ###reference_b22###; Touvron et al., 2023a  ###reference_b45###; Kaplan et al., 2020  ###reference_b26###) show that increasing the model size may lead to even higher model quality.\nInference on LLMs introduce several new challenges. Beyond just the quadratic computation cost of self-attention (Vaswani et al., 2017  ###reference_b47###) with increasing context and large model sizes, LLMs also store intermediate Key (K) and Value (V) pairs for subsequent next word prediction. This K,V caching introduces additional memory related challenges as K,V cache size increases with increase in sequence length.\nThe architecture of widely used LLMs like GPT (Brown et al., 2020  ###reference_b4###) and LLaMa (Touvron et al., 2023a  ###reference_b45###, b  ###reference_b46###) use Multi-Head Attention (MHA) (Vaswani et al., 2017  ###reference_b47###). MHA uses several attention heads to look at a sequence. As models grow bigger, the number of heads increases as well. For example, LLaMa-7B uses 32 attention heads in each layer, while LLaMa-65B uses 64 attention heads per layer (Touvron et al., 2023a  ###reference_b45###).\nThe use of MHA exacerbates bottlenecks for serving LLMs.\nFirst, it increases compute pressure due to repeated application of the attention operation. Second, it increases the memory pressure due to requiring storage of Key (K), Value (V) caches that comes with the additional attention heads.\nTo alleviate these bottlenecks, prior works have introduced primarily two types of methods - (i) pruning of LLMs to utilize sparsity based on the input context (Liu et al., 2023b  ###reference_b33###; Voita et al., 2019  ###reference_b48###) and (ii) Co-designing of the Attention module to reuse components across multiple heads like Multi-Query Attention (MQA) (Shazeer, 2019  ###reference_b41###) and Grouped-Query Attention (GQA) (Ainslie et al., 2023  ###reference_b2###).\n###figure_1### Pruning LLMs can potentially ease the compute bottleneck, however it is challenging as the classical methods for pruning (Frankle & Carbin, 2018  ###reference_b18###; Chen et al., 2020b  ###reference_b6###; You et al., 2019  ###reference_b58###; Waleffe & Rekatsinas, 2020  ###reference_b49###) require fine-tuning or iterative training which is prohibitively expensive for LLMs due to massive memory and compute cost. There have been recent pruning works such as DejaVu (Liu et al., 2023b  ###reference_b33###) which perform pruning based on the context at inference time without requiring fine-tuning. However,\nwe observe that methods like DejaVu are\nprimarily designed for large parameter-inefficient models such as OPT (Zhang et al., 2022  ###reference_b60###) and the insights used to build DejaVu are not directly applicable on newer parameter efficient models like LLaMa-7B (Section 2  ###reference_###). In Figure 1  ###reference_###, we show that CHAI achieves the best trade-off between flops and accuracy compared to the state-of-the-art methods.\nFurthermore,\nruntime pruning methods like DejaVu only reduce the compute cost and have no effect on the large memory requirements of K,V cache.\nThe Attention module co-design methods like GQA (Ainslie et al., 2023  ###reference_b2###) require re-training of LLMs,\ne.g., LLaMa-2 (Touvron et al., 2023b  ###reference_b46###) trained the models from scratch to utilize the benefits of GQA, making it quite expensive. Even in the case where users are willing to perform retraining, accuracy trade-off between GQA and MHA will not be known prior to multiple rounds of training.\nFurther, Attention module co-design methods only reduce the K,V cache size and do not reduce computational complexity.\nTherefore, there is a need for a method, which can reduce both the compute and K,V cache overhead for attention and is - (i) Applicable on a wide range of models (from LLaMa\u20137B to OPT-66B). (ii) Does not require any fine-tuning or re-training.\nIn this work we present Clustered Head Attention for efficient LLM Inference (CHAI), a dynamic inference time method for efficient LLM inference that does not require fine-tuning.\nCHAI is inspired by two observations. First, several heads in multi-head attention give similar weight to each token in a given sequence, indicating redundant compute.\nIn Figure 2(a)  ###reference_sf1### we show attention scores for a single layer of LLaMa-7B for an auto-regressive decoding step of a sentence. We observe that several heads output similar scores, i.e., giving similar weight to each token in the sequence.\nFigure 2(b)  ###reference_sf2### highlights the similarity in attention score by plotting correlation for the activation for LLaMa-7B. In Figure 2(b)  ###reference_sf2### we observe that there are three clusters and within these clusters the correlation is greater than 0.95.\nThis indicates that by identifying attention heads with similar attention scores and clustering them together we can reduce the number of self-attention operations for MHA by calculating self-attention only for a single head within a cluster.\nSecondly, we observe that for each request to an LLM we can accurately determine the heads which are going to give similar (attention) weight to the tokens in a sequence after running a few decoding steps on the sequence (Section 3.3  ###reference_###). Schematic in Figure 3  ###reference_### depicts both Multi-Head and Clustered-Head Attention.\n###figure_2### ###figure_3### ###figure_4### ###figure_5### Our contributions in this paper are as follows:\nWe show that there is high level of redundancy across several different heads of multi head attention,\nand the redundancy varies differently across layers with increasing redundancy towards later layers.\nWe introduce CHAI, a practical and principled inference time pruning method which clusters attention heads that have similar output together with dynamic determination of clusters. CHAI reduces both compute and K,V cache size for self attention.\nWe show that CHAI is capable of reducing the inference time by up to 1.73 and K,V cache memory size by up to 21.4% compared to MHA for LLaMa models with minimal accuracy trade-off (maximum of 3.2%).\nCompared to other runtime pruning methods like DejaVu, which only works well for OPT models, CHAI outperforms DejaVu and performs well for wider class of models."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Background and Related Work",
+            "text": "We first provide background on inference process for decoder only transformers like GPT (Radford et al., 2019  ###reference_b37###; Brown et al., 2020  ###reference_b4###), LLaMa (Touvron et al., 2023a  ###reference_b45###, b  ###reference_b46###) and the bottlenecks in performing inference.\nFurther, we discussed several prior lines of work which have tried to tackle the inference bottlenecks for transformer based model.\nDecoder-only Transformer A decoder-only transformer forms the building block of popular LLMs. A single decoder block consists of a self attention layer and a MLP. An input token is fed into the decoder block, to perform next-word prediction. The self attention block uses prior query (Q), key (K) and value (V) vectors associated with current token. These tokens are extracted by performing a linear projection with query, key and value weight matrices associated with a transformer.\nTo precisely define Multi-Head Attention (MHA), let , ,  be positive integers, where  denotes number of heads,  denotes sequence length,  denotes model dimension. Let  be input to the MHA layer. For a single head , then ,  and  denote the corresponding key, query and value vector. The attention matrix for head  is calculated as follows:\nOutput of MHA is denoted by:\nFor performing inference, self attention needs access to the query, key and values associated with prior tokens. In order to avoid re-computation, inference serving systems cache the prior tokens in a sequence.\nCompute cost required for multiple attention heads and memory capacity required for storing key and value vectors associated with each head during inference form two primary bottlenecks for LLM inference. In this work, we focus on reducing both memory and compute requirements via clustering multiple attention heads with similar output.\nBuilding Efficient Transformers. Improving efficiency of transformer models has been of major focus in recent years. Prior work can be broadly categorized in the following fields\n- (i) Hardware-software co-design (Dao et al., 2022  ###reference_b11###; Dao, 2023  ###reference_b10###; Ham et al., 2020  ###reference_b20###, 2021  ###reference_b21###; Tambe et al., 2021  ###reference_b43###; Fang et al., 2022  ###reference_b17###; Qin et al., 2023  ###reference_b36###; Wang et al., 2021b  ###reference_b51###), (ii) Knowledge distillation (Hsieh et al., 2023  ###reference_b24###; Jiao et al., 2019  ###reference_b25###; Sanh et al., 2019  ###reference_b40###; Wang et al., 2020  ###reference_b53###) (iii) Neural Architecture Search (NAS) (Zhou et al., 2023  ###reference_b62###; Kitaev et al., 2020  ###reference_b28###; Lagunas et al., 2021  ###reference_b30###) and (iv) Pruning (Voita et al., 2019  ###reference_b48###; Liu et al., 2023b  ###reference_b33###) and Quantization (Frantar et al., 2022  ###reference_b19###; Xiao et al., 2023  ###reference_b56###; Kim et al., 2021  ###reference_b27###; Shen et al., 2020  ###reference_b42###; Dettmers et al., 2022  ###reference_b14###; Dettmers, 2015  ###reference_b12###; Dettmers & Zettlemoyer, 2023  ###reference_b13###). In this work our focus is on pruning , which we discuss next.\nLLM Quantization. Recently several methods have been proposed to perform post training quantization allowing models to be quantized to a lower precision (Frantar et al., 2022  ###reference_b19###; Xiao et al., 2023  ###reference_b56###; Dettmers & Zettlemoyer, 2023  ###reference_b13###). The goal of these methods is to perform quantization so as to minimize the error, CHAI is orthogonal to quantization based mechanisms as it depends on the insight of several attention heads focusing on the same tokens. The goal of quantization methods is to keep the same properties of original models, therefore we believe CHAI can be used to further accelerate post training quantized neural networks.\nLLM Pruning. Pruning is a widely studied method to improve inference time by removing unused weights post training.\nSeveral prior works have looked at pruning for language models (Chen et al., 2020b  ###reference_b6###; Prasanna et al., 2020  ###reference_b35###; Chen et al., 2020a  ###reference_b5###). For example, oBERT is a second order method to reduce the number of weights (Kurtic et al., 2022  ###reference_b29###). Although these approaches can compress a model, they rarely yield inference speedups due to lack of hardware support for sparse operations on modern GPUs. To overcome the challenges, low rank decomposition methods (Wang et al., 2023  ###reference_b52###, 2021a  ###reference_b50###, 2019  ###reference_b54###), attention head pruning (Michel et al., 2019  ###reference_b34###; Voita et al., 2019  ###reference_b48###), layer dropping (Sajjad et al., 2023  ###reference_b39###; Fan et al., 2019  ###reference_b16###; Dai et al., 2023  ###reference_b9###) were proposed. However, these methods are infeasible for LLMs due to the use of iterative gradient calculations or fine-tuning leading to high resource requirements.\nTo overcome these issues, a recently proposed method, DejaVu (Liu et al., 2023b  ###reference_b33###), identifies portions of the model which are unused for a given context. To reduce the overhead of self-attention, DejaVu prunes attention heads which give uniform weight across tokens.\nWe plot the activations for an exemplary sentence used by DejaVu for both OPT-66B and LLaMa-7B in Figure 4  ###reference_###. We observe that while there are heads which give uniform weight to each token in OPT-66B model, there are no such heads in more parameter efficient models like LLaMa-7B, indicating that for smaller parameter efficient models like LLaMa DejaVu might not be applicable. (Additional plots for different layers can be found in Appendix-A  ###reference_###.)\nThe primary difference between OPT and LLaMa activation patterns could be attributed to the fact that LLaMa models are trained significantly longer and with more data.\nWe observe that CHAI\u2019s insight about redundancy in the output of multiple heads in the attention holds across both OPT and LLaMa family of models. In our evaluation (Section 4  ###reference_###), we perform quantitative comparison between CHAI and DejaVu.\n###figure_6### ###figure_7### ###figure_8### ###figure_9### ###figure_10### ###figure_11### ###figure_12### ###figure_13### ###figure_14### ###figure_15### ###figure_16### K,V Cache Compression. Prior works which have tried to reduce the K,V cache size (Liu et al., 2023a  ###reference_b32###; Zhang et al., 2023  ###reference_b61###) by storing the K,V cache values for the most recent important tokens. However, they can not directly improve the latency of generating the next token, as they still perform the full transformer compute before finally deciding which K,V pairs should be stored.\nOn the other hand, CHAI reduces not just the K,V cache size, it is also able to reduce the latency of next word prediction.\nSpeculative Decoding. Speculative decoding (Leviathan et al., 2023  ###reference_b31###; Yang et al., 2023  ###reference_b57###; Xia et al., 2023  ###reference_b55###) is a popular method where a draft model is used to cheaply generate a sequence of draft tokens which can be efficiently verified by a target LLM. Speculative decoding can significantly reduce the latency of LLM serving, however it further exacerbates the compute and memory requirements as it requires additional resources to run both the draft and target model. CHAI on the other hand is focused on reducing the resource required for inference."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "CHAI",
+            "text": "Next, we describe CHAI.\nWe first describe the key insights which have been used to build CHAI. Then, we detail CHAI\u2019s runtime pruning algorithm which is inspired by our insights and discuss how we perform inference using CHAI. Figure 5  ###reference_### provides a high level overview of inference using CHAI, which includes offline and online components.\nFigure 6  ###reference_### and Figure 7  ###reference_### indicate that the number of clusters varies widely per layer in a LLM. Specifically, the last few layers in the LLM exhibit a very low number of clusters (high redundancy), whereas the early layers demonstrate a high degree of variance across the output of heads resulting in large number of clusters.\nThis observation suggests that the method used to determine number of clusters needs to make decisions for each layer independently. Additionally, widely used methods such as Elbow plot method (Thorndike, 1953  ###reference_b44###) for determining number of clusters entail manual effort making cluster number determination impractical at inference time.\nDesign.\nTo determine the number of clusters, we propose an offline strategy we run once for each model.\nIn our case, we sample a small number of samples (1024) from the C4 (Raffel et al., 2020  ###reference_b38###) dataset and perform elbow-plot analysis by plotting clustering error (i.e. sum of squared distance from the closest cluster) as a function of number of clusters. Figure 8  ###reference_### shows the clustering error for LLaMa-7B for the samples selected. Based on the Elbow-plot analysis we choose the number of clusters when the error plateaus.\nThe offline analysis is performed once for each network by using the C4 (Raffel et al., 2020  ###reference_b38###) dataset. We do not change the number of clusters determined for a new dataset."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Determination of Number of Clusters",
+            "text": "Figure 6  ###reference_###  ###reference_### and Figure 7  ###reference_###  ###reference_### indicate that the number of clusters varies widely per layer in a LLM. Specifically, the last few layers in the LLM exhibit a very low number of clusters (high redundancy), whereas the early layers demonstrate a high degree of variance across the output of heads resulting in large number of clusters.\nThis observation suggests that the method used to determine number of clusters needs to make decisions for each layer independently. Additionally, widely used methods such as Elbow plot method (Thorndike, 1953  ###reference_b44###  ###reference_b44###) for determining number of clusters entail manual effort making cluster number determination impractical at inference time.\nDesign.\nTo determine the number of clusters, we propose an offline strategy we run once for each model.\nIn our case, we sample a small number of samples (1024) from the C4 (Raffel et al., 2020  ###reference_b38###  ###reference_b38###) dataset and perform elbow-plot analysis by plotting clustering error (i.e. sum of squared distance from the closest cluster) as a function of number of clusters. Figure 8  ###reference_###  ###reference_### shows the clustering error for LLaMa-7B for the samples selected. Based on the Elbow-plot analysis we choose the number of clusters when the error plateaus.\nThe offline analysis is performed once for each network by using the C4 (Raffel et al., 2020  ###reference_b38###  ###reference_b38###) dataset. We do not change the number of clusters determined for a new dataset."
+        },
+        {
+            "section_id": "3.3",
+            "parent_section_id": "3",
+            "section_name": "Determination of Cluster Membership",
+            "text": "Challenges. Having determined number of clusters, we need to determine the membership of these clusters, i.e., which heads belong to which cluster in each layer.\nFor Figure 6  ###reference_###, 7  ###reference_### and  8  ###reference_###, we perform clustering based on activations obtained by performing the forward pass. However, for each decoding step, performing clustering on output of self attention post forward pass will not yield any performance benefit as we will still be performing the original compute and using the full K,V cache.\nIn order to utilize the insights observed in Section 3.1  ###reference_###, we will need to decide the cluster members without having access to the output of the self attention.\nDesign.\nA simple strategy would have been keeping the cluster membership static across the tokens and independent of input context, e.g., we use the same cluster membership found during offline analysis with C4 data in the previous section.\nFor evaluation purposes we call this version of head selection CHAI-static.\nHowever, we observed that the cluster membership does not remain static and varies based on context.\nWhen comparing Figure 7  ###reference_###, which plots correlation for a single example,\nwith Figure 6  ###reference_###, which plots correlation for 1024 samples, we observe that the correlation across heads varies with varying context. Therefore, the correlation across the output of the heads depends on the context (input prompt), i.e., a solution to determine the membership of each cluster has to account for context.\nTo understand the effects of accounting for context while clustering heads, we analysed the change in cluster membership changes and clustering with different context. In Figure 9  ###reference_###, we observed an interesting phenomenon, after determining cluster membership by accounting for five tokens, the cluster membership does not change frequently. A direct outcome of this observation is that for each new sequence we can perform clustering based on the output of self-attention after the first five tokens. We observe that activation from first five tokens of a new sequence are enough to accurately predict the cluster membership. This dynamic version of head selection further allows us to improve accuracy over CHAI-static.\nFigure 10(b)  ###reference_.sf2### shows an illustration of the membership identification step. Furthermore, evaluation results in Section 4  ###reference_### compare CHAI-static and CHAI performance."
+        },
+        {
+            "section_id": "3.4",
+            "parent_section_id": "3",
+            "section_name": "Clustered Head Attention",
+            "text": "Once we have decided which heads have similar attention output, we can than use Clustered Head Attention to combine key and query vectors for the heads."
+        },
+        {
+            "section_id": "3.5",
+            "parent_section_id": "3",
+            "section_name": "Inference using CHAI",
+            "text": "Next we, discuss the inference flow of CHAI, illustrated in detail in Figure 10  ###reference_###.\nFor each new model we first perform offline cluster identification (Figure 10(a)  ###reference_.sf1###). Then for each new request, we determine the cluster membership using K-Means clustering once we have processed five tokens, using the observed activations (Figure 10(b)  ###reference_.sf2###). After this step, we keep the clustered heads same throughout inference (Figure 10(c)  ###reference_.sf3###).\nThere are two direct outcomes of CHAI\u2019s design. First, we directly reduce the amount of computation by removing redundant heads. Secondly, after a pre-determined token we fix the heads which are going to be pruned, this also allows us to remove the corresponding Key tokens associated, which significantly reduces the K,V cache size.\nTherefore, CHAI allows us to reduce both the inference compute as well as the size of the K,V cache required."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Evaluation",
+            "text": "We experimentally verify the performance of CHAI and compare it to DejaVu (Liu et al., 2023b  ###reference_b33###) and SpAtten (Wang et al., 2021b  ###reference_b51###) on three different models of various sizes LLaMa-7B (Touvron et al., 2023a  ###reference_b45###), LLaMa-33B and OPT-66B (Zhang et al., 2022  ###reference_b60###). We evaluate the models on five commonly used NLP tasks: PIQA (Bisk et al., 2020  ###reference_b3###), HellaSwag (Zellers et al., 2019  ###reference_b59###), Arc-Challenge and Arc-Easy (Clark et al., 2018  ###reference_b8###) and BoolQA (Clark et al., 2019  ###reference_b7###)."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Experimental Setup",
+            "text": "All our experiments are performed on servers with NVIDIA V100 GPUs. For OPT-66B we used eight GPUs on a single node, for LLaMa-33B we used four GPUs, and for LLaMa-7B, we used a single GPU for inference. CHAI is built on top of Meta\u2019s xFormers (facebookresearch, 2023  ###reference_b15###)."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Accuracy Evaluation",
+            "text": "In our evaluation, we compare CHAI with Multi-Head Attention as baseline, static version of CHAI, as well two other state-of-the-art prior pruning methods; DejaVu and SpAtten.\nFor DejaVu, we try different sparsity ratios, in order to try to match the accuracy number to MHA. We also compare CHAI to SpAtten, a method which removes unimportant tokens and heads.\nIn Table 1  ###reference_###, we first verify that we are able to reproduce the performance numbers reported by DejaVu. To perform this, we took the OPT-66B and evaluated both DejaVu, CHAI and CHAI-static. We used DejaVu with 50% sparsity as reported by the authors.\nWe used the author provided code to train their MLP predictor layers and incorporate their scheme in our setup.\nIn Table 1  ###reference_###, we observe that we were able to replicate results for OPT-66B. Furthermore, CHAI is also able to match the accuracy of MHA for OPT-66B.\nNext, we compare CHAI, CHAI-static and DejaVu with the pre-trained MHA network, using LLaMa-7B on 5 different datasets.\nFor DejaVu we used three configurations, 50% sparsity, 30% sparsity and 10% sparsity.\nIn Table 2  ###reference_###, we observe that when we use DejaVu with more 10% sparsity we see significant decrease in accuracy (by 18.6% for DejaVu-30%). On the other hand, our method based on our close analysis of the behaviour of layers of LLaMa-7B is able to recover accuracy. We observe a maximum accuracy degradation of 3.7% for CHAI.\nSimilarly for LLaMa-33B using sparsity for more than 10% leads to significant accuracy drop, meanwhile CHAI closely matches the accuracy of the pre-trained model using MHA with maximum degradation in accuracy by 0.14%.\nThis shows that CHAI is widely applicable across multiple datasets and models.\nWe also want to highlight that we do not perform any dataset specific tuning."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "Reduction in K,V Cache Memory Requirement",
+            "text": "In this section, we study the memory capacity reduction achieved by use of CHAI due to reduction in K,V cache size.\nIn Figure 11  ###reference_###, we show that for LLaMa-7B CHAI reduces the size of K,V cache by up to 21.4% compared to MHA.\nEven for comparatively small models like LLaMa-7B, the size of the K,V cache for a sequence length of 2048 is around 1.2 GB, while around 12 GB is used for the model weights. A reduction in K,V cache size can enable use of larger context length or serving more requests.\nWe would also like to note that as shown in Figure 3  ###reference_###, CHAI only removes the keys associated with redundant heads and keeps all the value vectors.\n###figure_22### ###figure_23### ###figure_24###"
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "End-to-End Latency",
+            "text": "Next, we evaluate time to first token and time to next token comparing it with MHA. These are two standard metrics used for evaluation of an LLM. Time to first token evaluates the time for generating a first token given a new context. Time to first token accounts for generating K,V caches for all the tokens in the context. Whereas time to next token evaluates the time for generating the next token, assuming the K,V caches for all internal tokens is available.\nTime to first token.\nNext, in our experiments we compare the speedups provided by CHAI. In Figure 12  ###reference_###-(a) for LLaMa-7B we show that our method provides speedup of up to  on a sequence length of 2048.\nThe execution times represented in this figure accounts for the overhead of clustering in CHAI.\nTime to next token.\nAnother metric for evaluation of LLMs is time to next token. We do not account for the overhead of clustering in the case of time to next token. Our primary wins come from reducing compute and reducing memory bandwidth requirement for performing time to next token.\nFigure 12  ###reference_###-(b) shows time to predict the next token for different sequence lengths. We observe that CHAI provides a speedup of over  for a sequence length of 2048.\nUnfortunately, we are not able to compare times with DejaVu as the authors have not released the specialized kernels used for realizing the speedups on hardware (git, 2024  ###reference_b1###),\nthus inhibiting a runtime comparison. However, we believe it is unlikely that at less than 10% sparsity which is needed by DejaVu to get comparable accuracy to MHA, it will yield high speedups (Hooker, 2021  ###reference_b23###).\nWe would like to highlight that because of performing dense computations, unlike DejaVu, CHAI does not need custom GPU kernels. Further, CHAI\u2019s speedup benefits are independent of the framework used, because irrespective of implementation, CHAI directly reduces the complexity of MHA.\n###figure_25###"
+        },
+        {
+            "section_id": "4.5",
+            "parent_section_id": "4",
+            "section_name": "Additional Experiments",
+            "text": "Next we perform additional studies on our algorithm.\nPruning K, Q and V.\nIn CHAI, we prune only the Key and Query portion of an attention head leaving the Value vector intact. Next, we study how accuracy changes if we remove the value vector as well.\nTo perform this experiment we chose to reuse the value vector generated by the chosen head.\nIn Table 4  ###reference_###, we show how reusing the full head (Query, Key and Value vector) lead to additional loss in accuracy. This shows that for smaller networks like LLaMa it might be hard to remove the whole head in Multi-Head Attention.\nCluster Distribution.\nFigure 13  ###reference_### shows the distribution across clusters for Layer-18 on LLaMa-7B for different 1024 samples of C4 dataset. We observe that typically for LLMs majority of heads can be grouped into a single head."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "In this work, we present CHAI, an efficient runtime method which identifies attention heads giving similar scores. Using this method we reduce overhead of Multi-Head Attention by clustering the correlated heads and computing attention scores only for heads which lead to disparate attention scores. Our evaluation shows that with minor accuracy loss system can speedup inference by up to ."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Additional Plots",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T1.3.1.1\" style=\"font-size:90%;\">Table 1</span>: </span><span class=\"ltx_text\" id=\"S3.T1.4.2\" style=\"font-size:90%;\">Accuracy on <span class=\"ltx_text ltx_font_smallcaps\" id=\"S3.T1.4.2.1\">OPT</span>-66B</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S3.T1.5\" style=\"width:433.6pt;height:121.9pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(56.8pt,-16.0pt) scale(1.35482519755599,1.35482519755599) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.5.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.5.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.1\">Method</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.2\">PIQA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.3\">Hellaswag</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.4\">Arc-Challenge</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.5\">Arc-Easy</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.5.1.1.1.6\">Boolq</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.5.1.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.1\">MHA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.2\">78.4</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.3\">71.1</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.4\">41.6</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.5\">64.7</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S3.T1.5.1.2.2.6\">65.4</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.5.1.3.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.1\">DejaVu-50%</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.2\">-0.25</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.3\">-0.7</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.4\">-0.6</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.5\">-0.2</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_t\" id=\"S3.T1.5.1.3.1.6\">-4.0</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.5.1.4.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.1.4.2.1\">CHAI-static</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.1.4.2.2\">-1.35</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.1.4.2.3\">-1.7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.1.4.2.4\">-0.7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.1.4.2.5\">-0.7</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S3.T1.5.1.4.2.6\">-0.7</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.5.1.5.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.1\">CHAI</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.1.5.3.2.1\">-0.15</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.1.5.3.3.1\">0.1</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.1.5.3.4.1\">0.1</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.1.5.3.5.1\">-0.1</span></td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_bb\" id=\"S3.T1.5.1.5.3.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.1.5.3.6.1\">-0.6</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 1: Accuracy on OPT-66B"
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T2.3.1.1\" style=\"font-size:90%;\">Table 2</span>: </span><span class=\"ltx_text\" id=\"S4.T2.4.2\" style=\"font-size:90%;\"> Accuracy on <span class=\"ltx_text ltx_font_smallcaps\" id=\"S4.T2.4.2.1\">LLaMa</span>-7B</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T2.5\" style=\"width:433.6pt;height:192.6pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(54.7pt,-24.3pt) scale(1.33764306739104,1.33764306739104) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.5.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.1\">Method</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.2\">PIQA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.3\">HellaSwag</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.4\">Arc-Challenge</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.5\">Arc-Easy</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.5.1.1.1.6\">BoolQ</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.1\">MHA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.2\">79.8</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.3\">76.1</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.4\">47.5</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.5\">72.8</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.2.2.6\">76.0</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.3.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.1\">DejaVu-10%</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.2\">-3.9</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.3\">-4.7</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.4\">-5.78</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.5\">-3.18</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.6\">-7.4</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.4.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.4.2.1\">DejaVu-30%</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.4.2.2\">-13.3</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.4.2.3\">-18.6</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.4.2.4\">-18.75</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.4.2.5\">-4.2</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T2.5.1.4.2.6\">-20.2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.5.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.5.3.1\">DejaVu-50%</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.5.3.2\">-24.6</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.5.3.3\">-50.7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.5.3.4\">-19.35</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.5.3.5\">-46.3</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T2.5.1.5.3.6\">-21.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.6.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.6.4.1\">SpAtten</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.6.4.2\">-41.4</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.6.4.3\">-42.5</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.6.4.4\">-18.0</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.6.4.5\">-40.2</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T2.5.1.6.4.6\">-27.1</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.7.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.7.5.1\">CHAI-static</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.7.5.2\">-4.0</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.7.5.3\">-4.3</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.7.5.4\">-3.7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T2.5.1.7.5.5\">-2.5</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T2.5.1.7.5.6\">-0.8</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.8.6\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.1\">CHAI</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.8.6.2.1\">-2.0</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.8.6.3.1\">-3.2</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.8.6.4.1\">-0.5</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.8.6.5.1\">0.3</span></td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_bb\" id=\"S4.T2.5.1.8.6.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.8.6.6.1\">0.1</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 2:  Accuracy on LLaMa-7B"
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1\" style=\"font-size:90%;\">Table 3</span>: </span><span class=\"ltx_text\" id=\"S4.T3.4.2\" style=\"font-size:90%;\">Accuracy on <span class=\"ltx_text ltx_font_smallcaps\" id=\"S4.T3.4.2.1\">LLaMa</span>-33B</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T3.5\" style=\"width:433.6pt;height:192.6pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(54.7pt,-24.3pt) scale(1.33764306739104,1.33764306739104) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.5.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T3.5.1.1.1.1\">Method</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T3.5.1.1.1.2\">PIQA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.5.1.1.1.3\">HellaSwag</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.5.1.1.1.4\">Arc-Challenge</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.5.1.1.1.5\">Arc-Easy</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.5.1.1.1.6\">BoolQ</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_t\" id=\"S4.T3.5.1.2.2.1\">MHA</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_t\" id=\"S4.T3.5.1.2.2.2\">82.1</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.5.1.2.2.3\">82.8</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.5.1.2.2.4\">57.8</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.5.1.2.2.5\">80.0</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.5.1.2.2.6\">83.1</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.5.1.3.1.1\">DejaVu-10%</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.5.1.3.1.2\">-0.7</th>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.5.1.3.1.3\">0.1</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.5.1.3.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1.3.1.4.1\">-0.2</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.5.1.3.1.5\">-0.6</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_t\" id=\"S4.T3.5.1.3.1.6\">-0.2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.4.2.1\">DejaVu-30%</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.4.2.2\">-9.3</th>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.4.2.3\">-24.4</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.4.2.4\">-17.91</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.4.2.5\">-12.4</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T3.5.1.4.2.6\">-12.2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.5.3.1\">DejaVu-50%</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.5.3.2\">-27.6</th>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.5.3.3\">-43.2</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.5.3.4\">-24.6</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.5.3.5\">-37.6</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T3.5.1.5.3.6\">-21.2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.6.4.1\">SpAtten</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.6.4.2\">-31.9</th>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.6.4.3\">-44.1</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.6.4.4\">-26.4</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.6.4.5\">-40.3</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T3.5.1.6.4.6\">-34.55</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.7.5.1\">CHAI-static</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.5.1.7.5.2\">-0.5</th>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.7.5.3\">-0.2</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.7.5.4\">-1.3</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.5.1.7.5.5\">-3.7</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left\" id=\"S4.T3.5.1.7.5.6\">-1.5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.5.1.8.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T3.5.1.8.6.1\">CHAI</th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T3.5.1.8.6.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1.8.6.2.1\">0</span></th>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T3.5.1.8.6.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1.8.6.3.1\">-0.14</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T3.5.1.8.6.4\">-0.21</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T3.5.1.8.6.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1.8.6.5.1\">0.9</span></td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_bb\" id=\"S4.T3.5.1.8.6.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1.8.6.6.1\">-0.04</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 3: Accuracy on LLaMa-33B"
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T4.2.1.1\" style=\"font-size:90%;\">Table 4</span>: </span><span class=\"ltx_text\" id=\"S4.T4.3.2\" style=\"font-size:90%;\">Pruning Both Q,K,V</span></figcaption>\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T4.4\" style=\"width:303.5pt;height:77pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(45.3pt,-11.5pt) scale(1.42596395835323,1.42596395835323) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T4.4.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T4.4.1.1.1\">\n<td class=\"ltx_td ltx_border_tt\" id=\"S4.T4.4.1.1.1.1\"></td>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.4.1.1.1.2\"><span class=\"ltx_text ltx_font_smallcaps\" id=\"S4.T4.4.1.1.1.2.1\">CHAI</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.4.1.1.1.3\">\n<span class=\"ltx_text ltx_font_smallcaps\" id=\"S4.T4.4.1.1.1.3.1\">CHAI</span>-QKV</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.4.1.1.1.4\">MHA</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.4.1.2.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T4.4.1.2.2.1\">Arc-Challenge</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T4.4.1.2.2.2\">47.0</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T4.4.1.2.2.3\">41.29</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_t\" id=\"S4.T4.4.1.2.2.4\">47.5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.4.1.3.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T4.4.1.3.3.1\">PIQA</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T4.4.1.3.3.2\">77.8</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T4.4.1.3.3.3\">61.93</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_left ltx_border_bb\" id=\"S4.T4.4.1.3.3.4\">79.8</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 4: Pruning Both Q,K,V"
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.08058v2_figure_1.png",
+            "caption": "Figure 1: Accuracy vs Flops: We study various methods of clustering attention heads, and plot the runtime for sequence length of 2048. For random head selection we randomly choose heads to combine in increasing number of 4, 8, 16 and 24. For Static Head Selection, we choose the heads to combine based on activations. CHAI is our proposed method."
+        },
+        "2": {
+            "figure_path": "2403.08058v2_figure_2.png",
+            "caption": "(a) Activations of Multi Head Attention: Figure shows activation scores for each token for each head. We observe that several heads give similar scores to the sequence."
+        },
+        "3": {
+            "figure_path": "2403.08058v2_figure_3.png",
+            "caption": "(b) Pairwise cross correlation: Pairwise cross-correlations show existence of three clusters- Heads [12,26] show strong correlation forming one cluster, Heads [20,25] form another, and the remaining heads form a third cluster."
+        },
+        "4": {
+            "figure_path": "2403.08058v2_figure_4.png",
+            "caption": "(a) Multi-Head Attention"
+        },
+        "5": {
+            "figure_path": "2403.08058v2_figure_5.png",
+            "caption": "(b) Clustered Head Attention"
+        },
+        "6": {
+            "figure_path": "2403.08058v2_figure_6.png",
+            "caption": "(a) OPT-66B: For several heads the activation scores are uniform, i.e., the heads given close to equal importance to each input token."
+        },
+        "7": {
+            "figure_path": "2403.08058v2_figure_7.png",
+            "caption": "(b) LLaMa-7B: Heads in LLaMa-7B specifically pay attention to a specific token. However, multiple heads are attending to same token, in this case the first token."
+        },
+        "8": {
+            "figure_path": "2403.08058v2_figure_8.png",
+            "caption": "Figure 5: CHAI Flow: In the offline phase, we run clustering and perform elbow plot analysis for each new model. Then, for each new inference request we only perform cluster membership identification based on online performance."
+        },
+        "9": {
+            "figure_path": "2403.08058v2_figure_9.png",
+            "caption": "(a) Layer 1"
+        },
+        "10": {
+            "figure_path": "2403.08058v2_figure_10.png",
+            "caption": "(b) Layer 5"
+        },
+        "11": {
+            "figure_path": "2403.08058v2_figure_11.png",
+            "caption": "(c) Layer 17"
+        },
+        "12": {
+            "figure_path": "2403.08058v2_figure_12.png",
+            "caption": "(d) Layer 30"
+        },
+        "13": {
+            "figure_path": "2403.08058v2_figure_13.png",
+            "caption": "(a) Layer 1"
+        },
+        "14": {
+            "figure_path": "2403.08058v2_figure_14.png",
+            "caption": "(b) Layer 5"
+        },
+        "15": {
+            "figure_path": "2403.08058v2_figure_15.png",
+            "caption": "(c) Layer 17"
+        },
+        "16": {
+            "figure_path": "2403.08058v2_figure_16.png",
+            "caption": "(d) Layer 30"
+        },
+        "17": {
+            "figure_path": "2403.08058v2_figure_17.png",
+            "caption": "Figure 8:  Clustering Error: We plot the clustering error on 1024 samples of C4-dataset. The markers represent the number of clusters we choose for a layer."
+        },
+        "18": {
+            "figure_path": "2403.08058v2_figure_18.png",
+            "caption": "Figure 9: Cluster Membership Evaluation: We evaluate the number of times the cluster membership changes for performing next token prediction. We observed that if clustering is performed beyond the fifth token the number of times cluster membership changes is quite small."
+        },
+        "19": {
+            "figure_path": "2403.08058v2_figure_19.png",
+            "caption": "(a) Offline Cluster Identification: For each new model we run an offline cluster identification phase. We collect the activations and perform Elbow-plot analysis to decide number of clusters."
+        },
+        "20": {
+            "figure_path": "2403.08058v2_figure_20.png",
+            "caption": "(b) Cluster Membership Identification: For each new request, we initial run with multi-head attention for first five tokens. Using this we determine the number of clusters in each layer."
+        },
+        "21": {
+            "figure_path": "2403.08058v2_figure_21.png",
+            "caption": "(c) CHAI Inference: Post cluster membership identification we substitute MHA with Clustered Head Attention."
+        },
+        "22": {
+            "figure_path": "2403.08058v2_figure_22.png",
+            "caption": "Figure 11: Memory Savings: We observed that for LLaMa-7B CHAI provides memory savings of up to 21.4%."
+        },
+        "23": {
+            "figure_path": "2403.08058v2_figure_23.png",
+            "caption": "(a) Time to first token: We observe speedups of upto 1.73\u00d7\\times\u00d7 for sequence length of 2048."
+        },
+        "24": {
+            "figure_path": "2403.08058v2_figure_24.png",
+            "caption": "(b) Time to next token: We observe a speedup of upto 5\u00d75\\times5 \u00d7 for sequence length of 2048."
+        },
+        "25": {
+            "figure_path": "2403.08058v2_figure_25.png",
+            "caption": "Figure 13: Cluster Distribution: We observe that number of heads within the cluster is quite skewed. We often observe one or two large clusters, while the remaining heads in the cluster."
+        },
+        "26": {
+            "figure_path": "2403.08058v2_figure_26.png",
+            "caption": "Figure 14: Accuracy vs Inference Time for LLaMa-7B: We study various methods of clustering attention heads, and plot the runtime for sequence length of 2048. For random head selection we randomly choose heads to combine together in increasing number of 4, 8, 16 and 24. For Static Head selection we choose the heads in increasing order of 4,8,16, and 24 based on activation analysis of activation on C4 dataset (Raffel et al., 2020)."
+        },
+        "27": {
+            "figure_path": "2403.08058v2_figure_27.png",
+            "caption": "i Layer 0"
+        },
+        "28": {
+            "figure_path": "2403.08058v2_figure_28.png",
+            "caption": "ii Layer 1"
+        },
+        "29": {
+            "figure_path": "2403.08058v2_figure_29.png",
+            "caption": "iii Layer 2"
+        },
+        "30": {
+            "figure_path": "2403.08058v2_figure_30.png",
+            "caption": "iv Layer 3"
+        },
+        "31": {
+            "figure_path": "2403.08058v2_figure_31.png",
+            "caption": "v Layer 4"
+        },
+        "32": {
+            "figure_path": "2403.08058v2_figure_32.png",
+            "caption": "vi Layer 5"
+        },
+        "33": {
+            "figure_path": "2403.08058v2_figure_33.png",
+            "caption": "i Layer 6"
+        },
+        "34": {
+            "figure_path": "2403.08058v2_figure_34.png",
+            "caption": "ii Layer 7"
+        },
+        "35": {
+            "figure_path": "2403.08058v2_figure_35.png",
+            "caption": "iii Layer 8"
+        },
+        "36": {
+            "figure_path": "2403.08058v2_figure_36.png",
+            "caption": "iv Layer 9"
+        },
+        "37": {
+            "figure_path": "2403.08058v2_figure_37.png",
+            "caption": "v Layer 10"
+        },
+        "38": {
+            "figure_path": "2403.08058v2_figure_38.png",
+            "caption": "vi Layer 11"
+        },
+        "39": {
+            "figure_path": "2403.08058v2_figure_39.png",
+            "caption": "i Layer 12"
+        },
+        "40": {
+            "figure_path": "2403.08058v2_figure_40.png",
+            "caption": "ii Layer 13"
+        },
+        "41": {
+            "figure_path": "2403.08058v2_figure_41.png",
+            "caption": "iii Layer 14"
+        },
+        "42": {
+            "figure_path": "2403.08058v2_figure_42.png",
+            "caption": "iv Layer 15"
+        },
+        "43": {
+            "figure_path": "2403.08058v2_figure_43.png",
+            "caption": "v Layer 16"
+        },
+        "44": {
+            "figure_path": "2403.08058v2_figure_44.png",
+            "caption": "vi Layer 17"
+        },
+        "45": {
+            "figure_path": "2403.08058v2_figure_45.png",
+            "caption": "vii Layer 18"
+        },
+        "46": {
+            "figure_path": "2403.08058v2_figure_46.png",
+            "caption": "viii Layer 19"
+        },
+        "47": {
+            "figure_path": "2403.08058v2_figure_47.png",
+            "caption": "ix Layer 20"
+        },
+        "48": {
+            "figure_path": "2403.08058v2_figure_48.png",
+            "caption": "x Layer 21"
+        },
+        "49": {
+            "figure_path": "2403.08058v2_figure_49.png",
+            "caption": "xi Layer 22"
+        },
+        "50": {
+            "figure_path": "2403.08058v2_figure_50.png",
+            "caption": "xii Layer 20"
+        },
+        "51": {
+            "figure_path": "2403.08058v2_figure_51.png",
+            "caption": "i Layer 24"
+        },
+        "52": {
+            "figure_path": "2403.08058v2_figure_52.png",
+            "caption": "ii Layer 25"
+        },
+        "53": {
+            "figure_path": "2403.08058v2_figure_53.png",
+            "caption": "iii Layer 25"
+        },
+        "54": {
+            "figure_path": "2403.08058v2_figure_54.png",
+            "caption": "iv Layer 26"
+        },
+        "55": {
+            "figure_path": "2403.08058v2_figure_55.png",
+            "caption": "v Layer 27"
+        },
+        "56": {
+            "figure_path": "2403.08058v2_figure_56.png",
+            "caption": "vi Layer 28"
+        },
+        "57": {
+            "figure_path": "2403.08058v2_figure_57.png",
+            "caption": "vii Layer 29"
+        },
+        "58": {
+            "figure_path": "2403.08058v2_figure_58.png",
+            "caption": "viii Layer 30"
+        },
+        "59": {
+            "figure_path": "2403.08058v2_figure_59.png",
+            "caption": "ix Layer 31"
+        },
+        "60": {
+            "figure_path": "2403.08058v2_figure_60.png",
+            "caption": "x Layer 32"
+        },
+        "61": {
+            "figure_path": "2403.08058v2_figure_61.png",
+            "caption": "xi Layer 33"
+        },
+        "62": {
+            "figure_path": "2403.08058v2_figure_62.png",
+            "caption": "xii Layer 34"
+        },
+        "63": {
+            "figure_path": "2403.08058v2_figure_63.png",
+            "caption": "xiii Layer 35"
+        },
+        "64": {
+            "figure_path": "2403.08058v2_figure_64.png",
+            "caption": "xiv Layer 36"
+        },
+        "65": {
+            "figure_path": "2403.08058v2_figure_65.png",
+            "caption": "xv Layer 37"
+        },
+        "66": {
+            "figure_path": "2403.08058v2_figure_66.png",
+            "caption": "i Layer 38"
+        },
+        "67": {
+            "figure_path": "2403.08058v2_figure_67.png",
+            "caption": "ii Layer 39"
+        },
+        "68": {
+            "figure_path": "2403.08058v2_figure_68.png",
+            "caption": "iii Layer 41"
+        },
+        "69": {
+            "figure_path": "2403.08058v2_figure_69.png",
+            "caption": "iv Layer 42"
+        },
+        "70": {
+            "figure_path": "2403.08058v2_figure_70.png",
+            "caption": "v Layer 43"
+        },
+        "71": {
+            "figure_path": "2403.08058v2_figure_71.png",
+            "caption": "vi Layer 44"
+        },
+        "72": {
+            "figure_path": "2403.08058v2_figure_72.png",
+            "caption": "vii Layer 45"
+        },
+        "73": {
+            "figure_path": "2403.08058v2_figure_73.png",
+            "caption": "viii Layer 46"
+        },
+        "74": {
+            "figure_path": "2403.08058v2_figure_74.png",
+            "caption": "ix Layer 47"
+        },
+        "75": {
+            "figure_path": "2403.08058v2_figure_75.png",
+            "caption": "x Layer 48"
+        },
+        "76": {
+            "figure_path": "2403.08058v2_figure_76.png",
+            "caption": "xi Layer 49"
+        },
+        "77": {
+            "figure_path": "2403.08058v2_figure_77.png",
+            "caption": "xii Layer 50"
+        },
+        "78": {
+            "figure_path": "2403.08058v2_figure_78.png",
+            "caption": "xiii Layer 51"
+        },
+        "79": {
+            "figure_path": "2403.08058v2_figure_79.png",
+            "caption": "xiv Layer 52"
+        },
+        "80": {
+            "figure_path": "2403.08058v2_figure_80.png",
+            "caption": "xv Layer 53"
+        },
+        "81": {
+            "figure_path": "2403.08058v2_figure_81.png",
+            "caption": "i Layer 54"
+        },
+        "82": {
+            "figure_path": "2403.08058v2_figure_82.png",
+            "caption": "ii Layer 55"
+        },
+        "83": {
+            "figure_path": "2403.08058v2_figure_83.png",
+            "caption": "iii Layer 56"
+        },
+        "84": {
+            "figure_path": "2403.08058v2_figure_84.png",
+            "caption": "iv Layer 57"
+        },
+        "85": {
+            "figure_path": "2403.08058v2_figure_85.png",
+            "caption": "v Layer 58"
+        },
+        "86": {
+            "figure_path": "2403.08058v2_figure_86.png",
+            "caption": "vi Layer 59"
+        },
+        "87": {
+            "figure_path": "2403.08058v2_figure_87.png",
+            "caption": "vii Layer 60"
+        },
+        "88": {
+            "figure_path": "2403.08058v2_figure_88.png",
+            "caption": "viii Layer 61"
+        },
+        "89": {
+            "figure_path": "2403.08058v2_figure_89.png",
+            "caption": "ix Layer 62"
+        },
+        "90": {
+            "figure_path": "2403.08058v2_figure_90.png",
+            "caption": "x Layer 63"
+        },
+        "91": {
+            "figure_path": "2403.08058v2_figure_91.png",
+            "caption": "(a) Layer 0"
+        },
+        "92": {
+            "figure_path": "2403.08058v2_figure_92.png",
+            "caption": "(b) Layer 1"
+        },
+        "93": {
+            "figure_path": "2403.08058v2_figure_93.png",
+            "caption": "(c) Layer 2"
+        },
+        "94": {
+            "figure_path": "2403.08058v2_figure_94.png",
+            "caption": "(d) Layer 3"
+        },
+        "95": {
+            "figure_path": "2403.08058v2_figure_95.png",
+            "caption": "(e) Layer 4"
+        },
+        "96": {
+            "figure_path": "2403.08058v2_figure_96.png",
+            "caption": "(f) Layer 5"
+        },
+        "97": {
+            "figure_path": "2403.08058v2_figure_97.png",
+            "caption": "(g) Layer 6"
+        },
+        "98": {
+            "figure_path": "2403.08058v2_figure_98.png",
+            "caption": "(h) Layer 7"
+        },
+        "99": {
+            "figure_path": "2403.08058v2_figure_99.png",
+            "caption": "(i) Layer 8"
+        },
+        "100": {
+            "figure_path": "2403.08058v2_figure_100.png",
+            "caption": "(j) Layer 9"
+        },
+        "101": {
+            "figure_path": "2403.08058v2_figure_101.png",
+            "caption": "(k) Layer 10"
+        },
+        "102": {
+            "figure_path": "2403.08058v2_figure_102.png",
+            "caption": "(l) Layer 11"
+        },
+        "103": {
+            "figure_path": "2403.08058v2_figure_103.png",
+            "caption": "(m) Layer 12"
+        },
+        "104": {
+            "figure_path": "2403.08058v2_figure_104.png",
+            "caption": "(n) Layer 13"
+        },
+        "105": {
+            "figure_path": "2403.08058v2_figure_105.png",
+            "caption": "(o) Layer 14"
+        },
+        "106": {
+            "figure_path": "2403.08058v2_figure_106.png",
+            "caption": "i Layer 15"
+        },
+        "107": {
+            "figure_path": "2403.08058v2_figure_107.png",
+            "caption": "ii Layer 16"
+        },
+        "108": {
+            "figure_path": "2403.08058v2_figure_108.png",
+            "caption": "iii Layer 17"
+        },
+        "109": {
+            "figure_path": "2403.08058v2_figure_109.png",
+            "caption": "iv Layer 18"
+        },
+        "110": {
+            "figure_path": "2403.08058v2_figure_110.png",
+            "caption": "v Layer 19"
+        },
+        "111": {
+            "figure_path": "2403.08058v2_figure_111.png",
+            "caption": "vi Layer 20"
+        },
+        "112": {
+            "figure_path": "2403.08058v2_figure_112.png",
+            "caption": "vii Layer 21"
+        },
+        "113": {
+            "figure_path": "2403.08058v2_figure_113.png",
+            "caption": "viii Layer 22"
+        },
+        "114": {
+            "figure_path": "2403.08058v2_figure_114.png",
+            "caption": "ix Layer 20"
+        },
+        "115": {
+            "figure_path": "2403.08058v2_figure_115.png",
+            "caption": "x Layer 24"
+        },
+        "116": {
+            "figure_path": "2403.08058v2_figure_116.png",
+            "caption": "xi Layer 25"
+        },
+        "117": {
+            "figure_path": "2403.08058v2_figure_117.png",
+            "caption": "xii Layer 26"
+        },
+        "118": {
+            "figure_path": "2403.08058v2_figure_118.png",
+            "caption": "xiii Layer 27"
+        },
+        "119": {
+            "figure_path": "2403.08058v2_figure_119.png",
+            "caption": "xiv Layer 28"
+        },
+        "120": {
+            "figure_path": "2403.08058v2_figure_120.png",
+            "caption": "xv Layer 29"
+        },
+        "121": {
+            "figure_path": "2403.08058v2_figure_121.png",
+            "caption": "i Layer 30"
+        },
+        "122": {
+            "figure_path": "2403.08058v2_figure_122.png",
+            "caption": "ii Layer 31"
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "https://github.com/FMInference/DejaVu, 2024.",
+                "author": "Deja Vu: Contextual Sparsity for Efficient LLMs at Inference Time.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Gqa: Training generalized multi-query transformer models from multi-head checkpoints.",
+                "author": "Ainslie, J., Lee-Thorp, J., de Jong, M., Zemlyanskiy, Y., Lebr\u00f3n, F., and Sanghai, S.",
+                "venue": "arXiv preprint arXiv:2305.13245, 2023.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Piqa: Reasoning about physical commonsense in natural language.",
+                "author": "Bisk, Y., Zellers, R., Gao, J., Choi, Y., et al.",
+                "venue": "In Proceedings of the AAAI conference on artificial intelligence, volume 34, pp.  7432\u20137439, 2020.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Language models are few-shot learners.",
+                "author": "Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J. D., Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G., Askell, A., et al.",
+                "venue": "Advances in neural information processing systems, 33:1877\u20131901, 2020.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "The lottery ticket hypothesis for pre-trained bert networks.",
+                "author": "Chen, T., Frankle, J., Chang, S., Liu, S., Zhang, Y., Wang, Z., and Carbin, M.",
+                "venue": "Advances in neural information processing systems, 33:15834\u201315846, 2020a.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Earlybert: Efficient bert training via early-bird lottery tickets.",
+                "author": "Chen, X., Cheng, Y., Wang, S., Gan, Z., Wang, Z., and Liu, J.",
+                "venue": "arXiv preprint arXiv:2101.00063, 2020b.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Boolq: Exploring the surprising difficulty of natural yes/no questions.",
+                "author": "Clark, C., Lee, K., Chang, M.-W., Kwiatkowski, T., Collins, M., and Toutanova, K.",
+                "venue": "arXiv preprint arXiv:1905.10044, 2019.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Think you have solved question answering? try arc, the ai2 reasoning challenge.",
+                "author": "Clark, P., Cowhey, I., Etzioni, O., Khot, T., Sabharwal, A., Schoenick, C., and Tafjord, O.",
+                "venue": "arXiv preprint arXiv:1803.05457, 2018.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Efficient transformer inference with statically structured sparse attention.",
+                "author": "Dai, S., Genc, H., Venkatesan, R., and Khailany, B.",
+                "venue": "In 2023 60th ACM/IEEE Design Automation Conference (DAC), pp.  1\u20136. IEEE, 2023.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Flashattention-2: Faster attention with better parallelism and work partitioning.",
+                "author": "Dao, T.",
+                "venue": "arXiv preprint arXiv:2307.08691, 2023.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Flashattention: Fast and memory-efficient exact attention with io-awareness.",
+                "author": "Dao, T., Fu, D., Ermon, S., Rudra, A., and R\u00e9, C.",
+                "venue": "Advances in Neural Information Processing Systems, 35:16344\u201316359, 2022.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "8-bit approximations for parallelism in deep learning.",
+                "author": "Dettmers, T.",
+                "venue": "arXiv preprint arXiv:1511.04561, 2015.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "The case for 4-bit precision: k-bit inference scaling laws.",
+                "author": "Dettmers, T. and Zettlemoyer, L.",
+                "venue": "In International Conference on Machine Learning, pp.  7750\u20137774. PMLR, 2023.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Llm. int8 (): 8-bit matrix multiplication for transformers at scale.",
+                "author": "Dettmers, T., Lewis, M., Belkada, Y., and Zettlemoyer, L.",
+                "venue": "arXiv preprint arXiv:2208.07339, 2022.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "xformers - toolbox to accelerate research on transformers.",
+                "author": "facebookresearch.",
+                "venue": "https://github.com/facebookresearch/xformers, 2023.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Reducing transformer depth on demand with structured dropout.",
+                "author": "Fan, A., Grave, E., and Joulin, A.",
+                "venue": "arXiv preprint arXiv:1909.11556, 2019.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "An algorithm\u2013hardware co-optimized framework for accelerating n: M sparse transformers.",
+                "author": "Fang, C., Zhou, A., and Wang, Z.",
+                "venue": "IEEE Transactions on Very Large Scale Integration (VLSI) Systems, 30(11):1573\u20131586, 2022.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "The lottery ticket hypothesis: Finding sparse, trainable neural networks.",
+                "author": "Frankle, J. and Carbin, M.",
+                "venue": "arXiv preprint arXiv:1803.03635, 2018.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Gptq: Accurate post-training quantization for generative pre-trained transformers.",
+                "author": "Frantar, E., Ashkboos, S., Hoefler, T., and Alistarh, D.",
+                "venue": "arXiv preprint arXiv:2210.17323, 2022.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "A^ 3: Accelerating attention mechanisms in neural networks with approximation.",
+                "author": "Ham, T. J., Jung, S. J., Kim, S., Oh, Y. H., Park, Y., Song, Y., Park, J.-H., Lee, S., Park, K., Lee, J. W., et al.",
+                "venue": "In 2020 IEEE International Symposium on High Performance Computer Architecture (HPCA), pp.  328\u2013341. IEEE, 2020.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Elsa: Hardware-software co-design for efficient, lightweight self-attention mechanism in neural networks.",
+                "author": "Ham, T. J., Lee, Y., Seo, S. H., Kim, S., Choi, H., Jung, S. J., and Lee, J. W.",
+                "venue": "In 2021 ACM/IEEE 48th Annual International Symposium on Computer Architecture (ISCA), pp.  692\u2013705. IEEE, 2021.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Training compute-optimal large language models.",
+                "author": "Hoffmann, J., Borgeaud, S., Mensch, A., Buchatskaya, E., Cai, T., Rutherford, E., Casas, D. d. L., Hendricks, L. A., Welbl, J., Clark, A., et al.",
+                "venue": "arXiv preprint arXiv:2203.15556, 2022.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "The hardware lottery.",
+                "author": "Hooker, S.",
+                "venue": "Communications of the ACM, 64(12):58\u201365, 2021.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Distilling step-by-step! outperforming larger language models with less training data and smaller model sizes.",
+                "author": "Hsieh, C.-Y., Li, C.-L., Yeh, C.-K., Nakhost, H., Fujii, Y., Ratner, A., Krishna, R., Lee, C.-Y., and Pfister, T.",
+                "venue": "arXiv preprint arXiv:2305.02301, 2023.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Tinybert: Distilling bert for natural language understanding.",
+                "author": "Jiao, X., Yin, Y., Shang, L., Jiang, X., Chen, X., Li, L., Wang, F., and Liu, Q.",
+                "venue": "arXiv preprint arXiv:1909.10351, 2019.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Scaling laws for neural language models.",
+                "author": "Kaplan, J., McCandlish, S., Henighan, T., Brown, T. B., Chess, B., Child, R., Gray, S., Radford, A., Wu, J., and Amodei, D.",
+                "venue": "arXiv preprint arXiv:2001.08361, 2020.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "I-bert: Integer-only bert quantization.",
+                "author": "Kim, S., Gholami, A., Yao, Z., Mahoney, M. W., and Keutzer, K.",
+                "venue": "In International conference on machine learning, pp.  5506\u20135518. PMLR, 2021.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Reformer: The efficient transformer.",
+                "author": "Kitaev, N., Kaiser, \u0141., and Levskaya, A.",
+                "venue": "arXiv preprint arXiv:2001.04451, 2020.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "The optimal bert surgeon: Scalable and accurate second-order pruning for large language models.",
+                "author": "Kurtic, E., Campos, D., Nguyen, T., Frantar, E., Kurtz, M., Fineran, B., Goin, M., and Alistarh, D.",
+                "venue": "arXiv preprint arXiv:2203.07259, 2022.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Block pruning for faster transformers.",
+                "author": "Lagunas, F., Charlaix, E., Sanh, V., and Rush, A. M.",
+                "venue": "arXiv preprint arXiv:2109.04838, 2021.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Fast inference from transformers via speculative decoding.",
+                "author": "Leviathan, Y., Kalman, M., and Matias, Y.",
+                "venue": "In International Conference on Machine Learning, pp.  19274\u201319286. PMLR, 2023.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Scissorhands: Exploiting the persistence of importance hypothesis for llm kv cache compression at test time.",
+                "author": "Liu, Z., Desai, A., Liao, F., Wang, W., Xie, V., Xu, Z., Kyrillidis, A., and Shrivastava, A.",
+                "venue": "arXiv preprint arXiv:2305.17118, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Deja vu: Contextual sparsity for efficient llms at inference time.",
+                "author": "Liu, Z., Wang, J., Dao, T., Zhou, T., Yuan, B., Song, Z., Shrivastava, A., Zhang, C., Tian, Y., Re, C., et al.",
+                "venue": "In International Conference on Machine Learning, pp.  22137\u201322176. PMLR, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Are sixteen heads really better than one?",
+                "author": "Michel, P., Levy, O., and Neubig, G.",
+                "venue": "Advances in neural information processing systems, 32, 2019.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "When bert plays the lottery, all tickets are winning.",
+                "author": "Prasanna, S., Rogers, A., and Rumshisky, A.",
+                "venue": "arXiv preprint arXiv:2005.00561, 2020.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Fact: Ffn-attention co-optimized transformer architecture with eager correlation prediction.",
+                "author": "Qin, Y., Wang, Y., Deng, D., Zhao, Z., Yang, X., Liu, L., Wei, S., Hu, Y., and Yin, S.",
+                "venue": "In Proceedings of the 50th Annual International Symposium on Computer Architecture, pp.  1\u201314, 2023.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Language models are unsupervised multitask learners.",
+                "author": "Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., Sutskever, I., et al.",
+                "venue": "OpenAI blog, 1(8):9, 2019.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Exploring the limits of transfer learning with a unified text-to-text transformer.",
+                "author": "Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., Matena, M., Zhou, Y., Li, W., and Liu, P. J.",
+                "venue": "The Journal of Machine Learning Research, 21(1):5485\u20135551, 2020.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "On the effect of dropping layers of pre-trained transformer models.",
+                "author": "Sajjad, H., Dalvi, F., Durrani, N., and Nakov, P.",
+                "venue": "Computer Speech & Language, 77:101429, 2023.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Distilbert, a distilled version of bert: smaller, faster, cheaper and lighter.",
+                "author": "Sanh, V., Debut, L., Chaumond, J., and Wolf, T.",
+                "venue": "arXiv preprint arXiv:1910.01108, 2019.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Fast transformer decoding: One write-head is all you need.",
+                "author": "Shazeer, N.",
+                "venue": "arXiv preprint arXiv:1911.02150, 2019.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Q-bert: Hessian based ultra low precision quantization of bert.",
+                "author": "Shen, S., Dong, Z., Ye, J., Ma, L., Yao, Z., Gholami, A., Mahoney, M. W., and Keutzer, K.",
+                "venue": "In Proceedings of the AAAI Conference on Artificial Intelligence, volume 34, pp.  8815\u20138821, 2020.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Edgebert: Sentence-level energy optimizations for latency-aware multi-task nlp inference.",
+                "author": "Tambe, T., Hooper, C., Pentecost, L., Jia, T., Yang, E.-Y., Donato, M., Sanh, V., Whatmough, P., Rush, A. M., Brooks, D., et al.",
+                "venue": "In MICRO-54: 54th Annual IEEE/ACM International Symposium on Microarchitecture, pp.  830\u2013844, 2021.",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Who belongs in the family?",
+                "author": "Thorndike, R. L.",
+                "venue": "Psychometrika, 18(4):267\u2013276, 1953.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Touvron, H., Lavril, T., Izacard, G., Martinet, X., Lachaux, M.-A., Lacroix, T., Rozi\u00e8re, B., Goyal, N., Hambro, E., Azhar, F., et al.",
+                "venue": "arXiv preprint arXiv:2302.13971, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Touvron, H., Martin, L., Stone, K., Albert, P., Almahairi, A., Babaei, Y., Bashlykov, N., Batra, S., Bhargava, P., Bhosale, S., et al.",
+                "venue": "arXiv preprint arXiv:2307.09288, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "Attention is all you need.",
+                "author": "Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, \u0141., and Polosukhin, I.",
+                "venue": "Advances in neural information processing systems, 30, 2017.",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Analyzing multi-head self-attention: Specialized heads do the heavy lifting, the rest can be pruned.",
+                "author": "Voita, E., Talbot, D., Moiseev, F., Sennrich, R., and Titov, I.",
+                "venue": "arXiv preprint arXiv:1905.09418, 2019.",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Principal component networks: Parameter reduction early in training.",
+                "author": "Waleffe, R. and Rekatsinas, T.",
+                "venue": "arXiv preprint arXiv:2006.13347, 2020.",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "Pufferfish: Communication-efficient models at no extra cost.",
+                "author": "Wang, H., Agarwal, S., and Papailiopoulos, D.",
+                "venue": "Proceedings of Machine Learning and Systems, 3:365\u2013386, 2021a.",
+                "url": null
+            }
+        },
+        {
+            "51": {
+                "title": "Spatten: Efficient sparse attention architecture with cascade token and head pruning.",
+                "author": "Wang, H., Zhang, Z., and Han, S.",
+                "venue": "In 2021 IEEE International Symposium on High-Performance Computer Architecture (HPCA), pp.  97\u2013110. IEEE, 2021b.",
+                "url": null
+            }
+        },
+        {
+            "52": {
+                "title": "Cuttlefish: Low-rank model training without all the tuning.",
+                "author": "Wang, H., Agarwal, S., Tanaka, Y., Xing, E., Papailiopoulos, D., et al.",
+                "venue": "Proceedings of Machine Learning and Systems, 5, 2023.",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "Linformer: Self-attention with linear complexity.",
+                "author": "Wang, S., Li, B. Z., Khabsa, M., Fang, H., and Ma, H.",
+                "venue": "arXiv preprint arXiv:2006.04768, 2020.",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "Structured pruning of large language models.",
+                "author": "Wang, Z., Wohlwend, J., and Lei, T.",
+                "venue": "arXiv preprint arXiv:1910.04732, 2019.",
+                "url": null
+            }
+        },
+        {
+            "55": {
+                "title": "Speculative decoding: Exploiting speculative execution for accelerating seq2seq generation.",
+                "author": "Xia, H., Ge, T., Wang, P., Chen, S.-Q., Wei, F., and Sui, Z.",
+                "venue": "In Findings of the Association for Computational Linguistics: EMNLP 2023, pp.  3909\u20133925, 2023.",
+                "url": null
+            }
+        },
+        {
+            "56": {
+                "title": "Smoothquant: Accurate and efficient post-training quantization for large language models.",
+                "author": "Xiao, G., Lin, J., Seznec, M., Wu, H., Demouth, J., and Han, S.",
+                "venue": "In International Conference on Machine Learning, pp.  38087\u201338099. PMLR, 2023.",
+                "url": null
+            }
+        },
+        {
+            "57": {
+                "title": "Predictive pipelined decoding: A compute-latency trade-off for exact llm decoding.",
+                "author": "Yang, S., Lee, G., Cho, J., Papailiopoulos, D., and Lee, K.",
+                "venue": "arXiv preprint arXiv:2307.05908, 2023.",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Drawing early-bird tickets: Towards more efficient training of deep networks.",
+                "author": "You, H., Li, C., Xu, P., Fu, Y., Wang, Y., Chen, X., Baraniuk, R. G., Wang, Z., and Lin, Y.",
+                "venue": "arXiv preprint arXiv:1909.11957, 2019.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "Hellaswag: Can a machine really finish your sentence?",
+                "author": "Zellers, R., Holtzman, A., Bisk, Y., Farhadi, A., and Choi, Y.",
+                "venue": "arXiv preprint arXiv:1905.07830, 2019.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Opt: Open pre-trained transformer language models.",
+                "author": "Zhang, S., Roller, S., Goyal, N., Artetxe, M., Chen, M., Chen, S., Dewan, C., Diab, M., Li, X., Lin, X. V., et al.",
+                "venue": "arXiv preprint arXiv:2205.01068, 2022.",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "H  o: Heavy-hitter oracle for efficient generative inference of large language models.",
+                "author": "Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y., R\u00e9, C., Barrett, C., et al.",
+                "venue": "arXiv preprint arXiv:2306.14048, 2023.",
+                "url": null
+            }
+        },
+        {
+            "62": {
+                "title": "Brainformers: Trading simplicity for efficiency.",
+                "author": "Zhou, Y., Du, N., Huang, Y., Peng, D., Lan, C., Huang, D., Shakeri, S., So, D., Dai, A. M., Lu, Y., et al.",
+                "venue": "In International Conference on Machine Learning, pp.  42531\u201342542. PMLR, 2023.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.08058v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2",
+            "3.3",
+            "3.4",
+            "3.5"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.08058v2",
+        "paper_title": "CHAI: Clustered Head Attention for Efficient LLM Inference",
+        "research_background": "### Motivation:\n\nThe motivation behind the paper \"CHAI: Clustered Head Attention for Efficient LLM Inference\" is driven by the need to improve the efficiency of large language models (LLMs) during inference. LLMs like GPT and LLaMa have demonstrated outstanding performance across various language tasks such as question answering and text summarizing. However, the exceptional performance has come at the cost of significant computational and memory overheads due to the vast number of parameters and complexity of operations involved. This paper addresses the specific inefficiencies associated with Multi-Head Attention (MHA) used in LLMs. As models scale up, MHA causes increased computational pressure due to repeated attention operations, and heightened memory pressure from storing extensive Key (K) and Value (V) caches. The paper thus seeks to mitigate these bottlenecks without compromising model accuracy.\n\n### Research Problem:\n\nThe primary research problem tackled in this paper is how to devise an efficient method for LLM inference that can reduce both computational and memory overheads associated with Multi-Head Attention (MHA), without necessitating fine-tuning or re-training of models. The existing solutions for this problem either prune LLMs based on input context or co-design the attention module to reuse attention components. However, these methods have limitations. Pruning methods can ease computation bottlenecks but often require expensive fine-tuning, and are less effective for parameter-efficient models like LLaMa-7B. Co-design methods reduce memory requirements but still require re-training and don't address computational complexity entirely. Therefore, the paper aims to propose a solution that can dynamically and efficiently reduce both compute and memory demands during inference, applicable across a variety of models without the prerequisite of extensive re-training or fine-tuning.\n\n### Relevant Prior Work:\n\n1. **Scaling and Performance of LLMs**:\n   - Hoffmann et al., 2022; Touvron et al., 2023a; Kaplan et al., 2020 demonstrated that increasing model size leads to better performance.\n   \n2. **Challenges of Self-Attention in LLMs**:\n   - Vaswani et al., 2017 introduced the quadratic computation cost of self-attention, which becomes more problematic with increased context and model sizes. MHA exacerbates this issue by multiplying the attention operations and requiring extensive memory for K, V caches.\n\n3. **Pruning of LLMs**:\n   - Liu et al., 2023b; Voita et al., 2019 developed pruning methods to exploit input context sparsity. However, classical pruning methods like those discussed by Frankle & Carbin, 2018; Chen et al., 2020b; You et al., 2019; Waleffe & Rekatsinas, 2020 require fine-tuning, which is costly and impractical for large models.\n   - DejaVu (Liu et al., 2023b) performs pruning based on context during inference but is better suited for large parameter-inefficient models and doesn\u2019t address the memory requirements for K, V caches.\n\n4. **Attention Module Co-design**:\n   - Shazeer, 2019 introduced Multi-Query Attention (MQA) and Ainslie et al., 2023 introduced Grouped-Query Attention (GQA), which reuse components across attention heads, reducing memory but still necessitating re-training of models. GQA requires models to be trained from scratch to leverage its benefits, as seen with LLaMa-2 (Touvron et al., 2023b).\n\nThis body of work highlights both the challenges and attempts at improving efficiency for LLMs, laying a foundation for the novel Clustered Head Attention (CHAI) method proposed in this paper.",
+        "methodology": "In this section, we explicate the methodology underpinning CHAI. Initially, we introduce the pivotal insights utilized to construct CHAI. Subsequently, we delve into CHAI\u2019s runtime pruning algorithm, which is inspired by these insights, and elucidate the inference process facilitated by CHAI. This variation implies that the method for determining the number of clusters needs to adjudicate decisions independently for each layer. Common techniques like the Elbow plot method (Thorndike, 1953) for establishing the number of clusters typically require manual effort, rendering them impractical for cluster number determination during inference.\n\nTo ascertain the number of clusters, CHAI implements an offline stratagem that is executed singularly for each model. Specifically, a minor subset of samples (1024) from the C4 dataset (Raffel et al., 2020) are used to perform an elbow-plot analysis. This involves plotting the clustering error\u2014interpreted as the sum of squared distances from the nearest cluster\u2014as a function of the number of clusters.",
+        "main_experiment_and_results": "In the main experiment, the performance of CHAI (Clustered Head Attention) is verified and compared against DejaVu and SpAtten on three different models of varying sizes: LLaMa-7B, LLaMa-33B, and OPT-66B. The evaluation is carried out on five commonly used NLP tasks:\n\n1. PIQA\n2. HellaSwag\n3. Arc-Challenge\n4. Arc-Easy\n5. BoolQA\n\nBy measuring performance across multiple tasks and model sizes, the experiment aims to assess the effectiveness and efficiency of CHAI relative to existing techniques DejaVu and SpAtten. This setup ensures a comprehensive evaluation of CHAI's capabilities in improving NLP task performance in comparison to standard approaches."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To assess the accuracy impact of CHAI compared to Multi-Head Attention (MHA) and prior pruning methods including DejaVu and SpAtten.",
+            "experiment_process": "The researchers compared CHAI against MHA, a static version of CHAI, and the state-of-the-art methods DejaVu and SpAtten. They utilized the OPT-66B and LLaMa-7B models and evaluated them on five datasets: PIQA, HellaSwag, Arc-Challenge, Arc-Easy, and BoolQA. DejaVu was tested with three configurations of 50%, 30%, and 10% sparsity. They replicated DejaVu's performance numbers for OPT-66B and observed results for different sparsity ratios.",
+            "result_discussion": "The results showed that CHAI matched the accuracy of MHA for OPT-66B. For LLaMa-7B with DejaVu at more than 10% sparsity, there was a significant accuracy drop (18.6% at 30% sparsity). In contrast, CHAI had a maximum accuracy degradation of 3.7%, demonstrating better performance. Similarly, for LLaMa-33B, CHAI closely matched the pre-trained model's accuracy with a maximum degradation of 0.14%. This demonstrates CHAI's applicability across multiple datasets and models without needing dataset-specific tuning.",
+            "ablation_id": "2403.08058v2.No1"
+        },
+        {
+            "research_objective": "To analyze the memory reduction achieved by CHAI through reduced K,V cache size.",
+            "experiment_process": "The study utilized LLaMa-7B to measure the impact of CHAI on memory requirements. The metric focused on the size reduction of the K,V cache for sequence lengths, particularly 2048, detailed in Figure 11.",
+            "result_discussion": "CHAI reduced the K,V cache size by up to 21.4% for LLaMa-7B, where the initial K,V cache size for a sequence length of 2048 was around 1.2 GB, and the model weights were around 12 GB. This reduction potentially allows for larger context lengths or serving more requests. Notably, CHAI only removed keys associated with redundant heads while retaining all value vectors.",
+            "ablation_id": "2403.08058v2.No2"
+        },
+        {
+            "research_objective": "To assess the impact of CHAI on end-to-end latency, specifically the time to first token and time to next token.",
+            "experiment_process": "The research evaluated two metrics: time to first token and time to next token, using LLaMa-7B at a sequence length of 2048. Time to first token was assessed by measuring the time for generating the first token given a new context, including K,V cache generation. Time to next token was evaluated in terms of the prediction time for the next token based on existing K,V caches. Result comparisons were complicated by the lack of specialized DejaVu kernels.",
+            "result_discussion": "CHAI provided a speedup for both time to first token and time to next token at a sequence length of 2048, as shown in Figure 12. The speedup for generating the first token accounted for CHAI's clustering overhead. Despite being unable to compare directly with DejaVu due to unavailable specialized kernels, CHAI's dense computations and framework-independent advantages suggested higher efficiency.",
+            "ablation_id": "2403.08058v2.No3"
+        },
+        {
+            "research_objective": "To explore the effects on accuracy when pruning the Key and Query portions of the attention head while retaining the Value vector.",
+            "experiment_process": "In this experiment, the authors reused value vectors generated by the chosen heads instead of pruning them. The setup involved executing this methodology and comparing the accuracy outcomes using LLaMa networks.",
+            "result_discussion": "The results indicated that reusing the full head including Query, Key, and Value vectors led to an additional loss in accuracy. This suggests that for smaller networks like LLaMa, removing the entire head in Multi-Head Attention might be infeasible.",
+            "ablation_id": "2403.08058v2.No4"
+        },
+        {
+            "research_objective": "To study the cluster distribution among heads in CHAI.",
+            "experiment_process": "The study analyzed the cluster distribution for Layer-18 on LLaMa-7B using 1024 samples from the C4 dataset. It aimed to observe how attention heads were grouped into clusters in the CHAI framework.",
+            "result_discussion": "Figure 13 showed that a majority of heads could be grouped into a single head, suggesting a high level of redundancy that CHAI effectively utilizes. This confirmed the basic hypothesis of reducing attention heads without significant loss in model performance.",
+            "ablation_id": "2403.08058v2.No5"
+        }
+    ]
+}

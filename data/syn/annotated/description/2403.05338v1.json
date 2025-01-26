@@ -1,0 +1,339 @@
+{
+    "title": "Explaining Pre-Trained Language Models with Attribution Scores: An Analysis in Low-Resource Settings",
+    "abstract": "Attribution scores indicate the importance of different input parts and can, thus, explain model behaviour.\nCurrently, prompt-based models\nare gaining popularity, i.a., due to their easier adaptability in low-resource settings. However, the quality of attribution scores extracted from prompt-based models has not been investigated yet.\nIn this work, we address this topic by analyzing attribution scores extracted from prompt-based models w.r.t. plausibility and faithfulness and comparing them with attribution scores extracted from fine-tuned models and large language models.\nIn contrast to previous work, we introduce training size as another dimension into the analysis. We find that using the prompting paradigm (with either encoder-based or decoder-based models) yields more plausible explanations than fine-tuning the models in low-resource settings and Shapley Value Sampling consistently outperforms attention and Integrated Gradients in terms of plausibility and faithfulness scores.\n\n\n\n\nKeywords:\u2009explainability, attribution scores, low resource",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1.   Introduction",
+            "text": "Recently, two paradigms of using pre-trained transformer models, such as BERT or GPT-2 (Devlin et al., 2019  ###reference_b6###; Brown et al., 2020  ###reference_b3###),\nhave gained popularity: fine-tuning which adapts the weights of the model using task-specific training data, and prompting which defines or learns so-called prompts to retrieve knowledge from the model, often leaving the model\u2019s weights unchanged.\nWhen deploying pre-trained models in real-world downstream applications, two challenges arise: (i) the need for explaining the results as the models are very complex (Madsen et al., 2022  ###reference_b15###), and (ii) the need for adapting the models in low-resource scenarios as applications in special domains or languages typically do not provide many labeled training instances (Hedderich et al., 2021  ###reference_b10###).\nFor challenge (ii), previous work has shown that fine-tuning models in low-resource settings is hard (or even impossible for zero-resource settings) while prompting can yield good performance in those cases (Brown et al., 2020  ###reference_b3###; Schick and Sch\u00fctze, 2021  ###reference_b17###; Liu et al., 2022  ###reference_b11###).\nIn terms of challenge (i), there is a research gap of carefully analyzing the difference of fine-tuned models (FTMs) and prompt-based models (PBMs).\nMost methods that have been proposed to enhance models\u2019 explainability (Ribeiro et al., 2016  ###reference_b16###; Lundberg and Lee, 2017  ###reference_b14###) have so far only been studied in the context of FTMs (Atanasova et al., 2020  ###reference_b1###; DeYoung et al., 2020  ###reference_b7###; Ding and Koehn, 2021  ###reference_b8###), e.g., to answer the question which attribution method works best for different models and tasks.\nTo the best of our knowledge, no previous work has explored attribution scores from PBMs (neither encoder-based nor decoder-based models, i.a., large language models) nor compared their quality to signals extracted from FTMs.\nIn this paper, we thus address the following questions: (1) How plausible and faithful are explanatory signals extracted from PBMs in comparison to FTMs? While plausibility shows how plausible an explanation is according to human understanding, faithfulness measures to what extent the deemed important tokens are truly important for the predictions of the model.\nThus, we evaluate explanations both from the perspective of humans and models, making the analysis comprehensive.111Those two dimensions are also commonly studied in related work on models\u2019 explainability (Atanasova et al., 2020  ###reference_b1###; Ding and Koehn, 2021  ###reference_b8###). \nIn addition, we introduce a new dimension into the analysis, namely the number of training samples in order to carefully investigate the behaviour of different methods in low-resource settings.\nIn our second research question, we investigate the effects of different attribution methods: (2) How well do different attribution methods perform in terms of plausibility and faithfulness? We answer this question by comparing different methods (namely attention, Integrated Gradients and Shapley Value Sampling) using extensive statistical significance tests. We focus on explanations in the form of attribution scores that highlight the importance of different input parts since they are more closely related to the model input and output than, e.g., generated free-text explanations.\nOur third question concerns the choice of the underlying model, taking into account the new trend of using large language models:\n(3) Do the results for PBMs also hold for decoder-based large language models? We show that we get comparable results when extracting attribution scores from a large language model.\nFor the first time, our paper shows that prompt-based models yield more plausible explanations than fine-tuned models in low-resource settings and Shapley Value Sampling consistently outperforms attention and Integrated Gradients in terms of both plausibility and faithfulness scores.\nThus, prompting pre-trained (either encoder-based or decoder-based) transformer models is better in low-resource settings than fine-tuning them, not only in terms of task performance but also when extracting attribution scores as explanations."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2.   Extraction of Attribution Scores",
+            "text": "We analyze attribution scores from three different kinds of models: encoder-only models (e.g., BERT and similar models) following either the prompt-based paradigm (called \u201cPBMs\u201d in the following) or the fine-tuning paradigm (called \u201cFTMs\u201d), and decoder-only models (e.g., large language models) following the prompt-based paradigm (called \u201cLLMs\u201d). We do not investigate encoder-decoder models as we want to avoid mixing effects from cross-attention and self-attention. In the following paragraphs, we describe how we extract attribution scores from the different model types.\nWe illustrate our approach for extracting attribution scores from encoder-only PBMs in Figure 1  ###reference_###: The input  is composed of the actual task input (yellow boxes), trigger tokens (i.e., tokens providing task information, shown in blue boxes), and a prediction token (i.e., the token that the model needs to predict to solve the task, shown in the pink box). \nBased on the input, the model computes probabilities for the prediction token. Given the predicted label tokens,222We decided to use the tokens from the verbalizer instead of the true task labels as in Atanasova et al. (2020  ###reference_b1###) because it cannot be assumed to have access to the true labels in real-world scenarios. we then extract attribution scores for the actual task input. In particular, we use attention scores, Integrated Gradients and Shapley Value Sampling in our study. For attention, we extract attention scores from the last hidden layer of the [MASK] token, average them across different attention heads and normalize the attention scores over the actual task input. For Integrated Gradients and Shapley Value Sampling, we calculate attribution scores using the Captum package.333https://captum.ai\n###figure_1### For FTMs, the process is similar except that there are no prompts appended at the end of the sentences. Instead of using the language modeling head (the [MASK] token) for prediction, we use the default classification head (the [CLS] token) for FTMs and extract attribution scores for each token of the actual task input based on the predictions.\nExtracting attribution scores from generative models is more challenging as they typically generate a whole sequence of output tokens and the position of the prediction token is not clear. To tackle this issue, we explicitly prompt the model to output only the verbalized class label.444We chose the verbalizer such that the label name is part of the model\u2019s vocabulary and is not split into several subtokens. Prompts can be found in Section A.2  ###reference_###. Then we detect if the generated output corresponds to one of the verbalized class labels or not. If yes, we treat the class label as the prediction token. If not, we treat the first token in the generated output sequence as the prediction token. Finally, we extract attribution scores for the actual task input based on the \nprediction token, as we did in the extraction from PBMs or FTMs."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3.   Experimental Setup",
+            "text": "We use a sentiment classification (Tweet Sentiment Extraction (TSE)555https://www.kaggle.com/c/tweet-sentiment-extraction) and a natural language inference dataset (e-SNLI (Camburu et al., 2018  ###reference_b4###)) to cover tasks of different semantic depth and use their annotations of token-level explanations. Statistics of the datasets can be found in Table 1  ###reference_###.666For TSE, we exclude data with the neutral label because their annotated explanations are mostly the whole sentence. To create low-resource settings, we subsample the training sets into six low-resource sets, ranging from eight instances to the whole set.\nFor our main analysis, we focus on state-of-the-art encoder-based transformer models since running large language models (LLMs) on all our evaluation setups would have been infeasible due to extensive computational costs. In particular, we use BERT-base (Devlin et al., 2019  ###reference_b6###), BERT-large, and RoBERTa-large (Liu et al., 2019  ###reference_b12###). Nevertheless, we also perform a small comparative study with LLMs afterwards, namely with the Vicuna model (Chiang et al., 2023  ###reference_b5###), a fine-tuned LLaMA version (Touvron et al., 2023  ###reference_b18###).\nIn our study, we focus on discrete prompts because they are more explainable than continuous prompts and also the standard input for LLMs.\nTo be able to factor out possible differences stemming from the choice of the prompting method, we study three different methods:\nManual uses a prompt from Schick and Sch\u00fctze (2021  ###reference_b17###) and fine-tunes all parameters of the model. BitFit  uses the manual prompt but updates only the bias terms of the model during fine-tuning (Logan IV et al., 2022  ###reference_b13###), and BFF automatically searches for a prompt (Gao et al., 2021  ###reference_b9###) and fine-tunes all parameters with that prompt.\nPrompts and verbalizers are provided in Table 2  ###reference_###.777For the LLM, we use manual prompts only.\nWe use 4-fold cross-validation to tune both PBMs and FTMs. The hyperparameters can be found in Section A.1  ###reference_###.\nWe evaluate the plausibility and faithfulness of the explanatory signals. Those two dimensions allow to investigate explanations both from the perspective of humans and models. They are also commonly used in related work on explainability (Atanasova et al., 2020  ###reference_b1###; Ding and Koehn, 2021  ###reference_b8###).\nPlausibility indicates how plausible an explanation is according to human intuition. We quantify this with average precision (Atanasova et al., 2020  ###reference_b1###).888 sklearn.metrics.average_precision_score\nFaithfulness shows a model\u2019s ability to accurately represent its reasoning process. In related work, an established way of quantifying this is measuring the performance decrease when masking the most salient words (DeYoung et al., 2020  ###reference_b7###; Atanasova et al., 2020  ###reference_b1###). We follow Atanasova et al. (2020  ###reference_b1###) and create several dataset perturbations by masking\n0, 10, 20, \u2026, 100% of the tokens in the order of decreasing saliency. To calculate a single measure for faithfulness, the area under the threshold-performance curve (AUC) is used. However, this measure does not allow cross-model comparisons. Therefore, we normalize the AUC as the proportion of the area under the curve to the whole area (calculated as the highest possible performance multiplied by the number of thresholds). The lower the normalized score, the better the explanation is in faithfully showing the model\u2019s reasoning.\nTo investigate the statistical significance of our results, we apply Kruskal-Wallis tests and Dunn\u2019s Tests for pairwise differences."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4.   Results",
+            "text": "For smaller training sizes, PBMs outperform FTMs but the trend reverses as the training size increases. To investigate whether the differences between PBMs and FTMs in the low/rich-resource settings are significant, we set up two bins for each task: we treat the two training sets with fewest data as low-resource and the two training sets with most data as high-resource.\nWithin the low-resource part of the data, we find all comparisons to be statistically significant (TSE: (89)=73.86, <0.001, e-SNLI: (89)=29.24, <0.001).\nWithin the high-resource part of the data, the differences are not significant.\nWe also calculate the random baseline for plausibility scores (0.436 for TSE and 0.476 for e-SNLI) and find that explanations provided by PBMs achieve considerably higher plausibility scores than the random baselines in low-resource setting.\nMethod-wise, we find that for both tasks, the plausibility scores of the explanations extracted by ShapSample are significantly higher than those from attention and Integrated Gradients.\nWe sample 20 instances per dataset for each attribution method to conduct a small error analysis in terms of plausibility of explanations. We find that Integrated Gradients tend to assign negative values to functional words. We also find that attention seems to encode sentence information into a single token, so a specific token can get high attribution scores.\nFigures 1(c)  ###reference_sf3### and 1(d)  ###reference_sf4### show that faithfulness scores are influenced by the attribution methods. For instance, explanations extracted from FTMs with ShapSample are more faithful than explanations from PBMs independent of the number of resources. Explanations from PBMs with attention lead to the lowest faithfulness scores across all training sizes. For both datasets, we observe significant differences for all attribution method pairs except for ShapSample and gold. Thus, Shapley Value Sampling attribution scores are comparably faithful as gold annotations.\nShapSample consistently yields more plausible explanations than methods. We assume the reason for this lies in the calculation of Shapley Values: it takes in every permutation of features enabled to calculate a feature\u2019s importance. For instance, if we have a feature set \u201cgood\u201d, \u201cday\u201d, the attribution score of the feature \u201cgood\u201d is calculated by every permutation that contains it, i.e., \u201cgood\u201d and \u201cgood day\u201d. Whereas for Integrated Gradients, this is not considered. We think taking each permutation to calculate feature importance is helpful in models like BERT, as context is of vital importance. Attention is the least plausible; this observation is in line with previous works, e.g., Bibal et al. (2022  ###reference_b2###).\nPBMs yield more plausible attribution scores than FTMs in low-resource settings. We think this might be because PBMs pick up task information quicker than FTMs in the low-resource settings, so the explanations given by PBMs are more plausible. Our study with LLMs shows that the trends of LLMs are comparable to the trends of PMBs, indicating the relevancy of our findings."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1.   Comparing PBMs and FTMs",
+            "text": "Within the low-resource part of the data, we find all comparisons to be statistically insignificant (TSE: (89)=73.86, <0.001, e-SNLI: (89)=29.24, <0.001)."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2.   Studying LLMs",
+            "text": "Given the increased relevance of large language models, we now investigate whether our findings hold for them as well and which plausibility and faithfulness scores we get for them compared to PBMs (i.e., encoder-based models used with prompting).\nDue to the large computational costs for obtaining attribution scores from LLMs, we limit the number of test instances to 100 for each data set and evaluate the 8-shot setting only. For the LLM, the 8 training samples are provided in each input prompt. The prompts can be found in Section A.2  ###reference_###. For the PBM (we chose RoBERTa-Large with BitFit prompts which was the best performing individual model in our previous analysis), the 8 training samples are used to tune the bias terms of the model.\nThe results in Table 3  ###reference_### show that Shapley Value Sampling again leads to more plausible and faithful explanations for Vicuna.\nWhen comparing Vicuna with RoBERTa, we note larger performance gaps among the attribution methods. We further note that the plausibility scores of attention are even lower for Vicuna than for RoBERTa.\nA reason could be that LLMs encode a larger input context\nand, thus,\ninformation of tokens that are irrelevant to the prediction might also be encoded."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "4.3.   Discussion",
+            "text": "ShapSample consistently yields more plausible explanations than methods. We assume the reason for this lies in the calculation of Shapley Values: it takes in every permutation of features enabled to calculate a feature\u2019s importance. For instance, if we have a feature set \u201cgood\u201d, \u201cday\u201d, the attribution score of the feature \u201cgood\u201d is calculated by every permutation that contains it, i.e., \u201cgood\u201d and \u201cgood day\u201d. Whereas for Integrated Gradients, this is not considered. We think taking each permutation to calculate feature importance is helpful in models like BERT, as context is of vital importance. Attention is the least plausible; this observation is in line with previous works, e.g., Bibal et al. (2022  ###reference_b2###  ###reference_b2###).\nPBMs yield more plausible attribution scores than FTMs in low-resource settings. We think this might be because PBMs pick up task information quicker than FTMs in the low-resource settings, so the explanations given by PBMs are more plausible. Our study with LLMs shows that the trends of LLMs are comparable to the trends of PMBs, indicating the relevancy of our findings."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5.   Conclusion",
+            "text": "In this paper, we studied attribution scores extracted from prompt-based models in comparison to fine-tuned models, and compared different attribution methods w.r.t. plausibility and faithfulness scores. Our main findings were: (1) Prompt-based models generate more plausible explanations in low-resource settings. (2) Shapley Value Sampling outperforms other attribution methods, such as attention and Integrated Gradients across tasks and settings and is similarly faithful as gold annotations. (3) Our findings seem to be transferable to generative large language models.\nDirections for future work are the investigation of soft prompts as well as a more extensive study of explanatory signals from large language models."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6.   Bibliographical References",
+            "text": ""
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Appendix",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.2\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"S3.T1.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.1.1\">Data set</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S3.T1.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.2.1\">TSE</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.3.1\">e-SNLI</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.2.2.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S3.T1.2.2.1.1\">Train</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.2.2.1.2\">11931</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.2.1.3\">549367</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.3.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"S3.T1.2.3.2.1\">Dev</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.2.3.2.2\">2983</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.2.3.2.3\">9842</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.4.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S3.T1.2.4.3.1\">Test</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S3.T1.2.4.3.2\">1449</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.4.3.3\">9825</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T1.3.1.1\" style=\"font-size:90%;\">Table 1</span>: </span><span class=\"ltx_text\" id=\"S3.T1.4.2\" style=\"font-size:90%;\">Number of training, development, and test instances in TSE and e-SNLI.</span></figcaption>\n</figure>",
+            "capture": "Table 1: Number of training, development, and test instances in TSE and e-SNLI."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T2\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S3.T2.2\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T2.2.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T2.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.1.1.1\">Task</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T2.2.1.1.2\"><span class=\"ltx_text ltx_font_bold ltx_align_center\" id=\"S3.T2.2.1.1.2.1\">Prompt</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T2.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.1.3.1\">Verbalizer</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T2.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.1.4.1\">Setting</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T2.2.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.2.1.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T2.2.2.1.1.1\">TSE</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.2.1.2\">[S] It was [P].</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.2.1.3\">terrible/great</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.2.1.4\">Manual/Bitfit</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.3.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.3.2.1\">This is [P]. [S]</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.3.2.2\">ragged/soldiers</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.3.2.3\">BFF</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.4.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb ltx_border_t\" id=\"S3.T2.2.4.3.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T2.2.4.3.1.1\">e-SNLI</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.4.3.2\">[S1] ? |[P] , [S2]</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.4.3.3\">yes/no/maybe</td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T2.2.4.3.4\">Manual/Bitfit</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.5.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T2.2.5.4.1\">[S1] . [P] , no , [S2]</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T2.2.5.4.2\">alright/except/watch</td>\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T2.2.5.4.3\">BFF</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T2.5.1.1\" style=\"font-size:90%;\">Table 2</span>: </span><span class=\"ltx_text\" id=\"S3.T2.6.2\" style=\"font-size:90%;\">Prompts for TSE and e-SNLI in different settings. [S] stands for the sentence ([S1] and [S2] are the premise and hypothesis respectively), and [P] is the prediction token. For TSE, the verbalizers correspond to <span class=\"ltx_text ltx_font_italic\" id=\"S3.T2.6.2.1\">positive/negative</span>. For e-SNLI, the verbalizers correspond to <span class=\"ltx_text ltx_font_italic\" id=\"S3.T2.6.2.2\">entailment/contradiction/neutral</span>.</span></figcaption>\n</figure>",
+            "capture": "Table 2: Prompts for TSE and e-SNLI in different settings. [S] stands for the sentence ([S1] and [S2] are the premise and hypothesis respectively), and [P] is the prediction token. For TSE, the verbalizers correspond to positive/negative. For e-SNLI, the verbalizers correspond to entailment/contradiction/neutral."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T3.2\" style=\"width:433.6pt;height:242.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(128.2pt,-71.6pt) scale(2.4471364914203,2.4471364914203) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.2.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T3.2.1.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.1.1.1\">Data</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T3.2.1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.1.2.1\">Model</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.2.1.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.1.3.1\">Plausibility</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.2.1.1.1.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.1.4.1\">Faithfulness</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.2.2\">\n<th class=\"ltx_td ltx_th ltx_th_row\" id=\"S4.T3.2.1.2.2.1\"></th>\n<th class=\"ltx_td ltx_th ltx_th_column ltx_th_row\" id=\"S4.T3.2.1.2.2.2\"></th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.3\">attn</th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.4\">ig</th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.5\">shap</th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.6\">attn</th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.7\">ig</th>\n<th class=\"ltx_td ltx_align_right ltx_th ltx_th_column\" id=\"S4.T3.2.1.2.2.8\">shap</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.2.1.3.1.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T3.2.1.3.1.1.1\">TSE</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.2.1.3.1.2\">RoBERTa</th>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.3\">.56</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.4\">.57</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.5\">.56</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.6\">.02</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.1.7.1\">.00</span></td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.3.1.8\">.01</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.2.1.4.2.1\">Vicuna</th>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.2\">.47</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.3\">.57</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.2.4.1\">.59</span></td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.5\">.07</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.6\">.06</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T3.2.1.4.2.7\">.02</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_t\" id=\"S4.T3.2.1.5.3.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T3.2.1.5.3.1.1\">e-SNLI</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.2.1.5.3.2\">RoBERTa</th>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.3\">.53</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.4\">.51</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.5\">.50</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.6\">.22</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.7\">.09</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T3.2.1.5.3.8\">.11</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T3.2.1.6.4.1\">Vicuna</th>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.2\">.43</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.3\">.51</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.4.4.1\">.55</span></td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.5\">.02</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.6\">.05</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T3.2.1.6.4.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.4.7.1\">.00</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1\" style=\"font-size:90%;\">Table 3</span>: </span><span class=\"ltx_text\" id=\"S4.T3.4.2\" style=\"font-size:90%;\">Plausibility (the higher the better) and faithfulness (the lower the better) scores of explanations obtained from Vicuna and RoBERTa.</span></figcaption>\n</figure>",
+            "capture": "Table 3: Plausibility (the higher the better) and faithfulness (the lower the better) scores of explanations obtained from Vicuna and RoBERTa."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T4\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"A1.T4.2\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A1.T4.2.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"A1.T4.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.1.1.1\">Task</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"A1.T4.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.1.2.1\">Training size</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"A1.T4.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.1.3.1\">Batch size</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T4.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.1.4.1\">Epoch</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A1.T4.2.2.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A1.T4.2.2.1.1\">TSE</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A1.T4.2.2.1.2\">8/32/128</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A1.T4.2.2.1.3\">2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A1.T4.2.2.1.4\">30</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.3.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.3.2.1\">TSE</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.3.2.2\">512</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A1.T4.2.3.2.3\">4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.3.2.4\">15</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.4.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.4.3.1\">TSE</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.4.3.2\">2048/11828</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A1.T4.2.4.3.3\">8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.4.3.4\">5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.5.4\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A1.T4.2.5.4.1\">e-SNLI</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A1.T4.2.5.4.2\">8/32/128</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A1.T4.2.5.4.3\">2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A1.T4.2.5.4.4\">30</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.6.5\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.6.5.1\">e-SNLI</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"A1.T4.2.6.5.2\">1024</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A1.T4.2.6.5.3\">4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.6.5.4\">15</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.7.6\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"A1.T4.2.7.6.1\">e-SNLI</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"A1.T4.2.7.6.2\">16384/549367</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"A1.T4.2.7.6.3\">32</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A1.T4.2.7.6.4\">3</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.T4.3.1.1\" style=\"font-size:90%;\">Table 4</span>: </span><span class=\"ltx_text\" id=\"A1.T4.4.2\" style=\"font-size:90%;\">Hyperparameters.</span></figcaption>\n</figure>",
+            "capture": "Table 4: Hyperparameters."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.05338v1_figure_1.png",
+            "caption": "Figure 1: Extraction of explanatory signals from PBMs. Yellow boxes: actual task input. Blue boxes: trigger tokens. Pink box: prediction token. Orange boxes: last hidden representations of PBM. Green box: predicted label (converted by verbalizer, e.g., positive \u2192\u2192\\rightarrow\u2192 great, negative \u2192\u2192\\rightarrow\u2192 bad)."
+        },
+        "2": {
+            "figure_path": "2403.05338v1_figure_2.png",
+            "caption": "(a) Plausibility Results on TSE."
+        },
+        "3": {
+            "figure_path": "2403.05338v1_figure_3.png",
+            "caption": "(b) Plausibility Results on e-SNLI"
+        },
+        "4": {
+            "figure_path": "2403.05338v1_figure_4.png",
+            "caption": "(c) Faithfulness Results on TSE"
+        },
+        "5": {
+            "figure_path": "2403.05338v1_figure_5.png",
+            "caption": "(d) Faithfulness Results on e-SNLI"
+        },
+        "6": {
+            "figure_path": "2403.05338v1_figure_6.png",
+            "caption": "Figure 3: The F1subscript\ud835\udc391F_{1}italic_F start_POSTSUBSCRIPT 1 end_POSTSUBSCRIPT scores of models trained with different sizes. From top to bottom: TSE and e-SNLI."
+        },
+        "7": {
+            "figure_path": "2403.05338v1_figure_7.png",
+            "caption": "Figure 3: The F1subscript\ud835\udc391F_{1}italic_F start_POSTSUBSCRIPT 1 end_POSTSUBSCRIPT scores of models trained with different sizes. From top to bottom: TSE and e-SNLI."
+        },
+        "8": {
+            "figure_path": "2403.05338v1_figure_8.png",
+            "caption": "(a) Plausibility:TSE"
+        },
+        "9": {
+            "figure_path": "2403.05338v1_figure_9.png",
+            "caption": "(b) Plausibility:e-SNLI"
+        },
+        "10": {
+            "figure_path": "2403.05338v1_figure_10.png",
+            "caption": "(c) Faithfulness:TSE"
+        },
+        "11": {
+            "figure_path": "2403.05338v1_figure_11.png",
+            "caption": "(d) Faithfulness:e-SNLI"
+        },
+        "12": {
+            "figure_path": "2403.05338v1_figure_12.png",
+            "caption": "(a) Plausibility:TSE"
+        },
+        "13": {
+            "figure_path": "2403.05338v1_figure_13.png",
+            "caption": "(b) Plausibility:e-SNLI"
+        },
+        "14": {
+            "figure_path": "2403.05338v1_figure_14.png",
+            "caption": "(c) Faithfulness:TSE"
+        },
+        "15": {
+            "figure_path": "2403.05338v1_figure_15.png",
+            "caption": "(d) Faithfulness:e-SNLI"
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "A diagnostic\nstudy of explainability techniques for text classification.",
+                "author": "Pepa Atanasova, Jakob Grue Simonsen, Christina Lioma, and Isabelle Augenstein.\n2020.",
+                "venue": "In Proceedings of the 2020 Conference on Empirical Methods in\nNatural Language Processing (EMNLP), pages 3256\u20133274, Online. Association\nfor Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.emnlp-main.263"
+            }
+        },
+        {
+            "2": {
+                "title": "Is attention\nexplanation? an introduction to the debate.",
+                "author": "Adrien Bibal, R\u00e9mi Cardon, David Alfter, Rodrigo Wilkens, Xiaoou Wang,\nThomas Fran\u00e7ois, and Patrick Watrin. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association\nfor Computational Linguistics (Volume 1: Long Papers), pages 3889\u20133900,\nDublin, Ireland. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2022.acl-long.269"
+            }
+        },
+        {
+            "3": {
+                "title": "Language models are few-shot learners.",
+                "author": "Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan,\nPrafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda\nAskell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan,\nRewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu, Clemens Winter,\nChristopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin, Scott Gray,\nBenjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,\nIlya Sutskever, and Dario Amodei. 2020.",
+                "venue": "In Proceedings of the 34th International Conference on Neural\nInformation Processing Systems, NIPS\u201920, Red Hook, NY, USA. Curran\nAssociates Inc.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "e-snli: Natural language inference with natural language\nexplanations.",
+                "author": "Oana-Maria Camburu, Tim Rockt\u00e4schel, Thomas Lukasiewicz, and Phil Blunsom.\n2018.",
+                "venue": "In NeurIPS.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Vicuna: An\nopen-source chatbot impressing gpt-4 with 90%* chatgpt quality.",
+                "author": "Wei-Lin Chiang, Zhuohan Li, Zi Lin, Ying Sheng, Zhanghao Wu, Hao Zhang, Lianmin\nZheng, Siyuan Zhuang, Yonghao Zhuang, Joseph E. Gonzalez, Ion Stoica, and\nEric P. Xing. 2023.",
+                "venue": null,
+                "url": "https://lmsys.org/blog/2023-03-30-vicuna/"
+            }
+        },
+        {
+            "6": {
+                "title": "BERT: Pre-training of\ndeep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019.",
+                "venue": "In Proceedings of the 2019 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, Volume 1 (Long and Short Papers), pages 4171\u20134186,\nMinneapolis, Minnesota. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/N19-1423"
+            }
+        },
+        {
+            "7": {
+                "title": "ERASER: A\nbenchmark to evaluate rationalized NLP models.",
+                "author": "Jay DeYoung, Sarthak Jain, Nazneen Fatema Rajani, Eric Lehman, Caiming Xiong,\nRichard Socher, and Byron C. Wallace. 2020.",
+                "venue": "In Proceedings of the 58th Annual Meeting of the Association\nfor Computational Linguistics, pages 4443\u20134458, Online. Association for\nComputational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.acl-main.408"
+            }
+        },
+        {
+            "8": {
+                "title": "Evaluating\nsaliency methods for neural language models.",
+                "author": "Shuoyang Ding and Philipp Koehn. 2021.",
+                "venue": "In Proceedings of the 2021 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, pages 5034\u20135052, Online. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/2021.naacl-main.399"
+            }
+        },
+        {
+            "9": {
+                "title": "Making\npre-trained language models better few-shot learners.",
+                "author": "Tianyu Gao, Adam Fisch, and Danqi Chen. 2021.",
+                "venue": "In Proceedings of the 59th Annual Meeting of the Association\nfor Computational Linguistics and the 11th International Joint Conference on\nNatural Language Processing (Volume 1: Long Papers), pages 3816\u20133830,\nOnline. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2021.acl-long.295"
+            }
+        },
+        {
+            "10": {
+                "title": "A survey on\nrecent approaches for natural language processing in low-resource scenarios.",
+                "author": "Michael A. Hedderich, Lukas Lange, Heike Adel, Jannik Str\u00f6tgen, and\nDietrich Klakow. 2021.",
+                "venue": "In Proceedings of the 2021 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, pages 2545\u20132568, Online. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/2021.naacl-main.201"
+            }
+        },
+        {
+            "11": {
+                "title": "Pre-train, prompt, and\npredict: A systematic survey of prompting methods in natural language\nprocessing.",
+                "author": "Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and\nGraham Neubig. 2022.",
+                "venue": "ACM Comput. Surv.",
+                "url": "https://doi.org/10.1145/3560815"
+            }
+        },
+        {
+            "12": {
+                "title": "Roberta: A robustly optimized bert pretraining approach.",
+                "author": "Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer\nLevy, Mike Lewis, Luke Zettlemoyer, and Veselin Stoyanov. 2019.",
+                "venue": "ArXiv, abs/1907.11692.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Cutting\ndown on prompts and parameters: Simple few-shot learning with language\nmodels.",
+                "author": "Robert Logan IV, Ivana Balazevic, Eric Wallace, Fabio Petroni, Sameer Singh,\nand Sebastian Riedel. 2022.",
+                "venue": "In Findings of the Association for Computational Linguistics:\nACL 2022, pages 2824\u20132835, Dublin, Ireland. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/2022.findings-acl.222"
+            }
+        },
+        {
+            "14": {
+                "title": "A unified approach to interpreting model predictions.",
+                "author": "Scott M. Lundberg and Su-In Lee. 2017.",
+                "venue": "In Proceedings of the 31st International Conference on Neural\nInformation Processing Systems, NIPS\u201917, page 4768\u20134777, Red Hook, NY,\nUSA. Curran Associates Inc.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Post-hoc interpretability\nfor neural nlp: A survey.",
+                "author": "Andreas Madsen, Siva Reddy, and Sarath Chandar. 2022.",
+                "venue": "ACM Comput. Surv.",
+                "url": "https://doi.org/10.1145/3546577"
+            }
+        },
+        {
+            "16": {
+                "title": "\"why should i trust you?\": Explaining the predictions of any\nclassifier.",
+                "author": "Marco Tulio Ribeiro, Sameer Singh, and Carlos Guestrin. 2016.",
+                "venue": "Proceedings of the 22nd ACM SIGKDD International Conference on\nKnowledge Discovery and Data Mining.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Exploiting\ncloze-questions for few-shot text classification and natural language\ninference.",
+                "author": "Timo Schick and Hinrich Sch\u00fctze. 2021.",
+                "venue": "In Proceedings of the 16th Conference of the European Chapter\nof the Association for Computational Linguistics: Main Volume, pages\n255\u2013269, Online. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2021.eacl-main.20"
+            }
+        },
+        {
+            "18": {
+                "title": "LLaMA: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne\nLachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric\nHambro, Faisal Azhar, Aurelien Rodriguez, Armand Joulin, Edouard Grave, and\nGuillaume Lample. 2023.",
+                "venue": "ArXiv, abs/2302.13971.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.05338v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2"
+        ],
+        "main_experiment_and_results_sections": [
+            "3",
+            "4",
+            "4.1",
+            "4.2",
+            "4.3"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "3",
+            "4",
+            "4.1",
+            "4.2"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.05338v1",
+        "paper_title": "Explaining Pre-Trained Language Models with Attribution Scores: An Analysis in Low-Resource Settings",
+        "research_background": "**Motivation:**  \nThe paper is motivated by the increasing popularity of pre-trained transformer models, such as BERT and GPT-2, and their usage in real-world applications through two paradigms: fine-tuning and prompting. However, two significant challenges arise when deploying these models in practical settings: the need for model explainability due to their complexity, and the difficulty of adapting these models in low-resource scenarios, especially in special domains or languages with limited labeled data.\n\n**Research Problem:**  \nThe paper aims to address two primary research gaps:\n1. A thorough analysis of the explanatory signals (attribution scores) from prompt-based models (PBMs) compared to fine-tuned models (FTMs) under low-resource settings.\n2. An investigation into how different attribution methods (attention, Integrated Gradients, Shapley Value Sampling) perform in terms of plausibility (human-understandable explanations) and faithfulness (importance of tokens for model predictions).\n\n**Relevant Prior Work:**  \n- Pre-trained transformer models' fine-tuning and prompting paradigms are detailed in Devlin et al. (2019) and Brown et al. (2020).\n- Challenges in model explainability are noted by Madsen et al. (2022), while Hedderich et al. (2021) emphasize the difficulty of model adaptation in low-resource scenarios.\n- Previous work indicates that fine-tuning in low-resource settings is problematic, while prompting can yield good performance (Brown et al., 2020; Schick and Sch\u00fctze, 2021; Liu et al., 2022).\n- Methods to enhance model explainability (Ribeiro et al., 2016; Lundberg and Lee, 2017) have primarily been studied only in the context of FTMs (Atanasova et al., 2020; DeYoung et al., 2020; Ding and Koehn, 2021), with no previous work exploring attribution scores from PBMs or comparing their quality to FTMs.\n- Dimensions of explanations such as plausibility and faithfulness are commonly studied in related work on model explainability (Atanasova et al., 2020; Ding and Koehn, 2021).\n\nThe paper aims to fill these gaps by thoroughly comparing PBMs to FTMs in terms of the quality of their explanatory signals under low-resource conditions and by evaluating various attribution methods to determine the best approach for generating explanations.",
+        "methodology": "**Methodology:**\n\nThis study presents a comprehensive analysis of attribution scores derived from three distinct categories of pre-trained language models (PLMs) in low-resource settings:\n\n1. **Encoder-only Models:**\n   - **Prompt-based Paradigm (PBMs)**:\n     - Examples: BERT and similar models.\n     - Input Structure: The input consists of the actual task input, trigger tokens for task information, and a token for prediction.\n     - Methods: The models calculate probabilities for the prediction token. The attention scores are extracted from the last hidden layer of the [MASK] token, averaged across different attention heads, and normalized over the actual task input. Integrated Gradients and Shapley Value Sampling are calculated using the Captum package.\n   - **Fine-Tuning Paradigm (FTMs)**:\n     - Input Structure: Similar to PBMs, but without appended prompts at the end of sentences.\n     - Methods: Instead of using the [MASK] token, the classification head (the [CLS] token) is used for prediction. Attribution scores for each token in the actual task input are extracted based on predictions.\n\n2. **Decoder-only Models:**\n   - **Large Language Models (LLMs) in Prompt-based Paradigm**:\n     - Examples: Examples include large language models following the prompt-based paradigm.\n     - Challenges: These models generate a whole sequence of output tokens, making the position of the prediction token unclear.\n     - Methods: The model is prompted to output only the verbalized class label. The label is chosen to ensure it is within the model\u2019s vocabulary and not split into several subtokens.\n     - Extraction: If the generated output includes a verbalized class label, it is treated as the prediction token. Otherwise, the first token in the output sequence serves as the prediction token. Attribution scores are then extracted for the actual task input based on this prediction token, similarly to the PBMs or FTMs.\n\n**Key Components and Innovations:**\n- **Attribution Methods**: Attention scores, Integrated Gradients, and Shapley Value Sampling are employed for extracting attribution scores.\n- **Prompts and Verbalizers**: For PBMs and LLMs, specific prompts and verbalizers guide the models to output class labels vital for attribution score calculations.\n- **Novel Handling of Generative Models**: An innovative prompting method is introduced to address challenges with generative models, aligning their output with class labels to facilitate attribution score extraction.\n- **Normalization and Aggregation**: Attention scores are not only extracted but also averaged across attention heads and normalized, ensuring a balanced representation of the task inputs.\n\nThis methodology ensures a robust and standard approach across varied PLMs, providing clearer attribution insights even in low-resource scenarios.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results\n\n#### Datasets\nThe main experiment employs two datasets representative of different semantic complexities:\n1. **Tweet Sentiment Extraction (TSE)**: Used for sentiment classification. Instances with neutral labels are excluded to avoid explanations that are whole sentences.\n2. **e-SNLI**: A natural language inference dataset.\n\n#### Low-Resource Settings\nTraining sets are subsampled into six different low-resource sets, ranging from just eight instances to the entire dataset, to create varying levels of resource constraints.\n\n#### Models\nThe main analysis utilizes state-of-the-art encoder-based transformer models:\n- **BERT-base**\n- **BERT-large**\n- **RoBERTa-large**\n\nAdditionally, there is a comparative study with large language models (LLMs):\n- **Vicuna model**: A fine-tuned version of LLaMA.\n\n#### Prompts and Fine-Tuning Methods\nThe study focuses on discrete prompts (manual, BitFit, and BFF) for their explainability advantages over continuous prompts:\n1. **Manual Prompt**: Derived from Schick and Sch\u00fctze (2021); the model is fine-tuned entirely.\n2. **BitFit**: Uses the manual prompt and fine-tunes only the bias terms.\n3. **BFF**: Automatically searches for prompts and fine-tunes the entire model.\n   \nFor LLMs, only manual prompts are used.\n\n#### Evaluation Metrics\n1. **Plausibility**: Assessed using average precision, which measures how plausible an explanation is according to human judgment.\n2. **Faithfulness**: Evaluated by measuring the model's performance drop when masking the most salient words. The area under the threshold-performance curve (AUC) is normalized to facilitate cross-model comparisons.\n\n#### Results and Statistical Analysis\n- The models were evaluated on both plausibility and faithfulness metrics.\n- Statistical significance was analyzed using Kruskal-Wallis tests and Dunn\u2019s Tests for pairwise comparisons.\n\n#### Summary of Main Results\nThe detailed numerical results and statistical significance tests provided insights into how well the different models and prompting methods performed across the sentiment classification and natural language inference tasks in low-resource settings. Specific performance metrics and comparisons between different methods/models would be presented in the original research to highlight key findings."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To investigate the quality of attribution scores extracted from prompt-based models (PBMs) compared to fine-tuned models (FTMs) in terms of plausibility and faithfulness in low-resource settings.",
+            "experiment_process": "The study utilizes the Tweet Sentiment Extraction (TSE) and the e-SNLI datasets, focusing on state-of-the-art encoder-based transformer models (BERT-base, BERT-large, and RoBERTa-large) and the Vicuna model (a fine-tuned LLaMA version). Training sets are subsampled to create low-resource settings. Three prompting methods are studied: Manual, BitFit, and BFF. Plausibility is evaluated using average precision, and faithfulness is assessed by measuring the performance decrease when masking the most salient words, normalized by area under the threshold-performance curve. Kruskal-Wallis tests and Dunn's Tests are used for statistical significance.",
+            "result_discussion": "For smaller training sizes, PBMs outperform FTMs, but this trend reverses with larger training sizes. Differences in low-resource settings are statistically significant, but not in high-resource settings. Shapley Value Sampling yields higher plausibility scores and more faithful explanations compared to attention and Integrated Gradients. Attention produces the least plausible explanations, often encoding sentence information into a single token. PBMs provide more plausible attribution scores in low-resource settings, likely because they pick up task information quicker. Trends observed in large language models (LLMs) are similar to those in PBMs.",
+            "ablation_id": "2403.05338v1.No1"
+        },
+        {
+            "research_objective": "To determine if findings regarding attribution scores for plausibility and faithfulness in PBMs also hold for large language models (LLMs) and how they compare with PBMs.",
+            "experiment_process": "Using the Vicuna model, an LLM, and RoBERTa-Large with BitFit prompts (the best-performing PBM from previous analysis), the experiment evaluates the 8-shot setting on 100 test instances for each dataset due to high computational costs. Prompts used in the input prompt are specified in Section A.2. The 8 training samples are used to tune the bias terms for the PBM.",
+            "result_discussion": "Shapley Value Sampling provides more plausible and faithful explanations for the Vicuna model. When comparing Vicuna with RoBERTa, larger performance gaps in attribution methods are noted. Plausibility scores for attention are even lower in Vicuna, likely due to LLMs encoding larger input context, which might include information irrelevant to the prediction.",
+            "ablation_id": "2403.05338v1.No2"
+        }
+    ]
+}

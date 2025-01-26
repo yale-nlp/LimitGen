@@ -1,0 +1,371 @@
+{
+    "title": "LlamBERT: Large-scale low-cost data annotation in NLP",
+    "abstract": "Large Language Models (LLMs), such as GPT-4 and Llama\u20092, show remarkable proficiency in a wide range of natural language processing (NLP) tasks.\nDespite their effectiveness, the high costs associated with their use pose a challenge.\nWe present LlamBERT, a hybrid approach that leverages LLMs to annotate a small subset of large, unlabeled databases and uses the results for fine-tuning transformer encoders like BERT and RoBERTa.\nThis strategy is evaluated on two diverse datasets: the IMDb review dataset and the UMLS Meta-Thesaurus.\nOur results indicate that the LlamBERT approach slightly compromises on accuracy while offering much greater cost-effectiveness.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "In the contemporary technological landscape, when confronted with the task of annotating a large corpus of natural language data using a natural language prompt, LLMs such as the proprietary GPT-4 [1  ###reference_b1###] and the open-source Llama\u20092 [2  ###reference_b2###] present themselves as compelling solutions.\nIndeed, minimal prompt-tuning enables them to be highly proficient in handling a wide variety of NLP tasks [3  ###reference_b3###].\nHowever, running such LLMs on millions of prompts demands large and expensive computational resources.\nThere have been optimization efforts aimed at achieving superior performance with reduced resource requirements [4  ###reference_b4###, 5  ###reference_b5###].\nNumerous studies have investigated the efficiency and resource requirements of LLMs versus smaller transformer encoders and humans\n[6  ###reference_b6###, 7  ###reference_b7###, 8  ###reference_b8###, 9  ###reference_b9###, 10  ###reference_b10###, 11  ###reference_b11###].\nRecent advancements in data augmentation with LLMs [12  ###reference_b12###] underscore our approach, which relies on data labeling.\nGoing beyond the exclusive use of LLMs for a task, we combine LLMs with substantially smaller yet capable NLP models.\nA study closest to our approach is [13  ###reference_b13###], where GPT-NeoX was used to surrogate human annotation for solving named entity recognition.\nThrough two case studies, our research aims to assess the advantages and limitations of the approach we call LlamBERT, a hybrid methodology utilizing both LLMs and smaller-scale transformer encoders.\nThe first case study examines the partially annotated IMDb review dataset [14  ###reference_b14###] as a comparative baseline, while the second selects biomedical concepts from the UMLS Meta-Thesaurus [15  ###reference_b15###] to demonstrate potential applications.\nLeveraging LLM\u2019s language modeling capabilities, while utilizing relatively modest resources, enhances their accessibility and enables new business opportunities.\nWe believe that such resource-efficient solutions can foster sustainable development and environmental stewardship."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Approach",
+            "text": "Given a large corpus of unlabeled natural language data, the suggested LlamBERT approach takes the following steps:\n(i) Annotate a reasonably sized, randomly selected subset of the corpus utilizing Llama\u20092 and a natural language prompt reflecting the labeling criteria;\n(ii) Parse the Llama\u20092 responses into the desired categories; (iii) Discard any data that fails to classify into any of the specified categories;\n(iv) Employ the resulting labels to perform supervised fine-tuning on a BERT classifier;\n(v) Apply the fine-tuned BERT classifier to annotate the original unlabeled corpus.\nWe explored two binary classification tasks, engineering the prompt to limit the LLM responses to one of the two binary choices.\nAs anticipated, our efforts to craft such a prompt were considerably more effective when utilizing the \u2019chat\u2019 variants of Llama\u20092 [16  ###reference_b16###].\nWe investigated two versions: Llama-2-7b-chat running on a single A100 80GB GPU, and Llama-2-70b-chat requiring four such GPUs.\nWe also tested the performance of gpt-4-0613 using the OpenAI API."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "The IMDb dataset",
+            "text": "The Stanford Large Movie Review Dataset (IMDb) [14  ###reference_b14###] is a binary sentiment dataset commonly referenced in academic literature.\nIt comprises 25,000 labeled movie reviews for training purposes, 25,000 labeled reviews designated for testing, and an additional 50,000 unlabeled reviews that can be employed for supplementary self-supervised training.\nThis dataset serves as a fundamental baseline in NLP for classification problems, which allows us to evaluate our method against a well-established standard [17  ###reference_b17###, 18  ###reference_b18###, 19  ###reference_b19###]."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Experimental results",
+            "text": "All of the results in this section were measured on the entire IMDb sentiment test data.\nIn Table 1  ###reference_###, we compare the performance of Llama\u20092 and GPT-4 in different few-shot settings.\nDue to limited access to the OpenAI API, we only measured the 0-shot performance of GPT-4.\nThe results indicate that the number of few-shot examples has a significant impact on Llama-2-7b-chat.\nThis model exhibited a bias toward classifying the reviews as positive, but few-shot examples of negative sentiment effectively mitigated this.\nLikely due to reaching the context-length limit, 3-shot prompts did not outperform 2-shot prompts on Llama-2-7b-chat, achieving an accuracy of 87.27%.\nThe inference times shown in Table 1  ###reference_### depend on various factors, including the implementation and available hardware resources; they reflect the specific setup we used at the time of writing.\nIn Table 2  ###reference_###, we compare various pre-trained BERT models that were fine-tuned for five epochs on different training data with a batch size of 16.\nFirst, we established a baseline by using the original gold-standard training data.\nFor the LlamBERT results, training data labeling was conducted by the Llama-2-70b-chat model from 0-shot prompts.\nThe LlamBERT results were not far behind the baseline measurements, underscoring the practicality and effectiveness of the framework.\nIncorporating the extra 50,000 unlabeled data in LlamBERT resulted in a slight improvement in accuracy.\nWe also evaluated a combined strategy where we first fine-tuned with the extra data labeled by Llama-2-70b-chat, then with the gold training data.\nThe large version of RoBERTa performed the best on all 4 training scenarios, reaching a state-of-the-art accuracy of 96.68%.\nInference on the test data with roberta-large took 9m 18s, after fine-tuning for 2h 33m.\nThus, we can estimate that labeling the entirety of IMDb\u2019s 7.816 million movie reviews [20  ###reference_b20###] would take about 48h 28m with roberta-large.\nIn contrast, the same task would require approximately 367 days on our setup using Llama-2-70b-chat, while demanding significantly more computing power."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "The UMLS dataset",
+            "text": "The United Medical Language System (UMLS) [15  ###reference_b15###], developed by the United States National Library of Medicine, is a comprehensive and unified collection of nearly 200 biomedical vocabularies.\nIt has played a crucial role in fields such as natural language processing, ontology development, and information retrieval for over 30 years [22  ###reference_b22###].\nThe UMLS Metathesaurus consolidates various lexical variations of terms into single concepts, outlining their interrelationships.\nHowever, its breadth, with over 3 million concepts, complicates the selection of specific subsets for research due to its\nvague semantic labels.\nFaced with the need to identify a distinct subset of the Metathesaurus for subsequent research, we aimed to classify anatomical entities within it,\nbased on their relevance to the human nervous system.\nPrevious research on creating a neurological examination ontology involved extracting terms from case studies and manually mapping them to UMLS concepts, a task that can be extremely labor-intensive [23  ###reference_b23###].\nOur approach streamlines this process by efficiently leveraging the vast amount of knowledge condensed into LLMs and mitigates the need for expert annotation.\nBy selecting relevant semantic types spanning multiple biological scales, but excluding genes, we were able to reduce the number of concepts to approximately 150,000 anatomical structures, resulting in a still substantially large dataset.\nAmong these anatomical structures, we sought to find concepts related to the human nervous system, excluding purely vascular or musculoskeletal structures, and indirectly related entities such as the outer ear and eye lens.\nUsing distinct random samples, we annotated 1,000 concepts for testing and an additional 1,000 for hand-labeled fine-tuning.\nWe opted for a 1-shot prompt, on which Llama-2-7b-chat achieved an accuracy of 87.5%, while Llama-2-70b-chat reached 96.5%, and gpt-4-0613 scored 94.6%.\nFor fine-tuning BERT models, we labeled a distinct set of 10,000 concepts with Llama-2-70b-chat."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Experimental results",
+            "text": "As shown in Table 4  ###reference_###, fine-tuning general BERT models on the baseline hand-labeled dataset already yielded commendable results, however, our LlamBERT approach further improved these outcomes. Moreover, the combined strategy marginally surpassed Llama\u20092\u2019s initial performance.\nWithin the biomedical domain, specific BERT models such as BiomedBERT-large [24  ###reference_b24###] were already accessible and predictably outperformed both bert-large and roberta-large across all training scenarios.\nYet, the combined approach using roberta-large demonstrated comparable performance, suggesting that our methodology could serve as an alternative to training domain-specific models."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Conclusions",
+            "text": "Through two case studies showcasing the LlamBERT technique, we demonstrated the feasibility of efficiently labeling large quantities of natural language data with state-of-the-art LLMs.\nCombining the LlamBERT technique with fine-tuning on gold-standard data yielded the best results in both cases, achieving state-of-the-art accuracy on the IMDb benchmark.\nOur code is available on GitHub111https://github.com/aielte-research/LlamBERT  ###reference_T###.\nTo further increase the quality of data initially provided by the LLM annotation, we aim to incorporate PEFT [25  ###reference_b25###] techniques such as LoRA [26  ###reference_b26###], prefix tuning [27  ###reference_b27###], and P-tuning [28  ###reference_b28###] in the future."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Appendix",
+            "text": "This appendix outlines the two prompts we used to engage the Llama 2 model for our article\u2019s case studies.\nFew-shot examples contained the same prompt structure continued by the appropriate answer."
+        },
+        {
+            "section_id": "6.1",
+            "parent_section_id": "6",
+            "section_name": "IMDB prompt",
+            "text": ""
+        },
+        {
+            "section_id": "6.2",
+            "parent_section_id": "6",
+            "section_name": "UMLS prompt",
+            "text": ""
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T1.2.1.1\" style=\"font-size:90%;\">Table 1</span>: </span><span class=\"ltx_text\" id=\"S3.T1.3.2\" style=\"font-size:90%;\">Comparison LLM test performances on the IMDb data.</span></figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.4\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.4.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_th_row ltx_border_l ltx_border_r ltx_border_t\" id=\"S3.T1.4.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S3.T1.4.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.1.1.2.1\">Accuracy %</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S3.T1.4.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.1.1.3.1\">Inference time</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.4.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T1.4.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.1.1\">LLM</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.2.1\">0-shot</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.3.1\">1-shot</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.4.1\">2-shot</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.5.1\">0-shot</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.6.1\">1-shot</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T1.4.2.2.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.2.2.7.1\">2-shot</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.4.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.1\">Llama-2-7b-chat</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.2\">75.28</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.3\">89.77</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.4\">93.93</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.5\">3h 54m</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.6\">4h 16m</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.4.3.1.7\">8h 14m</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.4.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T1.4.4.2.1\">Llama-2-70b-chat</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.2\">95.39</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.3\">95.33</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.4\">95.42</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.5\">28h 11m</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.6\">39h 6m</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.4.4.2.7\">76h 2m</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.4.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_l ltx_border_r\" id=\"S3.T1.4.5.3.1\">gpt-4-0613</th>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.2\">96.40</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.3\">N/A</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.4\">N/A</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.5\">49h 11m</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.6\">N/A</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T1.4.5.3.7\">N/A</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 1: Comparison LLM test performances on the IMDb data."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T2\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T2.2.1.1\" style=\"font-size:90%;\">Table 2</span>: </span><span class=\"ltx_text\" id=\"S3.T2.3.2\" style=\"font-size:90%;\">Comparison BERT test accuracies on the IMDb data.</span></figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T2.4\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T2.4.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_l ltx_border_r ltx_border_t\" id=\"S3.T2.4.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.1.1.1.1\">BERT</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T2.4.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.1.1.2.1\">Baseline</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T2.4.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.1.1.3.1\">LlamBERT</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T2.4.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.1.1.4.1\">LlamBERT</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S3.T2.4.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.1.1.5.1\">Combined</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.4.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T2.4.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.2.2.1.1\">model</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r\" id=\"S3.T2.4.2.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.2.2.2.1\">train</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r\" id=\"S3.T2.4.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.2.2.3.1\">train</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r\" id=\"S3.T2.4.2.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.2.2.4.1\">train&amp;extra</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r\" id=\"S3.T2.4.2.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.2.2.5.1\">extra+train</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T2.4.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r ltx_border_tt\" id=\"S3.T2.4.3.1.1\">distilbert-base <cite class=\"ltx_cite ltx_citemacro_cite\">[<a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.15938v1#bib.bib21\" title=\"\">21</a>]</cite>\n</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T2.4.3.1.2\">91.23</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T2.4.3.1.3\">90.77</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T2.4.3.1.4\">92.12</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T2.4.3.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.3.1.5.1\">92.53</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.4.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T2.4.4.2.1\">bert-base</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.4.2.2\">92.35</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.4.2.3\">91.58</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.4.2.4\">92.76</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.4.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.4.2.5.1\">93.47</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.4.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T2.4.5.3.1\">bert-large</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.5.3.2\">94.29</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.5.3.3\">93.31</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.5.3.4\">94.07</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.5.3.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.5.3.5.1\">95.03</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.4.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r\" id=\"S3.T2.4.6.4.1\">roberta-base</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.6.4.2\">94.74</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.6.4.3\">93.53</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.6.4.4\">94.28</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T2.4.6.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.6.4.5.1\">95.23</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.4.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_l ltx_border_r\" id=\"S3.T2.4.7.5.1\">roberta-large</th>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T2.4.7.5.2\">96.54</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T2.4.7.5.3\">94.83</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T2.4.7.5.4\">94.98</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T2.4.7.5.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.4.7.5.5.1\">96.68</span></td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 2: Comparison BERT test accuracies on the IMDb data."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T3\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T3.2.1.1\" style=\"font-size:90%;\">Table 3</span>: </span><span class=\"ltx_text\" id=\"S3.T3.3.2\" style=\"font-size:90%;\">Comparison of human annotation to model outputs on wrong test answers.</span></figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T3.4\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T3.4.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_rr ltx_border_t\" id=\"S3.T3.4.1.1.1\">RoBERTa</th>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" colspan=\"3\" id=\"S3.T3.4.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S3.T3.4.1.1.2.1\">LlamBERT train</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S3.T3.4.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S3.T3.4.1.1.3.1\">Combined extra+train</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T3.4.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_rr\" id=\"S3.T3.4.2.2.1\">sentiment</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T3.4.2.2.2\">positive</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T3.4.2.2.3\">negative</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S3.T3.4.2.2.4\">mixed</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T3.4.2.2.5\">positive</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T3.4.2.2.6\">negative</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T3.4.2.2.7\">mixed</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T3.4.3.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_rr ltx_border_tt\" id=\"S3.T3.4.3.3.1\">positive</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T3.4.3.3.2\">31</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T3.4.3.3.3\">16</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_tt\" id=\"S3.T3.4.3.3.4\">13</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T3.4.3.3.5\">25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T3.4.3.3.6\">17</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T3.4.3.3.7\">13</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T3.4.4.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_l ltx_border_rr\" id=\"S3.T3.4.4.4.1\">negative</th>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T3.4.4.4.2\">17</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T3.4.4.4.3\">14</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_rr\" id=\"S3.T3.4.4.4.4\">9</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T3.4.4.4.5\">15</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T3.4.4.4.6\">14</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S3.T3.4.4.4.7\">16</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 3: Comparison of human annotation to model outputs on wrong test answers."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T4.12.1.1\" style=\"font-size:90%;\">Table 4</span>: </span><span class=\"ltx_text\" id=\"S4.T4.13.2\" style=\"font-size:90%;\">\nAccuracy comparison of different training data for the UMLS classification; <span class=\"ltx_ERROR undefined\" id=\"S4.T4.13.2.1\">\\nth</span>95 percentile confidence interval measured on 5 different random seeds.\n</span></figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T4.9\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T4.9.10.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_l ltx_border_r ltx_border_t\" id=\"S4.T4.9.10.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.9.10.1.1.1\">Model</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S4.T4.9.10.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.9.10.1.2.1\">Baseline</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S4.T4.9.10.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.9.10.1.3.1\">LlamBERT</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S4.T4.9.10.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.9.10.1.4.1\">Combined</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T4.3.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r ltx_border_tt\" id=\"S4.T4.3.3.4\">bert-large</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T4.1.1.1\">94.84 (0.25)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T4.2.2.2\">95.70 (0.21)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T4.3.3.3\">96.14 (0.42)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.6.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_l ltx_border_r\" id=\"S4.T4.6.6.4\">roberta-large</th>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T4.4.4.1\">95.00 (0.18)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T4.5.5.2\">96.02 (0.12)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T4.6.6.3\">96.64 (0.14)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.9.9\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_l ltx_border_r\" id=\"S4.T4.9.9.4\">BiomedBERT-large</th>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T4.7.7.1\">96.72 (0.17)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T4.8.8.2\">96.66 (0.13)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T4.9.9.3\">96.92 (0.10)</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 4: \nAccuracy comparison of different training data for the UMLS classification; \\nth95 percentile confidence interval measured on 5 different random seeds.\n"
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.15938v1_figure_1.png",
+            "caption": "Figure 1: \nAccuracy (%) comparison of RoBERTa classifiers on the IMDb test data.\nOn the left: The effects of training data size.\nOn the right: The effects of intentionally mislabeling a random part of the gold training data."
+        },
+        "2": {
+            "figure_path": "2403.15938v1_figure_2.png",
+            "caption": "Figure 1: \nAccuracy (%) comparison of RoBERTa classifiers on the IMDb test data.\nOn the left: The effects of training data size.\nOn the right: The effects of intentionally mislabeling a random part of the gold training data."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "GPT-4 technical report.",
+                "author": "OpenAI.",
+                "venue": "arXiv preprint arXiv:2303.08774, 2023.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Touvron, H., Martin, L., Stone, K., Albert, P., Almahairi, A., Babaei, Y., Bashlykov, N., Batra, S., Bhargava, P., Bhosale, S., et al.",
+                "venue": "arXiv preprint arXiv:2307.09288, 2023.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "GPTEval: A survey on assessments of ChatGPT and GPT-4.",
+                "author": "Mao, R., Chen, G., Zhang, X., Guerin, F., and Cambria, E.",
+                "venue": "arXiv preprint arXiv:2308.12488, 2023.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Self-instruct: Aligning language model with self generated instructions.",
+                "author": "Wang, Y., Kordi, Y., Mishra, S., Liu, A., Smith, N. A., Khashabi, D., and Hajishirzi, H.",
+                "venue": "arXiv preprint arXiv:2212.10560, 2022.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "GPTQ: Accurate post-training quantization for generative pre-trained transformers.",
+                "author": "Frantar, E., Ashkboos, S., Hoefler, T., and Alistarh, D.",
+                "venue": "arXiv preprint arXiv:2210.17323, 2022.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Selective annotation makes language models better few-shot learners.",
+                "author": "Su, H., Kasai, J., Wu, C. H., Shi, W., Wang, T., Xin, J., Zhang, R., Ostendorf, M., Zettlemoyer, L., Smith, N. A., et al.",
+                "venue": "arXiv preprint arXiv:2209.01975, 2022.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Open, closed, or small language models for text classification?",
+                "author": "Yu, H., Yang, Z., Pelrine, K., Godbout, J. F., and Rabbany, R.",
+                "venue": "arXiv preprint arXiv:2308.10092, 2023.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "ChatGPT outperforms crowd workers for text-annotation tasks.",
+                "author": "Gilardi, F., Alizadeh, M., and Kubli, M.",
+                "venue": "Proceedings of the National Academy of Sciences, 120(30):e2305016120, 2023.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "The unreasonable effectiveness of large language models in zero-shot semantic annotation of legal texts.",
+                "author": "Savelka, J. and Ashley, K. D.",
+                "venue": "Frontiers in Artificial Intelligence, 6, 2023.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Open-source large language models outperform crowd workers and approach ChatGPT in text-annotation tasks.",
+                "author": "Alizadeh, M., Kubli, M., Samei, Z., Dehghani, S., Bermeo, J. D., Korobeynikova, M., and Gilardi, F.",
+                "venue": "arXiv preprint arXiv:2307.02179, 2023.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Large language models for propaganda detection.",
+                "author": "Sprenkamp, K., Jones, D. G., and Zavolokina, L.",
+                "venue": "arXiv preprint arXiv:2310.06422, 2023.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Data augmentation using llms: Data perspectives, learning paradigms and challenges.",
+                "author": "Ding, B., Qin, C., Zhao, R., Luo, T., Li, X., Chen, G., Xia, W., Hu, J., Luu, A. T., and Joty, S.",
+                "venue": "arXiv preprint arXiv:2403.02990, 2024.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Annotated dataset creation through large language models for non-english medical NLP.",
+                "author": "Frei, J. and Kramer, F.",
+                "venue": "Journal of Biomedical Informatics, 145:104478, 2023.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Learning word vectors for sentiment analysis.",
+                "author": "Maas, A. L., Daly, R. E., Pham, P. T., Huang, D., Ng, A. Y., and Potts, C.",
+                "venue": "In Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics: Human Language Technologies, pages 142\u2013150. Association for Computational Linguistics, Portland, Oregon, USA, 2011.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "The unified medical language system (UMLS): integrating biomedical terminology.",
+                "author": "Bodenreider, O.",
+                "venue": "Nucleic acids research, 32(suppl_1):D267\u2013D270, 2004.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Training language models to follow instructions with human feedback.",
+                "author": "Ouyang, L., Wu, J., Jiang, X., Almeida, D., Wainwright, C., Mishkin, P., Zhang, C., Agarwal, S., Slama, K., Ray, A., et al.",
+                "venue": "Advances in Neural Information Processing Systems, 35:27730\u201327744, 2022.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "XLNet: Generalized autoregressive pretraining for language understanding.",
+                "author": "Yang, Z., Dai, Z., Yang, Y., Carbonell, J., Salakhutdinov, R. R., and Le, Q. V.",
+                "venue": "Advances in neural information processing systems, 32, 2019.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "An algorithm for routing vectors in sequences.",
+                "author": "Heinsen, F. A.",
+                "venue": "arXiv preprint arXiv:2211.11754, 2022.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Entailment as few-shot learner.",
+                "author": "Wang, S., Fang, H., Khabsa, M., Mao, H., and Ma, H.",
+                "venue": "arXiv preprint arXiv:2104.14690, 2021.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "https://www.imdb.com/pressroom/stats/.",
+                "author": "IMDb statistics.",
+                "venue": "Dec 2023.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter.",
+                "author": "Sanh, V., Debut, L., Chaumond, J., and Wolf, T.",
+                "venue": "arXiv preprint arXiv:1910.01108, 2019.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "The unified medical language system at 30 years and how it is used and published: systematic review and content analysis.",
+                "author": "Jing, X.",
+                "venue": "JMIR Medical Informatics, 9(8):e20675, 2021.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "A neuro-ontology for the neurological examination.",
+                "author": "Hier, D. B. and Brint, S. U.",
+                "venue": "BMC Medical Informatics and Decision Making, 20:1\u20139, 2020.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "BioMedBERT: A pre-trained biomedical language model for QA and IR.",
+                "author": "Chakraborty, S., Bisong, E., Bhatt, S., Wagner, T., Elliott, R., and Mosconi, F.",
+                "venue": "In Proceedings of the 28th International Conference on Computational Linguistics, pages 669\u2013679. 2020.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Empirical analysis of the strengths and weaknesses of PEFT techniques for LLMs.",
+                "author": "Pu, G., Jain, A., Yin, J., and Kaplan, R.",
+                "venue": "arXiv preprint arXiv:2304.14999, 2023.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "LoRa: Low-rank adaptation of large language models.",
+                "author": "Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., and Chen, W.",
+                "venue": "arXiv preprint arXiv:2106.09685, 2021.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Prefix-tuning: Optimizing continuous prompts for generation.",
+                "author": "Li, X. L. and Liang, P.",
+                "venue": "arXiv preprint arXiv:2101.00190, 2021.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "P-tuning: Prompt tuning can be comparable to fine-tuning across scales and tasks.",
+                "author": "Liu, X., Ji, K., Fu, Y., Tam, W., Du, Z., Yang, Z., and Tang, J.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers), pages 61\u201368. 2022.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.15938v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2"
+        ],
+        "main_experiment_and_results_sections": [
+            "3",
+            "3.1",
+            "3.2",
+            "4",
+            "4.1"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "3.1",
+            "3.2",
+            "4.1"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.15938v1",
+        "paper_title": "LlamBERT: Large-scale low-cost data annotation in NLP",
+        "research_background": "The paper \"LlamBERT: Large-scale low-cost data annotation in NLP\" is motivated by the challenges associated with annotating vast amounts of natural language data using large language models (LLMs). While LLMs such as GPT-4 and Llama\u20092 have proven effective for various NLP tasks, their use on a large scale, such as processing millions of prompts, incurs significant computational costs. This necessitates large and expensive computational resources, limiting their accessibility and practical utility.\n\nThe research problem addressed in this paper is the need to optimize data annotation processes in NLP in a way that balances performance and resource efficiency. The authors propose leveraging a hybrid approach that combines the strengths of LLMs with smaller, yet capable, transformer encoders. They suggest that this combination can maintain high annotation quality while reducing computational demands and associated costs.\n\nRelevant prior work includes:\n1. The effectiveness of minimal prompt-tuning for LLMs, enabling proficiency across diverse NLP tasks [3].\n2. Efforts to optimize the performance and reduce resource requirements of LLMs [4, 5].\n3. Comparative studies on the efficiency and resource needs of LLMs, smaller transformer models, and human annotators [6, 7, 8, 9, 10, 11].\n4. Recent advancements in data augmentation with LLMs, emphasizing the potential for data labeling [12].\n5. A similar study that used GPT-NeoX to substitute human annotation for named entity recognition [13].\n\nThe innovation in this paper lies in assessing the effectiveness of the LlamBERT hybrid methodology by conducting two case studies: one on the partially annotated IMDb review dataset as a baseline and another on biomedical concepts from the UMLS Meta-Thesaurus to showcase potential applications. The authors argue that this approach not only makes powerful language modeling capabilities more accessible but also aligns with sustainable development and environmental goals by being resource-efficient.",
+        "methodology": "LlamBERT: Large-scale low-cost data annotation in NLP\n\n**Methodology:**\n\nThe proposed LlamBERT approach consists of the following key steps:\n\n(i) **Annotation with Llama 2**: First, a reasonably sized, randomly selected subset of a large corpus of unlabeled natural language data is annotated using Llama\u20092. This involves creating a natural language prompt that reflects the labeling criteria.\n\n(ii) **Parsing Responses**: The responses from Llama\u20092 are then parsed into the desired categories.\n\n(iii) **Data Filtering**: Any data that cannot be classified into any of the specified categories is discarded.\n\n(iv) **Supervised Fine-tuning**: The resulting labels are used to perform supervised fine-tuning on a BERT classifier.\n\n(v) **Corpus Annotation**: Finally, the fine-tuned BERT classifier is used to annotate the original unlabeled corpus.\n\nFor their experimentation, the authors explored two binary classification tasks, carefully crafting the prompts to ensure the LLM responses were limited to one of the two binary choices. They found that using the 'chat' variants of Llama\u20092 markedly improved the effectiveness of these prompts.\n\nTwo versions of Llama-2-chat were investigated:\n\n- **Llama-2-7b-chat**: Running on a single A100 80GB GPU.\n- **Llama-2-70b-chat**: Requiring four A100 80GB GPUs.\n\nAdditionally, the performance of **gpt-4-0613** was assessed using the OpenAI API to provide a comparative benchmark.\n",
+        "main_experiment_and_results": "### Main Experiment Setup\n\n**Dataset:**\nThe main experiment uses the Stanford Large Movie Review Dataset (IMDb), which is a binary sentiment dataset widely utilized in academic research. The dataset consists of:\n- 25,000 labeled movie reviews for training,\n- 25,000 labeled movie reviews for testing, and\n- 50,000 unlabeled movie reviews available for supplementary self-supervised training.\n\n**Baselines:**\nThe main experiment benchmarks against well-established standards in the field, as referenced in previous works ([17, 18, 19]).\n\n**Evaluation Metrics:**\nThe primary evaluation metric used for this binary classification task is accuracy, which is a standard measure for determining the correctness of sentiment classification in NLP tasks.\n\n### Main Experimental Results\n\nThe results demonstrated the effectiveness of the proposed method in comparison to current baselines. The comparison details, additional insights or visualizations from the results were not provided, but the focus was on showcasing performance improvements on the IMDb dataset."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To evaluate the performance of Llama-2-7b-chat and GPT-4 in few-shot settings and assess the impact of additional data labeling on fine-tuning various pre-trained BERT models.",
+            "experiment_process": "This study used the IMDb sentiment test data. Table 1 compares the performance of Llama-2-7b-chat and GPT-4, with the latter only evaluated in a 0-shot setting due to limited OpenAI API access. The models were evaluated with different numbers of few-shot examples to see the impact on accuracy. Table 2 shows the performance of various pre-trained BERT models fine-tuned for five epochs on different training sets, using a batch size of 16. Baseline accuracy was established using gold-standard training data, while LlamBERT results were generated using data labeled by Llama-2-70b-chat from 0-shot prompts. The accuracy was then compared across different scenarios, including adding an extra 50,000 labeled data entries and a combined fine-tuning strategy.",
+            "result_discussion": "The number of few-shot examples significantly impacts Llama-2-7b-chat, with negative examples mitigating its bias towards positive classifications. 3-shot prompts did not outperform 2-shot due to context-length limits, achieving an accuracy of 87.27%. Incorporating extra labeled data in LlamBERT slightly improved accuracy, and RoBERTa-large achieved the highest accuracy of 96.68% in a combined strategy. Labeling the entire IMDb dataset would take significantly less time with roberta-large compared to Llama-2-70b-chat.",
+            "ablation_id": "2403.15938v1.No1"
+        },
+        {
+            "research_objective": "To investigate the relationship between the quantity of training data and the accuracy of fine-tuned BERT models, and to assess the impact of random and systematic mislabeling.",
+            "experiment_process": "Roberta-large was fine-tuned with various-sized subsets of gold-standard training data and data labeled by Llama-2-70b-chat. Fig. 1 illustrates the performance improvement plateau with increasing training data in different settings. Subsequently, the study analyzed the effect of deliberately mislabeling subsets of gold-standard training data, comparing it to the 4.61% error rate from Llama-2-70b-chat labeling. Manual error analysis was conducted on models fine-tuned with the combined strategy and LlamBERT strategy, comparing the outputs of 100 randomly selected reviews with gold labels.",
+            "result_discussion": "Performance improvements plateau faster for LlamBERT-labeled data. Labeling 10,000 entries is considered a good balance between accuracy and efficiency. Roberta-large showed resilience to random mislabeling, but performance was more affected by Llama-2-70b-chat labeling errors. Human annotations of model outputs aligned more with human sentiment than original labels, although overall performance on a hard subset of data was worse than random labeling.",
+            "ablation_id": "2403.15938v1.No2"
+        },
+        {
+            "research_objective": "To assess the effectiveness of the LlamBERT approach in fine-tuning general and domain-specific BERT models in the biomedical domain.",
+            "experiment_process": "BERT models, including general and specific ones like BiomedBERT-large, were fine-tuned on hand-labeled baseline datasets. The study compared the results with the LlamBERT strategy and a combined approach.",
+            "result_discussion": "Fine-tuning on hand-labeled datasets yielded commendable results, which were improved using the LlamBERT approach. The combined strategy slightly surpassed Llama-2's initial performance. Although BiomedBERT-large predictably outperformed other models, roberta-large with the combined approach showed comparable performance, suggesting LlamBERT could be an alternative to domain-specific model training.",
+            "ablation_id": "2403.15938v1.No3"
+        }
+    ]
+}

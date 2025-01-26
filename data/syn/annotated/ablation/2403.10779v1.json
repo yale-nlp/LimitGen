@@ -1,0 +1,1195 @@
+{
+    "title": "LLM-based Conversational AI Therapist for Daily Functioning Screening and Psychotherapeutic Intervention via Everyday Smart Devices",
+    "abstract": "Despite the global mental health crisis, access to screenings, professionals, and treatments remains high. In collaboration with licensed psychotherapists, we propose a Conversational AI Therapist with psychotherapeutic Interventions (CaiTI), a platform that leverages large language models (LLM)s and smart devices to enable better mental health self-care. CaiTI can screen the day-to-day functioning using natural and psychotherapeutic conversations. CaiTI leverages reinforcement learning to provide personalized conversation flow. CaiTI can accurately understand and interpret user responses. When the user needs further attention during the conversation, CaiTI can provide conversational psychotherapeutic interventions, including cognitive behavioral therapy (CBT) and motivational interviewing (MI). Leveraging the datasets prepared by the licensed psychotherapists, we experiment and microbenchmark various LLMs\u2019 performance in tasks along CaiTI\u2019s conversation flow and discuss their strengths and weaknesses. With the psychotherapists, we implement CaiTI and conduct 14-day and 24-week studies. The study results, validated by therapists, demonstrate that CaiTI can converse with users naturally, accurately understand and interpret user responses, and provide psychotherapeutic interventions appropriately and effectively. We showcase the potential of CaiTI LLMs to assist the mental therapy diagnosis and treatment and improve day-to-day functioning screening and precautionary psychotherapeutic intervention systems.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1. Introduction",
+            "text": "Maintaining physical and mental health is crucial for quality of life, particularly for those living alone, experiencing early signs of mental illness, or requiring daily assistance. COVID-19 significantly impacted global mental health with high barriers to accessing mental health screenings and treatments, including home care (Talevi et al., 2020  ###reference_b87###; House, 2022  ###reference_b43###). There are a variety of smart wearables and smart devices to monitor physical and mental health (Nie et al., 2021  ###reference_b62###; Morshed et al., 2019  ###reference_b59###; Zhu et al., 2021  ###reference_b103###). Human-Computer Interaction (HCI) researchers are actively working to improve wellness care for the general public and vulnerable population groups (Mishra, 2019  ###reference_b57###; Pendse et al., 2021  ###reference_b69###; Tlachac et al., 2022  ###reference_b89###). Furthermore, with the growth of the Internet of Things (IoT) devices, the smart speaker market volume reached 200 million and there are more than 6.84 billion smartphones worldwide in 2023  (Statista, 2023  ###reference_b86###; Explodingtopics, 2023  ###reference_b36###). Recent advances in artificial intelligence (AI) and large language models (LLMs) further expanded the possibilities for intelligent health-oriented applications (Nie et al., 2021  ###reference_b62###; Yunxiang et al., 2023  ###reference_b101###; Nori et al., 2023  ###reference_b64###; van Heerden et al., 2023  ###reference_b93###; Dai et al., 2023  ###reference_b30###).\nWhile existing research primarily focuses on understanding emotional states or affective states as indicators of mental well-being (Zhou et al., 2018  ###reference_b102###), therapists generally require more knowledge about patients\u2019 daily activities and behaviors to accurately assess mental health (Helfrich et al., 2008  ###reference_b42###; Bible et al., 2017  ###reference_b17###). Therapists often rely on assessments such as the Daily Living Activities\u201320 (DLA-20) and the Global Assessment of Functioning (GAF) to screen day-to-day functions and mental health status (Clausen et al., 2016  ###reference_b28###; Guze, 1995  ###reference_b40###; Fu and Fu, 2022  ###reference_b38###; Morshed et al., 2019  ###reference_b59###). Most existing research efforts focus on screening for physical and mental well-being, with few addressing psychotherapeutic interventions. Psychotherapy refers to a range of interventions based on psychological theories and principles to address emotional and behavioral issues that impact mental health (Corey, 2013  ###reference_b29###). (Nie et al., 2022  ###reference_b63###) and (Zhou et al., 2018  ###reference_b102###) propose conversational systems that provide preliminary consolation. While conversational systems and evidence-based treatments like Motivational Interviewing (MI) (Naar and Safren, 2017  ###reference_b61###), Cognitive Behavioral Therapy (CBT) (Beck and Beck, 2011  ###reference_b16###), and Dialectical Behavior Therapy (DBT) (Robins and Rosenthal, 2011  ###reference_b73###) have been proposed, many lack personalization or user understanding (Schroeder et al., 2018  ###reference_b77###; Sabour et al., 2022  ###reference_b75###).\nAlthough AI chatbots like ChatGPT show promise in addressing mental health concerns (Cay, 2023  ###reference_b22###; cha, 2023  ###reference_b4###), they often suffer from performance decline over time and limitations in psychotherapeutic considerations (red, 2023  ###reference_b5###). Additionally, mental health applications see low usage rates in clinical settings (Chandrashekar, 2018  ###reference_b23###; Torous et al., 2018  ###reference_b90###). Smartphone-based tools may not be user-friendly for individuals with memory or vision impairments, especially the elderly (Mohadisdudis and Ali, 2014  ###reference_b58###). As such, there is growing interest in exploring objective activity detection through ambient sensing and voice-based chatbots as more inclusive and effective approaches to mental health support.\nConsidering these limitations and opportunities, in collaboration with 4 licensed psychotherapists from a major mental health counseling institution with thousands of clients, we propose CaiTI, a conversational AI therapist that takes advantage of widely-owned smart devices for continuous screening of physical and mental health in a privacy-aware manner, while employing psychotherapeutic interventions (Figure 1  ###reference_###). Our collaborating psychotherapists have identified several design requirements for CaiTI that can facilitate mental health self-care and assist in psychotherapeutic treatment for individuals: (i) provide comprehensive day-to-day functioning screenings and employ evidence-based psychotherapeutic interventions; (ii) facilitate natural conversation flow; (iii) ensure the quality of care by enabling the system to intelligently interpret user responses and, if necessary, guide the dialogue back toward the psychotherapeutic objectives when the user\u2019s responses deviate; and (iv) the conversation format (using smartphones/smart speakers) should take into consideration individuals with visual impairments.\nRealizing such a system poses several challenges. Primarily, the system must fit within the users\u2019 lifestyles and habits, utilizing devices that users already own and prefer. It should facilitate communication through the user\u2019s preferred modes\u2014be it verbal or textual\u2014while ensuring comprehensive screening and delivering effective psychotherapeutic interventions in a privacy-aware manner. Additionally, it is imperative that the system is easy to use for all individuals, regardless of their technical proficiency. Furthermore, the LLMs in CaiTI should effectively deliver conversational psychotherapy and must be carefully designed to both be user-friendly/accessible and capable of understanding, reasoning, and responding to an infinitely diverse number of user responses (including both YES/NO answers and open-ended responses). The design of CaiTI must effectively manage varied responses, translate therapists\u2019 empirical techniques into a quality-controlled logical flow, and incorporate a recommendation system that dynamically personalizes itself to each user.\nBuilding upon near-ubiquitous smart devices, CaiTI combines AI techniques, including LLMs, reinforcement learning (RL), and human-computer interaction (HCI) approaches with professional experiences from licensed psychotherapists.\nCaiTI screens the user along the 37 dimensions of day-to-day functioning proposed in (Nie et al., 2022  ###reference_b63###) by conversing naturally with users with open-ended questions. CaiTI understands verbal and textual responses and activities of the user and employs conversation-based psychotherapeutic interventions. To summarize, the main contributions of this paper include:\nCaiTI, an LLM-based conversational \u201cAI therapist\u201d that screens and analyzes the day-to-day functioning of users across 37 dimensions. Using the screening results, CaiTI provides appropriate empathic validations and psychotherapies depending on the physical and mental status of the user. CaiTI is accessible through widely available smart devices, including smartphones, computers, and smart speakers, and offers a versatile solution catering to the diverse requirements of the users whether they are indoors or outdoors.\nTo realize more intelligent and friendly human-device interaction, we leverage RL to personalize each user\u2019s conversation experience during screening in an adaptive manner. CaiTI prioritizes the dimensions that concern psychotherapists more about each user based on his/her historical responses and brings up the dimensions in the order of priority during the conversation.\nWe design the conversation architecture of CaiTI with the therapists, which effectively incorporates Motivational Interviewing (MI) and Cognitive Behavioral Therapy (CBT) \u2013 two commonly used psychotherapeutic interventions administered by psychotherapists \u2013 to provide Psychotherapeutic Conversational Intervention in a natural way that closely mirrors the therapists\u2019 actual practices.\nTo ensure the quality of care and effectiveness of the psychotherapy process and avoid the propagation of biases in AI algorithms and LLMs, CaiTI incorporates multiple task-specific LLM-based Reasonsers, Guides, and Validator during the psychotherapy process. Leveraging the task-specific conversation datasets prepared and labeled by the licensed psychotherapists, we experiment and microbenchmark the performance of different GPT- and Llama 2-based LLMs with few-shot prompts or fine-tuning in performing tasks along CaiTI\u2019s. We will open-source: (i) the datasets prepared by the therapists to facilitate research in this area and (ii) the few-shot prompts we designed with the therapists.\nIn collaboration with licensed psychotherapists, we design, implement, and deploy a proof-of-concept prototype of CaiTI. Through real-world deployments with 20 subjects for up to 24 weeks, we demonstrate that CaiTI can accurately assess the user\u2019s physical and mental status and provide appropriate and effective psychotherapeutic interventions. CaiTI has received positive feedback, endorsements, and validation from both licensed psychotherapists and subjects.\nTo the best of our knowledge, CaiTI is the first conversational \u201cAI therapist\u201d system that leverages smart home devices and LLMs to mimic the psychotherapists\u2019 actual practices in clinical sessions and provides continuous monitoring and interaction with the integration of psychotherapies (MI and CBT)."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2. Psychological Background",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "2.1. Psychological Assessment",
+            "text": "People who experience mental health adjustment issues and disorders tend to face diminished capacity in professional or academic performance, maintaining social relationships, and self-care (Helfrich et al., 2008  ###reference_b42###; Bible et al., 2017  ###reference_b17###). Traditional screening tools, such as the Mental Status Examination (MSE), require clinicians to observe and assess people\u2019s daily functioning, such as physical appearance and presentation, social interaction behaviors, and emotional expression (Trzepacz and Baker, 1993  ###reference_b92###). Other widely used diagnostic assessments, such as the Adult ADHD Self-Report Scale (ASRS-v1.1), the Patient Health Questionnaire-9 (PHQ-9) for depression, and the General Anxiety Disorder-7 (GAD-7), which provide more specific screening options for specific mental health diagnoses, often include questions or items assessing daily functioning (Kroenke et al., 2001  ###reference_b47###; El ASRS, 2009  ###reference_b34###). For example, the PHQ-9 includes assessments of mood, sleep hygeine, and eating habits (Kroenke et al., 2001  ###reference_b47###).\nThere are several psychological measurements designed to examine the day-to-day functioning of individuals to evaluate their mental health well-being, such as DLA-20 and GAF (Nie et al., 2022  ###reference_b63###; DSM-IV-TR., 2000  ###reference_b33###; Scott and Presmanes, 2001  ###reference_b78###). DLA, which was developed to evaluate aspects of daily functioning affected by mental illnesses, includes 20 major categories for daily functioning. These categories include interpersonal communication, family relationships, personal hygiene, time management, and productivity at work (Scott and Presmanes, 2001  ###reference_b78###). On the other hand, GAF,\nwhich was introduced in DSM-IV, employs an ordinal scale to evaluate an individual\u2019s overall level of functioning (DSM-IV-TR., 2000  ###reference_b33###). A lower GAF score indicates the presence of more significant symptoms and difficulties in social, occupational, and psychological functioning."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "2.2. Psychotherapeutic Interventions",
+            "text": "Clinicians using evidence-based practices (EBP) in psychology to guide interventions and treatment plans, taking into account relevant research on their clinical practices, have found that the use of EBP helps improve the quality and accountability of clinical practices (on Evidence-Based Practice et al., 2006  ###reference_b65###; Spring, 2007  ###reference_b85###). Some commonly used EBP include CBT, acceptance and commitment therapy (ACT), DBT, and MI.\nCBT is one of the most popular and commonly used psychological interventions. It focuses on challenging one\u2019s cognitive distortions and subsequent behaviors to reduce existing mental health symptoms and improve overall mental well-being (Alford et al., 1997  ###reference_b10###; Beck and Beck, 2011  ###reference_b16###). CBT is found to be effective in a variety of diagnoses, such as mood disorders, Attention-deficit/hyperactivity disorder (ADHD), eating disorders, Obsessive-compulsive disorder, and Post-traumatic stress disorder (Clark et al., 2003  ###reference_b27###; Roy-Byrne et al., 2005  ###reference_b74###; Emilsson et al., 2011  ###reference_b35###; Halmi et al., 2005  ###reference_b41###; Walsh et al., 2004  ###reference_b96###; Foa et al., 2005  ###reference_b37###; Dickstein et al., 2013  ###reference_b32###). CBT also shows promising results in preventative care that may not be tied to a specific diagnosis. It has been effective in various settings, including medical, work, and school environments (Moss-Morris et al., 2013  ###reference_b60###; Tan et al., 2014  ###reference_b88###; Miller et al., 2011  ###reference_b55###). However, despite the abundant evidence of its effectiveness, CBT is associated with a high nonresponse rate, attributed to participants\u2019 low motivation (Antony et al., 2005  ###reference_b14###). During CBT, therapists assess the validity and utility of participants\u2019 responses to understand their thought patterns and beliefs accurately  (Sokol and Fox, 2019  ###reference_b84###). Such an assessment involves identifying, challenging, and reframing cognitive distortions, such as overgeneralization, emotional reasoning, all-or-nothing thinking, catastrophizing, etc\n (Burns and Beck, 1999  ###reference_b21###).\nCBT usually consists of the following steps:\nIdentify the Situation/Issue: Start by clearly identifying the situation or issue you want to work on.\nRecognize Negative Thoughts: Think about the thoughts that go through your mind when you experience this issue. These are often automatic or subconscious thoughts that may be irrational or unhelpful. They can be self-critical, overly pessimistic, or unrealistic.\nChallenge Negative Thoughts: Challenge means questioning the validity of these thoughts. Are there alternative, more balanced, or rational thoughts that might be more helpful in the situation?\nReframe Thoughts and Situations: Try to reframe your unhelpful thoughts and situations into more balanced, realistic, and constructive ones. This process is about changing the way you think about the situation, which can lead to changes in your emotions and behaviors.\nTo address issues related to low motivation, researchers have suggested using MI as a complementary approach alongside CBT  (Marker and Norton, 2018  ###reference_b52###; Naar and Safren, 2017  ###reference_b61###; Arkowitz and Westra, 2004  ###reference_b15###). There are four techniques to effectively implement MI  (Miller and Rollnick, 2012  ###reference_b56###):\nOpen-ended questions: Encouraging elaboration on responses, asking for examples, or exploring the implications of what\u2019s been shared;\nAffirmations: State strengths and help feel that changes are possible;\nReflective listening: (i) Simple reflection: repeating what the client has said, using slightly different words or phrases; (ii) Reframe reflection: listening to the client\u2019s statements and then reflecting them back in a way that presents a new perspective or interpretation; and (iii) Affective reflection: recognizing, understanding, and reflecting back the emotional content of what the client expresses;\nSummaries: Use summaries not only to encapsulate discussions but also to highlight progress.\nMI is an evidence-based practice for substance use disorders and other addiction issues (Anton et al., 2006  ###reference_b13###; Aarons et al., 2017  ###reference_b7###). It is also found to be effective in helping people adapt to various situations, such as managing diabetes (Kertes et al., 2011  ###reference_b45###; Channon et al., 2007  ###reference_b24###; Chen et al., 2012  ###reference_b26###). Growing research has shown that the combination of CBT and MI shows effectiveness in a variety of populations and for mental health adjustments (Merlo et al., 2010  ###reference_b54###; Marker and Norton, 2018  ###reference_b52###; Kertes et al., 2011  ###reference_b45###; Arkowitz and Westra, 2004  ###reference_b15###)."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3. Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1. Mental Wellness Self-Screening and Self-Care",
+            "text": "There are various methods for mental health self-screening (Kruzan et al., 2022  ###reference_b48###; Brown et al., 2016  ###reference_b19###). While online help-seeking is preferred by many individuals (Gould et al., 2002  ###reference_b39###), these tools provide a limited assessment based on closed-ended questions, potentially leading to omitting important details typically obtained from open-ended questions or in-person interactions (Screening, 2021  ###reference_b79###; Onl, 2022  ###reference_b2###). Besides the online tools, (Liu et al., 2022  ###reference_b51###) proposed an AI-based self-administer online web-browser-based mental status examination (MSE). Recently, Experience Sampling Method (ESM) has been widely adopted by HCI researchers for various physical and mental health screening. ESM can be done automatically by sensors or by repeatedly prompting users to answer questions in their normal environments. For example, ESM is used for self-reporting Parkinson\u2019s Disease symptoms, chronic pain, designing health technologies for Bipolar Disorder, etc (Vega et al., 2018  ###reference_b94###; Adams et al., 2018  ###reference_b8###; Matthews et al., 2015  ###reference_b53###). Most wellness self-screening methods in the literature use close-ended questions and expect close-end results from the user, while CaiTI uses open-ended questions and allows the user to chat freely with any topic. And they usually only focus on particular dimensions of the day-to-day functioning or mental disorders instead of performing a comprehensive screening."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2. LLM-based Healthcare and Mental Healthcare",
+            "text": "Large Language Models (LLMs) are pre-trained on vast datasets, which equip them with significant prior knowledge and enhanced reasoning skills. The recent state-of-the-art models, including GPT-4 (OpenAI, 2023b  ###reference_b67###), GPT-3 (OpenAI, 2023a  ###reference_b66###), Claude-3 (Anthropic, 2024  ###reference_b12###), and Gemini 1.5 (Pichai and Hassabis, 2024  ###reference_b70###), exhibt strong capability in reasoning over text. Consequently, recent research increasingly employs LLMs alongside various language, vision, or multimodal models to enable advanced applications in various domains without the need for additional training (Yin et al., 2023  ###reference_b99###; Sharan et al., 2023  ###reference_b80###; Deb et al., 2023  ###reference_b31###). For example, IdealGPT combines two LLMs (GPT) with a vision-and-language model to enable a framework that iteratively decomposes vision-and-language reasoning, where the two LLMs are treated as Questioner and Reasoner (You et al., 2023  ###reference_b100###). Additionally, research has shown that LLMs possess the ability to reason with and interpret IoT sensor data (Xu et al., 2023a  ###reference_b97###).\nRecently, transformer-based Large language foundation models, such as GPT-4 (Bubeck et al., 2023  ###reference_b20###), PaLM 2 (Anil et al., 2023  ###reference_b11###), and LLaMA2 (Touvron et al., 2023  ###reference_b91###), have demonstrated superior performance across various medical-related NLP tasks. LLMs are used to enable various general healthcare applications. (Waisberg et al., 2023  ###reference_b95###) showed that GPT-4 has the potential to help drive medical innovation, from aiding with patient discharge notes, summarizing recent clinical trials, and providing information on ethical guidelines. Moreover, Google introduced Med-PaLM and Med-PaLM 2(Singhal et al., 2023a  ###reference_b82###, b  ###reference_b83###), LLMs explicitly tailored for the medical domain, providing high-quality responses to medical inquiries.\nVarious works also exploit and evaluate the performance of LLMs for mental status classification and assessment. Researchers leveraged LLMs for mental health prediction via online text data and evaluated the capabilities of multiple LLMs on various mental health prediction tasks via online text data (Xu et al., 2023b  ###reference_b98###; Radwan et al., 2024  ###reference_b72###). In addition, (Jiang et al., 2023  ###reference_b44###) leverages RoBERTa (Liu et al., 2019  ###reference_b50###) and Llama-65b  (Touvron et al., 2023  ###reference_b91###) in the system for classifying psychiatric disorder, major depressive disorder, self-rated depression, and self-rated anxiety based on time-series multimodal features.\nIn addition to assessing and classifying the mental status of the user, researchers have investigated providing psychological consultations. For example, (Nie et al., 2022  ###reference_b63###) leveraged GPT-3 to construct a home-based AI therapist that detects abnormalities in mental status and daily functioning and generates responses to console users. (Lai et al., 2023  ###reference_b49###) proposed an AI-based assistive tool leveraging the WenZhong model, a pre-trained model trained on a Chinese corpus for question-answering in psychological consultation settings (Lai et al., 2023  ###reference_b49###). Researchers also investigate the potential of ChatGPT in powering chatbots to simulate the conversations between psychiatrists and mentally disordered patients (Chen et al., 2023  ###reference_b25###).\nOnly a few works in the literature focus on using LLM for MI or CBT, developing these psychotherapy systems, and evaluating them in real-world scenarios. (Kian et al., 2024  ###reference_b46###) developed a GPT3.5-powered prompt-engineered socially assistive robot (SAR) that guides participants through interactive CBT at-home exercises. Their findings suggest that SAR-guided LLM-powered CBT may yield comparable effectiveness to traditional worksheet methods. However, this study solely focused on employing an LLM-based approach to simulate traditional worksheet-based CBT, without thoroughly examining the validity of user responses to the CBT exercises or ensuring users effectively engaged with the CBT."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4. System Architecture",
+            "text": "###figure_1### Considering the design requirements presented in Section 1  ###reference_###, CaiTI includes two main functionalities: day-to-day functioning screening and precautionary psychotherapeutic conversational interventions as shown in Figure 2  ###reference_###. We adopt the 37 dimensions for day-to-day functioning screening proposed in (Nie et al., 2022  ###reference_b63###). For screening, Converse with the User in a Natural Way consists of open-ended question generations and semantic analysis of user responses based on LLM. To facilitate precautionary interventions, following psychotherapists\u2019 guidance, CaiTI effectively integrates the motivational interviewing (MI) and cognitive behavior therapy (CBT) processes into Psychotherapeutic Conversational Intervention. Considering the characteristics of MI and CBT, and the actual ways in which the therapists perform during clinical sessions, various MI techniques introduced in Section 2.2  ###reference_### are applied in different scenarios during the conversation, while the four-step CBT is performed at the end of each conversation session.\n###figure_2### Each activity screened through conversation sensing results in a (Dimension, Score) pair. Therapists set 3 classes for Score based on their clinical practices (Score ), where\n(i) a score of 0 indicates that the user performs well in this dimension,\n(ii) a score of 1 indicates that the user has some problems in this dimension, but no immediate action is needed, and\n(iii) a score of 2 indicates a need for heightened attention from healthcare providers. Figure 3  ###reference_### shows the flow diagram of CaiTI\u2019s components, and CaiTI stores the historical user data on the front-end devices owned by the user. Due to privacy concerns, CaiTI only conducts semantic analysis on the text of user input, although speech audio is informative (Salekin et al., 2017  ###reference_b76###)."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1. Conversation Principles and Underlying Rationale",
+            "text": "Converse with the User in a Natural Way and the Psychotherapeutic Conversational Intervention modules of CaiTI are closely related to each other when CaiTI converses with the user. Based on the psychotherapists\u2019 experience in dealing with thousands of clients, several factors are considered to shape the conversation process of CaiTI. First of all, when the therapist asks a question, some clients express a lot, while others do not respond to the question, but talk about other things (related to other dimensions). In addition, not all clients are patient enough to go through all dimensions that the therapist wants to check. Psychotherapists usually start to check on the dimensions that the clients didn\u2019t do well in previous sessions and are more important for assessment. If clients have a problem in a dimension, the therapists usually follow up to hear more about this dimension and provide quick counseling and therapy addressing the specific issue. This mirrors the psychotherapist\u2019s tendency to focus on one problematic dimension extensively rather than treating multiple dimensions at once.\nTaking the professional experiences and common practices of the psychotherapists into consideration, to converse with the user in an efficient, intelligent, and natural way to screen physical and mental health status, CaiTI\u2019s conversation process follows four guidelines:\nPrioritize questions intelligently: CaiTI starts with the dimensions that concern therapists more, while personalizing the priority to each user and formulating questions based on his/her historical responses.\nUnderstand the user input better: CaiTI checks if the user answers the question asked (Dimension_N), understands how well the user performs in this dimension and decides if follow-up questions and conversational interventions are needed.\nObtain more information through minimal questioning: CaiTI maps each user response to all possible dimensions to avoid redundant questions.\nGuarantee the quality of psychotherapies: CaiTI intelligently interprets and reasons the user responses and, when needed, it steers and guides the conversation back to the psychotherapeutic goals if the user\u2019s answers stray.\n###figure_3###"
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2. Conversation Generation, Analysis, and Psychotherapeutic Intervention",
+            "text": "Figure 4  ###reference_### shows CaiTI\u2019s process to converse with the user. Generally, MI therapies are conducted throughout the conversation, while CBT proceeds at the end of the conversation session. There are four modules in which the LLMs are involved: CaiTI Questioner, Response Analyzer, reflection-validation (R-V) process, and CBT process.\nIn particular, CaiTI asks one question for each dimension if CaiTI does not obtain any information in the dimension from the user\u2019s previous responses. A model-free reinforcement learning algorithm, Q-learning, is used to decide the action (i.e., the next question) in the current state (i.e., the current question). For each dimension (Dimension_N), CaiTI Questioner formulates the question and uses the text-to-speech method to converse with the user through the front-end device. The front-end device generates the text of the user response (speech-to-text conversion is used if the user has voice input). The detailed implementation of the front-end device is described in Section 6.3  ###reference_###.\nCaiTI expects the user to chat freely with it and can deal with open-ended responses. CaiTI performs segmentation on the user response in to  Segment(s). For each Segment, a LLM-based Response Analyzer, described in Section 5.2  ###reference_###, is used to classify the Segment into (Dimension, Score). If CaiTI fails to classify the Segment into the format of (Dimension, Score), it asks the user to rephrase the answer. CaiTI logs the user response if CaiTI still fails to classify the rephrased Segment into the format of (Dimension, Score). Otherwise, CaiTI checks the Score no matter if this Segment is answering the question asked by CaiTI or not. If the user needs more attention in this dimension (Score ), CaiTI proceeds with a reflection-validation (R-V) process starting with asking for more information starting with a simple reflection in MI. An example of this process is presented in Figure 5  ###reference_###.\n###figure_4### The R-V process is described in detail in Section 5.3  ###reference_### and demonstrated in Figure 8  ###reference_###. To ensure the user provides follow-up information in the right direction, an R-V Reasoner and an R-V Guide are deployed. Based on the user response to the original and follow-up question, CaiTI provides validation, which includes affective reflection and affirmations in MI. Then, CaiTI assigns the Score to Dimension. After handling all Segment(s), CaiTI verifies whether the user does respond to the question asked by CaiTI in Dimension_N. In cases where a user does not answer the question asked by CaiTI (Dimension_N) but talks about something else, CaiTI asks the question in Dimension_N again.\nAfter CaiTI enumerates all dimensions or the user wants to stop the session, CaiTI provides a summary of the chat session and asks the user to choose a dimension to work on for the CBT process. This CBT process includes the four steps outlined in Section 2.2  ###reference_###. In particular, CaiTI identifies the situation and issue in the dimension the user chose based on the conversation history. Then, CaiTI leads the user to recognize (CBT Stage_1), challenge (CBT Stage_2), and reframe (CBT Stage_3) the negative thoughts in this situation. To ensure the effectiveness and quality of the CBT process, each CBT stage contains a Reasoner and a Guide (see Section 5.4  ###reference_###).\n###figure_5### At the end, CaiTI generates a report that follows the same format as the therapists\u2019 notes during their treatment sessions. Appendix A  ###reference_### reports the details for the 37 dimensions used for day-to-day functioning screening, example questions from CaiTI, and sample responses from the users. Figure 6  ###reference_### shows the smartphone interface for CaiTI\u2019s conversational chatbot, where the various psychotherapeutic interventions applied during different stages of the conversation are annotated.\nAs CaiTI provides comprehensive daily functioning screening, as presented in Appendix A  ###reference_###, some of the dimensions, such as law-abiding, might be sensitive or uncomfortable for users. Therefore, CaiTI offers the option for users to manually select the dimensions to work on with the smartphone interface shown in Figure 7  ###reference_###.\n###figure_6###"
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5. Method and LLM Microbenchmarks",
+            "text": "The methods and LLMs leveraged in: (i) CaiTI\u2019s Questioner, (ii) Response Analyzer, and (iii) task-specific Reasoners, Guides, and Validator during the psychotherapies (MI and CBT processes) are introduced in this section. To prevent the propagation of flaws or biases in LLMs, which may lead to ineffective or potentially harmful psychotherapy intervention, instead of leveraging models to handle all tasks during the psychotherapy process, CaiTI divides the tasks and employs different models to specifically handle each subtask.\n\nConsidering the training dataset size for each task provided by the therapists, under the guidance from the therapists, we predominantly use few-shot prompting the system content in the chat completion in these LLMs to achieve the desired functions. Each prompt outlines: (i) the objectives; (ii) the information to be included in user content; and (iii) the desired goal and response format. The response format for Reasoners will be \u201cDecision: 0/1\u201d, while it is \u201cAnalysis: XXX\u201d for Guides and Validator. For Reasoners, Guides, and Validator, the prompt includes 3-4 examples encompassing user content alongside corresponding system responses that adhere to the specified format. The examples for Response Analyzer is slightly different and illustrated in Section 5.2 ###reference###. We set the temperature as 0.7 in the LLMs to achieve varied rephrasings of the questions while maintaining certain constraints. The same prompt and hyperparameters are used for different LLMs. We fine-tune a GPT-3.5 Turbo model for Response Analyzer. The therapist also labeled and analyzed the output of Guides and Validator. We will open source the prompts we constructed as well as the datasets constructed by the psychotherapists. We did not conduct microbenchmark tests on basic LLM tasks such as the Rephraser and ReflectiveSummarizer. The former task involves structural rather than semantic rephrasing, while the latter repeats and converts statements from the first person to the third person."
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "5.1. CaiTI\u2019s Questioner",
+            "text": "CaiTI\u2019s Questioner drives the conversations based on Epsilon-Greedy Q-learning and a GPT-based \u201cRephraser\u201d. To make the conversation more natural, psychotherapists provide a set of questions they typically ask in each dimension (7 to 11 sample questions). We prompt a GPT-4-based Rephraser to rephrase these questions (structurally instead of semantically) when asking questions. Each dimension has one related question. The Q-learning agent has 39 states (37 questions, start, and end). We set the learning rate and discount factor to 0.1 and 0.9, respectively. The therapists determine the initial Q-values for the Q-table based on their empirical evaluation of the \u201cimportance\u201d of the dimensions. The Q-value represents the expected future rewards that can be obtained by taking a given action (next question) in a given state (current question). The Score based on the analysis of user responses is the reward earned in that state."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "5.2. Response Analyzer",
+            "text": "When the user responds to the question asked by CaiTI, CaiTI first segments the response into individual sentences. For each segmented sentence, CaiTI classifies it into (Dimension, Score), where there are 37 dimensions and 3 scores \u2013 a total number of 111 classes. In addition, we define 5-class general responses to express Yes, No, Maybe, Question, and Stop (e.g., \u201cYes\u201d, \u201cI don\u2019t know\u201d, \u201cStop\u201d, \u201cMaybe\u201d, and \u201cI don\u2019t understand your question\u201d) as well as a mapping table between the Scores and general responses for each dimension. For example, the Score of \u201cYes\u201d is 0 to the question \u201cAre you showing up for work or school?\u201d in Managing Work/School, while it is 2 to the question \u201cDo you often drink alone?\u201d in Alcohol Abuse.\n\nSince CaiTI asks open-ended questions, user responses are infinitely diverse (YES/NO answers or open-ended responses). With a Score of 2, CaiTI will conduct the psychotherapeutic conversational intervention. Otherwise, CaiTI will ask the next question based on the Q table. When CaiTI meets out-of-context responses, it asks the user to rephrase and follow the process illustrated in Figure 4 ###reference_###."
+        },
+        {
+            "section_id": "5.4",
+            "parent_section_id": "5",
+            "section_name": "5.4. Cognitive Behavioral Therapy Reasoner and Guide",
+            "text": "Therapists also point out that an acceptable response involves identifications of cognitive distortion, such as polarized thinking, overgeneralization, emotional reasoning, catastrophizing, and jumping to conclusions. The Reasoner is tasked with recognizing responses containing cognitive distortions as valid, especially for CBT_Stage1 Reasoner. Meanwhile, if the response with cognitive distortions is invalid (e.g., not relevant to the situation), the Guide must take these distortions into account when assisting the user in formulating a valid response."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6. Implementation and Study Design",
+            "text": "In this section, we outline the subject recruitment procedures, describe the implementation, and detail the study design."
+        },
+        {
+            "section_id": "6.1",
+            "parent_section_id": "6",
+            "section_name": "6.1. Subject Recruitment",
+            "text": "20 subjects voluntarily participated (received informed consent from each subject) in our study (approved by the Institutional Review Board), including 10 men and 10 women between 18 and 40 years old from different races. All participants reported having normal hearing and cognition with no history of serious mental or physical illness. All subjects were either students or employed. Each subject was assigned a random subject ID (e.g., S01) for data identification."
+        },
+        {
+            "section_id": "6.2",
+            "parent_section_id": "6",
+            "section_name": "6.2. LLMs Implementation",
+            "text": "Considering the response time and computational resources requirement, the best performing LLM according to the microbenchmarks is implemented for different modules, as illustrated in Figure 9  ###reference_###. As discussed in Section 5  ###reference_###, different LLMs excel at handling different tasks in CaiTI\u2019s conversation flow. For example, GPT-3.5 turbo is more suitable for providing guide and empathic validation, while GPT-4 is better at reasoning the validity and utility of user response.\n###figure_9###"
+        },
+        {
+            "section_id": "6.3",
+            "parent_section_id": "6",
+            "section_name": "6.3. Implementation",
+            "text": "As mentioned in Section 1  ###reference_###, to accommodate individuals with different needs and with possible memory or vision impairments, particularly the elderly, CaiTI is available in two physical form factors: a customized multi-platform app and a smart speaker (Amazon Alexa). CaiTI integrates custom Alexa Skills with an Amazon Echo device and a Flutter-based application, enabling flexible interaction through voice or text on multiple platforms such as Android, iOS, Windows, and macOS.\nFigure 3  ###reference_### depicts the System\u2019s architecture, highlighting the communication pathway where only the conversation text is transmitted between the user interfaces and the server. This design decision is implemented to mitigate the risk of compromising sensitive information that may be inherent in voice data. Voice interactions are facilitated by APIs such as the Alexa Skills Kit (Ale, 2023  ###reference_b6###) and Google\u2019s speech-to-text API (Spe, 2022  ###reference_b3###). The server\u2019s role is to handle all LLM-based tasks, including interpreting text inputs and generating appropriate follow-up questions or psychotherapeutic interventions that are then delivered to the user interface.\nFigure 6  ###reference_### shows the smartphone interface for CaiTI\u2019s conversation session, where the various psychotherapeutic interventions applied during different stages of the conversation are annotated. Figure 11  ###reference_### displays the home page of the CaiTI on a smartphone (Figure 10(a)  ###reference_.sf1###), shows user interactions with CaiTI via voice commands using both the smartphone and an Amazon Echo during in-lab sessions (Figures 10(b)  ###reference_.sf2### and 10(c)  ###reference_.sf3###), and depicts a user at home interacting with the CaiTI through text input on a computer (Figure 10(d)  ###reference_.sf4###).\n###figure_10### ###figure_11### ###figure_12### ###figure_13###"
+        },
+        {
+            "section_id": "6.4",
+            "parent_section_id": "6",
+            "section_name": "6.4. Study Design",
+            "text": "We first conducted a 14-day study with in-lab and at-home sessions for each subject. The subjects participated in the in-lab session on the first and last days. Afterward, 4 subjects voluntarily participated in a 24-week at-home longitudinal study. A licensed psychotherapist implemented bi-weekly PHQ-9 and GAD-7 assessments with these 4 subjects to measure the effectiveness of CaiTI. Figure 12  ###reference_### shows the modules and tasks implemented in each setup. Subjects were told they were able to unselect some dimensions if they felt uncomfortable through the smartphone interface shown in Figure 7  ###reference_###, but they were encouraged to select all. All conversation sessions (user and CaiTI responses, Response Anayzer\u2019s results, Reasoners\u2019 results) are saved for evaluation purposes.\n###figure_14###"
+        },
+        {
+            "section_id": "6.4.1",
+            "parent_section_id": "6.4",
+            "section_name": "6.4.1. In-Lab Session",
+            "text": "The scope of the study and a tutorial about CaiTI system are given at the first in-lab session after informed consent was obtained. During this session, subjects were informed that the dialogue with CaiTI would incorporate elements of psychotherapy. However, to prevent their responses from being influenced and to maintain uniformity in the user experience, the underlying principles and methodologies of the psychotherapies (Motivational Interviewing (MI) and Cognitive Behavioral Therapy (CBT)) were not disclosed. Then, each subject is asked to choose their favorite method (smartphone platform/laptop platform/Amazon Echo) to converse with CaiTI. At the end of every in-lab session, subjects evaluated the system and provided feedback. This evaluative data will be examined in detail in Section 8  ###reference_###."
+        },
+        {
+            "section_id": "6.4.2",
+            "parent_section_id": "6.4",
+            "section_name": "6.4.2. At-Home Session",
+            "text": "Participants were requested to engage in dialogues with the CaiTI at their convenience, with a recommended frequency of once daily or, at a minimum, twice weekly. Among the cohort, four subjects agreed to extend their participation to a 24-week duration. These individuals had regular sessions with a licensed therapist throughout the study period. To evaluate the severity of depression and generalized anxiety disorder, the PHQ-9 and GAD-7 scales were administered bi-weekly, respectively. Psychotherapists closely monitored the participants to ascertain that involvement in the study did not exert any adverse effects on their daily lives."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "7. System Evaluation",
+            "text": "We combine all the logs from conversation sessions during the 14-day and 24-week study and evaluate CaiTI\u2019s system performance in this section. There are 454 conversation sessions with 18,309 and 2,013 segments of subjects\u2019 responses to CaiTI\u2019s original and follow-up questions, respectively. Some subjects answered the question with more than one sentence (segment). There are 107 times when the subjects failed to provide valid follow-up responses at the first attempt and triggered R-V Guide. CaiTI provides 2,013 empathic validation and support sessions with R-V Validator.\nAs described in Section 5.4  ###reference_###, CaiTI will conclude the CBT process, if the user does\nnot provide a valid response after two attempts in each stage of the three-stage CBT process. There are 454 CBT sessions at the end of each conversation session. Among these CBT sessions, as shown in Table 5  ###reference_### 3, 6, and 3 of the CBT sessions terminated (fail to provide valid or relevant responses within 3 attempts) in CBT_Stage1, CBT_Stage2, and CBT_Stage3, respectively. The number of user attempts in each CBT stage is shown in this table. As such, there are 33 CBT_Stage1 Guides, 44 CBT_Stage2 Guides, and 26 CBT_Stage3 Guides, respectively. And the CBT_Stage1 Reasoner, CBT_Stage2 Reasoner, and CBT_Stage3 Reasoner are called 487, 495, 474 times, respectively.\n###figure_15### 4 licensed psychotherapists label the ground truth of output generated by these Reasoners, Validator, and Guides to evaluate their performance. Specifically, each therapist individually labels the outputs, with the ground truth determined by the majority vote among their evaluations.\nIn general, during the study with subjects, the performances of various LLM-based functional modules were either better than or comparable to their performances on the datasets provided by psychotherapists during the microbenchmark experiments. This phenomenon is expected, since there is a lower probability for subjects to provide invalid or illogical responses compared to the proportion of \u201cinvalid\u201d or \u201cinappropriate\u201d responses in the datasets provided by the therapists. Note that CaiTI is designed for precautionary screening, assistance, and conversational psychotherapeutic intervention, and it is not intended to replace the process of diagnosis or clinical treatment.\n454\n451\n448\n23\n37\n21\n23\n37\n21\n10\n7\n5\n10\n7\n5\n3\n6\n3"
+        },
+        {
+            "section_id": "7.1",
+            "parent_section_id": "7",
+            "section_name": "7.1. Response Analyzer",
+            "text": "The user responses to the original questions were divided into segments. Each response segment was classified into (Dimension, Score) pairs, with ground truth labeled by the therapists. Dimension classification accuracy (5 classes of general responses and 37 dimensions) reached 97.6%. Figure 13  ###reference_### presents the confusion matrix for the Score of the 7,989 segments with a 99.4% accuracy."
+        },
+        {
+            "section_id": "7.2",
+            "parent_section_id": "7",
+            "section_name": "7.2. R-V Reasoner, R-V Guide, and R-V Validator",
+            "text": "97.97%\n70%\n98.99%\n95.32%\n96.57%\nDuring the 2,013 reflection-validation (R-V) process, R-V Reasoner and R-V Guide were activated 2,120 and 107 times, respectively. As shown in Table 6  ###reference_###, CaiTI\u2019s R-V Reasoner almost perfectly identifies all \u201cinvalid\u201d follow-up responses from the user with only 1 exception. R-V Reasoner misclassified 42 valid follow-up responses as invalid, which is acceptable in the context of precautionary psychotherapeutic intervention, as it would guide the user to provide valid follow-up responses with better quality. In addition, R-V Guide achieved an accuracy of 96.57%, with only 5 guides being slightly not perfect. The causes for these 5 imperfect guides are overinterpreting the relationship between the follow-up response and the original response and missing some information from the user responses.\nThe therapists also checked all the 2,013 empathic validations and supports provided by the R-V Validator to the subjects through a majority vote, with 69 being slightly inappropriate. Specifically, when follow-up responses were too brief (under 3 words), CaiTI struggled to comprehend, leading to 24 improper empathic supports. 15 inappropriate instances resulted from inconsistencies between the subjects\u2019 original and follow-up responses. Another 30 inappropriate validations are due to the GPT-based R-V Validator adding its own interpretation of user responses into the empathic validation. Overall, CaiTI effectively delivered empathic validation and support in over 96.5% of instances. Although there are concerns about bias in large language models, the fine-tuned models in this work perform well in user studies and exhibit minimal bias."
+        },
+        {
+            "section_id": "7.3",
+            "parent_section_id": "7",
+            "section_name": "7.3. CBT Reasoner and CBT Guide",
+            "text": "Table 7  ###reference_### illustrates the performance of CBT Reasoners and CBT Guides when handling the responses from subjects from all attempts during the three-stage CBT process. It is shown that CBT Reasoners in each stage have high accuracies in identifying the validity and utility of the user responses to meet the psychotherapeutic goal of the CBT process. The CBT Reasoners also achieve high recall, which demonstrates that it is extremely rare for CBT Reasoners to miss any user response that\u2019s not valid or not related.\nCBT_Stage1 Guide, CBT_Stage2 Guide, and CBT_Stage3 Guide generated only 3, 3, and 2 less ideal context to guide the subjects. The most common issues for these 8 suboptimal CBT Guides is that they tried to read minds and made excessive assumptions about the relationships of the user responses earlier in the CBT process. None of these suboptimal CBT Guides completely misguide the user or lead them in the wrong direction.\n99.38%\n93.39%\n96.88%\n98.78%\n88.64%\n97.5%\n99.57%\n100%\n92.85%"
+        },
+        {
+            "section_id": "8",
+            "parent_section_id": null,
+            "section_name": "8. User Study",
+            "text": "In this section, we present the quantitative and qualitative feedback of the 20 subjects who participated in our study (20 subjects participated in the 14-day study and 4 subjects extended to 24 weeks). We also organize and discuss the qualitative feedback and evaluations from the 4 psychotherapists working with us on this project."
+        },
+        {
+            "section_id": "8.1",
+            "parent_section_id": "8",
+            "section_name": "8.1. User Adaptation Indicated by Device Usage",
+            "text": "During the 24-week study, we meticulously tracked the number of conversation sessions each subject had per week with CaiTI. As illustrated in Figure 14  ###reference_###, the data indicates that all four subjects engaged in dialogue with CaiTI with a frequency of 2 to 3 times daily. Notably, this consistent engagement over the course of the study suggests a sustained use of the system by the participants. The frequency of their interactions with CaiTI did not exhibit a significant decline over time, implying a stable user adaptation and a persistent incorporation of the system into their daily routines. This enduring engagement underlines the utility and user-friendliness of CaiTI, as well as its potential to maintain user interest and interaction over extended periods.\n###figure_16###"
+        },
+        {
+            "section_id": "8.2",
+            "parent_section_id": "8",
+            "section_name": "8.2. Quantitative Analysis",
+            "text": "ChatBot Usability Scale (BUS-15) is a recently developed tool to assess end-users\u2019 satisfaction with chatbots (Borsci et al., 2022  ###reference_b18###). Taking BUS-15 into account, we devised the 10 aspects listed in Table  8  ###reference_###. Subjects rated the system from 1 (poor) to 5 (excellent) for these 10 aspects on the first and last day of the experiment. In general, subjects gave high ratings to CaiTI. Most subjects thought positively of the conversations with CaiTI and were willing to recommend and continue using CaiTI in the future. Only one subject showed a slightly negative attitude towards CaiTI and gave low scores. This subjective thought that \u201cthe technology is too intelligent and makes me worried that AI might be playing a too important role in my daily life\u201d (S19).\nA Wilcoxon signed-rank test, a nonparametric statistical within-subject test commonly used in behavioral science (Shin et al., 2022  ###reference_b81###), was performed to compare the subjects\u2019 day-to-day functioning on the first and last days of the 14-day study based on their responses Score on all 37 dimensions (Score , described in Section 4  ###reference_###). The test results show a statistically significant decrease in the dimensions with Score equal to 1 and 2 on the last day, as compared to the first day of the experiment (z = -2.68, p \u00a1 .01), showing a decrease in dimensions subjects reported with concerns functioning. This suggests an overall reduction in the dimensions that subjects reported as having functional concerns. The results indicate that the subjects\u2019 day-to-day functioning may have improved during the experiment using CaiTI.\nIn a 24-week longitudinal study, 4 subjects completed additional GAD-7 and PHQ-9 assessments every two weeks. These tools evaluate the severity of anxiety and depression symptoms. With the small sample size (n=4), therapists reviewed the questionnaire results individually. During the study, two subjects improved from moderate-to-severe anxiety and depression to mild levels, initially facing difficulties in functioning but eventually reporting none. One subject progressed from mild to minimal anxiety and depression and reported no functional difficulties. The remaining participant exhibited fluctuating symptoms, ranging from mild to minimal, initially facing some difficulties in functioning, but reporting none by the study\u2019s end. The findings of this study indicate that CaiTI was effective in reducing the severity of anxiety and depression, as well as enhancing daily functioning."
+        },
+        {
+            "section_id": "8.3",
+            "parent_section_id": "8",
+            "section_name": "8.3. Qualitative Evaluation from the Subjects and Therapists",
+            "text": ""
+        },
+        {
+            "section_id": "8.3.1",
+            "parent_section_id": "8.3",
+            "section_name": "8.3.1. Experiences and Feedback from Subjects",
+            "text": "All 20 subjects who participated in the study found CaiTI to be valid and effective. Subjects see using CaiTI brings awareness to their mental health daily, which makes them feel they are \u201crelying on the system to do the self-reflection work\u201d (S10) every day. One of the subjects said: \u201cI feel in good shape doing these check-ins every day, in between my weekly sessions with individual therapist\u201d (S11). Subjects were also surprised about how well \u201cCaiTI can understand me and makes me feel validated\u201d(S17). One subject stated that:\n\u201cI think CaiTI does a pretty good job validating my feelings and encouraging me to be more active. I had a very positive experience with the comforting part. I also like the sensing part, as CaiTI knows what I am doing at home and directly provides help if needed. I don\u2019t need to describe my daily routine and recall when I am with CaiTI. I need to do these annoying things during my therapist visits. I think CaiTI is a good add-on in mental healthcare\u201d (S15).\nSeveral subjects complimented on CaiTI\u2019s interactiveness and stated \u201cCaiTI is really plug-and-play and easy to use\u201d (S01). Additionally, a large portion of subjects stated that they liked the way that CaiTI \u201ctalked\u201d to them as \u201cthe conversation is very genuine\u201d (S12). For example, one subject said:\n\u201cI feel like that I have a companion. When CaiTI talks to me through my Alexa, it listens and converses naturally and reminds me of parts of my therapy sessions. The system reformulates the questions it asks me every time. Also, I realize that if I use CaiTI more frequently, CaiTI is more attuned to me because it changes the way it asks the question according to my answers\u201d (S02).\nSubjects found the psychotherapies helpful, encouraging, and valuable. A subject said \u201cI like the counseling part of the system. The tone is supportive and encouraging. The system really understands what I said to it and provides reasonable and applicable guides\u201d (S08). In addition, a few subjects find the guidance (Guide feature) provided by CaiTI during the psychotherapies helpful.\n\u201cTo be honest, I was not that familiar with what they called the CBT procedures at the end of each conversation. Initially, I did not know what are the \u201cunhelpful thoughts\u201d in my situations. But, you know, after hanging using CaiTI a few times, I started to get the hang of these helpful thinking strategies. I am getting more optimistic and better at boosting my own confidence, when I face challenges.\u201d (S01).\nA few subjects feel that \u201cthe consolation is not pointed enough\u201d (S02), as it provides very general comments that are suitable for \u201ceveryone who has the same problem\u201d (S02). They would like to have more personalized experiences with more targeted suggestions."
+        },
+        {
+            "section_id": "8.3.2",
+            "parent_section_id": "8.3",
+            "section_name": "8.3.2. Comments from Therapists",
+            "text": "4 psychotherapists approved of CaiTI, recognizing its potential for \u201ccombining physical and mental wellness screening and providing psychotherapeutic precautionary interventions in daily life for everyone\u201d (T02). They provided positive feedback on the conversational daily functioning screening, the integration of psychotherapeutic techniques within the conversation flow, and the overall style of the dialogue. They approved the content and style of the system\u2019s language: \u201cCaiTI engaged me in conversations with effective content control. However, ChatGPT sometimes produced responses that are not up to clinical standards\u201d (T01).\nThe therapists also saw the interventions being potentially used in addition to clinical treatment. They spoke posivitely of the empathic validation and support in the MI process and valued the significant influence of CaiTI\u2019s Reasoner and Guide features in guiding and steering the user towards more adaptive thinking in the CBT process. They felt that the combination of reasoning and guidance not only prevents users from getting stuck in incorrect ways of thinking but also positively directs and facilitates gradual learning. This, in turn, can support overall mental health well-being, especially in the long term. They mentioned these designs could \u201cenforce the effectiveness of CaiTI\u2019s psychotherapy\u201d (T03) and \u201cprovide just the right amount of guidance to support users in situations that require additional attention\u201d (T01). One therapist stated:\n\u201cFrom my observations on the interactions between CaiTI and our subjects, I think the validation implementations of CBT and MI are appropriate. Although very few exchanges are not perfect if the responses from the subjects are ambiguous, CaiTI impresses me with emotionally supportive text formulation. I also answered questions in a way a few times to indicate daily functioning concerns to CaiTI during different sessions, and CaiTI came up with different ways to guide and help me to improve the situation.\u201d (T02).\nMost therapists found CaiTI to aid traditional psychotherapeutic processes, stating that more frequent data collection offers more insights between therapy sessions. \u201cI would love to see some of my clients use this\u201d (T04), one therapist commented. Another therapist mentioned:\n\u201cDoing everyday check-ins helps people in general to bring awareness to mental health in their everyday activities. Sometimes, I assign my clients homework to log their everyday activities, just for them to keep doing the work outside of therapy sessions. It would be great if more people can use this system daily and become more intentional in their daily routine\u201c (T02).\nThey also validated CaiTI\u2019s use of reinforcement learning for conversation generation and \u201care surprised by how attentive CaiTI is and how good the flow of the conversation we have\u201d (T04). Additionally, they offered suggestions for future enhancements, including adjustments to CaiTI\u2019s audio tone."
+        },
+        {
+            "section_id": "9",
+            "parent_section_id": null,
+            "section_name": "9. Discussion and Future Work",
+            "text": "As shown in Sections 7  ###reference_### and 8  ###reference_###, CaiTI can effectively perform Converse with the User in a Natural Way, and provide Psychotherapeutic Conversational Intervention. The qualitative evaluations further attest to the system\u2019s usability, the relevance and effectiveness of its psychotherapeutic content, the helpfulness of the guides, and the efficacy of the empathic validation it offers, making it a promising tool for personalized mental health care. Throughout the rest of this section, we summarize some of the current limitations and propose plans for future improvements and visions.\nFirst of all, we will continue our collaboration with the psychotherapists, we plan to include real patients with different kinds and severity of mental disorders in longitudinal studies. We will evaluate how well CaiTI can assist the treatment provided by the therapists and improve the mental well-being of the patients.\nMoreover, during the psychotherapy process, although CaiTI breaks the tasks down and leverages LLM-based Reasoners, Guides, and Validator to specifically handle each subtask, there is room to improve the accuracies of Reasoners and quality of Guides, and Validator. In particular, we plan to add step-by-step \u201csystem reasoners\u201d (Chain-of-Thought) to evaluate if the Guides and Validators are suboptimal because of \u201creading user\u2019s minds\u201d and making excessive assumptions (Radhakrishnan et al., 2023  ###reference_b71###). Additionally, we plan to investigate if further breaking down the tasks would improve the system\u2019s performance. For example, we will investigate whether using two LLM modules for classifying Dimension and Score in Response Analyzer instead of one will improve the accuracy, and how this change affects the performance of different LLM models. We are aware that these modifications will increase the computational overhead for the system, yielding longer system response time and affecting the user experience. As such, we also plan to investigate the trade-off between the system complexity and user experiences in multiple aspects.\nWe see the potential of incorporating common wearable devices, such as smartwatches and smartphones, as potential platforms into CaiTI. In fact, around half of the subjects in this study actively use smart devices for health and fitness monitoring. We plan to leverage the health and fitness data analyzed by smartphones or smartwatches (e.g., Apple HealthKit data) as a source to perform activity detection with existing commercial smart home devices.\nIn addition, the smart home market is rapidly expanding with new sensors and devices. CaiTI has the potential to be one of the many applications commonly integrated into smart home ecosystems. As such, we plan to investigate how to take advantage of smart home sensors, devices, and robots to provide a more comprehensive and invasive screening of users\u2019 daily functioning through smart sensors and various kinds of interactions and interventions through home robots or other devices. With omnipresent modules being included in CaiTI, to make users feel less \u201cinvasive\u201d, we plan to make CaiTI plug-and-play. Users can turn on devices that make them feel comfortable at that moment, CaiTI can automatically discover available resources and generate execution pipelines to screen the wellness of the user and provide interventions if necessary.\nFurthermore, equipping with the RL recommender as well as fine-tuned and few-shot prompted GPT-based models for conversation, conversational psychotherapeutic intervention generations, CaiTI can generate speech for conversation and lead the conversation flow in a more human-like way compared to other platforms. However, since CaiTI uses the text-to-speech API, the tone and inflection of the voice generated to \u201ctalk\u201d to the user are still not entirely identical to what a real person would perform. A therapist commented: \u201cIt\u2019s not exactly how a real person would speak in terms of the tone and inflection but I think that definitely will improve in time as you know text-to-speech and other natural language things become better and better. However, the content and style of the sentences and words are very much in line with what a typical person would say\u201d (T04). We plan to investigate and incorporate deep learning methods using to add \u201cemotion\u201d to the audio output accordingly (Adigwe et al., 2018  ###reference_b9###).\nWe have designed CaiTI to minimize bias by implementing several modules of LLMs tailored to specific tasks instead of relying on a single model. We acknowledge that despite our best efforts, all AI applications, including this one, are subject to potential bias and the ethical concerns of AI for psychotherapies still remain. Therefore, the intended application of CaiTI is primarily for precautionary day-to-day functioning screenings and psychotherapeutic interventions, aiming for better self-care and assisting the professional psychotherapy process."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Dimensions for Day-to-day Functioning Screening",
+            "text": "This section presents the 37 dimensions proposed by (Nie et al., 2022  ###reference_b63###) to screen day-to-day functioning. These dimensions are based on the Diagnostic and Statistical Manual of Mental Disorders (DSM)-IV and the Daily Living Activities\u201320 (DLA-20), two gold standards for mental health care providers. As mentioned in Section 5  ###reference_###, for each dimension, therapists provide a set of sample questions. With the GPT-4-based Rephraser, CaiTI rephrases and formulates the questions when it converses with the user. Note that as some of the dimensions might be sensitive or uncomfortable for users, CaiTI offers the option for users to select the dimensions to work on manually through the smartphone interface. The 37 dimensions and the example questions asked by CaiTI are listed below:\nMaintaining stable weight: \u201cHave your weight changed significantly recently?\u201d;\nManaging mood: \u201cHow\u2019s your mood recently?\u201d;\nTaking medication as prescribed: \u201cHave you been taking medication according to your prescriptions?\u201d;\nParticipating primary and mental health care: \u201cHave you been seeing your doctor, therapist or case manager consistently?\u201d;\nOrganizing personal possessions & doing housework: \u201cHave you been doing house chores?\u201d;\nTalking to other people: \u201cHave you been talking to other people?\u201d;\nExpressing feelings to other people: \u201cHave you expressed feelings towards others?\u201d;\nManaging personal safety: \u201cHave you been taking safety into consideration when making decisions?\u201d;\nManaging risk: \u201cHave you taken any risk recently?\u201d;\nFollowing regular schedule for bedtime & sleeping enough: \u201cHow has your sleep been? Do you have a regular schedule for bedtime?\u201d;\nMaintaining regular schedule for eating: \u201cHow\u2019s your eating? Are you eating regularly?\u201d;\nManaging work/school: \u201cAre you showing up for work or school?\u201d;\nHaving work-life balance: \u201cHow\u2019s your work-life balance? Have you taken days off recently?\u201d;\nShowing up for appointments and obligations: \u201cAre you showing up for appointments and other obligations?\u201d;\nManaging finance and items of value: \u201cHow\u2019s your finances? Any concern with your spending habits?\u201d;\nGetting adequate nutrition: \u201cHow\u2019s your nutrition? Are you eating healthy?\u201d;\nProblem solving and decision making capability: \u201cAre you able to make decisions yourself?\u201d;\nFamily support: \u201cDo you feel supported by your family?\u201d;\nFamily relationship: \u201cHow\u2019s your relationship with your family members?\u201d;\nAlcohol abuse: \u201cDo you often drink alone?\u201d;\nTobacco abuse: \u201cDo you smoke cigarettes or vape? And how frequent?\u201d;\nOther substances abuse: \u201cDo you use any substance and what\u2019s the frequency of using?\u201d;\nEnjoying personal choices for leisure activities: \u201cWhat do you like to do when you have free time?\u201d;\nCreativity: \u201cHave you done any creative work recently?\u201d;\nParticipation in community: \u201cWhat do you do in your neighborhood or community?\u201d;\nSupport from social network: \u201cOther than family members, who do you consider as your close support?\u201d;\nRelationship with friends and colleagues: \u201cDo you hang out with friends or coworkers\u201d;\nManaging boundaries in close relationship: \u201cDo you feel comfortable with your partner or partners if you have?\u201d;\nManaging sexual safety: \u201cIf you are sexually active, do you try to avoid risky sexual behaviors?\u201d;\nProductivity at work or school: \u201cAre you productive at work or school?\u201d;\nMotivation at work or school: \u201cHow\u2019s your motivation for work or school?\u201d;\nCoping skills to de-stress: \u201cWhat kind of coping do you use to calm yourself?\u201d;\nExhibiting control over self-harming behavior: \u201cDo you have self-harming behaviours?\u201d;\nLaw-abiding: \u201cHave you been arrested recently?\u201d;\nManaging legal issue: \u201cDo you have any legal issue recently?\u201d;\nMaintaining personal hygiene: \u201cHow\u2019s your personal hygiene? Are you taking care of your personal hygiene?\u201d;\nDoing exercises and sports: \u201cHave you recently exercised?\u201d;\nAs mentioned in Section 4.1  ###reference_###, users can freely chat with CaiTI using open-ended responses, including both deterministic YES/NO answers and detailed responses. For example, when CaiTI asks: \u201cDo you often drink alone?\u201d, the user can respond deterministically: \u201cYes, I drink alone.\u201d or: \u201cI drink alone almost every other night recently.\u201d. CaiTI classifies both responses to Dimension Alcohol usage with Score of 2. With Score\u2009\u20092, CaiTI follows up and provides Psychotherapeutic Conversational Interventions starting by asking for more information. In addition, if the user says: \u201cI don\u2019t drink alone. But I like to drink with my friends when we hang out together.\u201d, CaiTI segments the responses into two parts and classifies the first part to Dimension Alcohol usage with Score of 0, and the second part to Dimension Relationship with friends and colleagues with Score of 0."
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T1\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T1.5.1.1\" style=\"font-size:90%;\">Table 1</span>. </span><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.6.2\" style=\"font-size:90%;\">Score<span class=\"ltx_text ltx_font_medium\" id=\"S5.T1.6.2.1\"> and </span>Dimension<span class=\"ltx_text ltx_font_medium\" id=\"S5.T1.6.2.2\"> assignment performance comparisons for </span><span class=\"ltx_text ltx_font_typewriter\" id=\"S5.T1.6.2.3\">Response Analyzer</span><span class=\"ltx_text ltx_font_medium\" id=\"S5.T1.6.2.4\"> using different LLM models.</span></span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S5.T1.7\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S5.T1.7.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T1.7.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S5.T1.7.1.1.2\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T1.7.1.1.2.1\">Score Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S5.T1.7.1.1.3\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T1.7.1.1.3.1\">Dimension Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_t\" id=\"S5.T1.7.1.1.4\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T1.7.1.1.4.1\">General Response Accuracy</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T1.7.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S5.T1.7.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.7.2.1.1.1\">Fine-tune GPT-3.5-Turbo</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T1.7.2.1.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.2.1.2.1\">95.58%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T1.7.2.1.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.2.1.3.1\">96%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T1.7.2.1.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.2.1.4.1\">93.75%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T1.7.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T1.7.3.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.7.3.2.1.1\">Prompt GPT-4</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.3.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.3.2.2.1\">94.43%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.3.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.3.2.3.1\">95.14%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T1.7.3.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.3.2.4.1\">95.85%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T1.7.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T1.7.4.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.7.4.3.1.1\">Prompt GPT-3.5 Turbo</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.4.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.4.3.2.1\">92.81%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.4.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.4.3.3.1\">94.14%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T1.7.4.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.4.3.4.1\">96.14%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T1.7.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T1.7.5.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.7.5.4.1.1\">Prompt Llama-2-13b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.5.4.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.5.4.2.1\">54.39%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T1.7.5.4.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.5.4.3.1\">59.42%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T1.7.5.4.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.5.4.4.1\">63.33%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T1.7.6.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T1.7.6.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T1.7.6.5.1.1\">Prompt Llama-2-7b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T1.7.6.5.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.6.5.2.1\">55.11%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T1.7.6.5.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.6.5.3.1\">48.63%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T1.7.6.5.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T1.7.6.5.4.1\">53.33%</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 1. Score and Dimension assignment performance comparisons for Response Analyzer using different LLM models."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T2\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T2.5.1.1\" style=\"font-size:90%;\">Table 2</span>. </span><span class=\"ltx_text\" id=\"S5.T2.6.2\" style=\"font-size:90%;\"> The performance for <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T2.6.2.1\">R-V Reasoner</span> (0: Valid, 1: Invalid), <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T2.6.2.2\">R-V Guide</span>, and <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T2.6.2.3\">R-V Validator</span> with different LLM models.</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S5.T2.7\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S5.T2.7.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T2.7.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.1.1.1.1\">Prompted</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S5.T2.7.1.1.2\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T2.7.1.1.2.1\">R-V Reasoner</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S5.T2.7.1.1.3\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S5.T2.7.1.1.3.1\">R-V Guide</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_t\" id=\"S5.T2.7.1.1.4\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S5.T2.7.1.1.4.1\">R-V Validator</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.7.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r\" id=\"S5.T2.7.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.2.2.1.1\">Models</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T2.7.2.2.2\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T2.7.2.2.2.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T2.7.2.2.3\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T2.7.2.2.3.1\" style=\"font-size:90%;\">Precision</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r\" id=\"S5.T2.7.2.2.4\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T2.7.2.2.4.1\" style=\"font-size:90%;\">Recall</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r\" id=\"S5.T2.7.2.2.5\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T2.7.2.2.5.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T2.7.2.2.6\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T2.7.2.2.6.1\" style=\"font-size:90%;\">Accuracy</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T2.7.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S5.T2.7.3.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.3.1.1.1\">GPT-4</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T2.7.3.1.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.3.1.2.1\">97.8%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T2.7.3.1.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.3.1.3.1\">94.94%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T2.7.3.1.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.3.1.4.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T2.7.3.1.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.3.1.5.1\">94.67%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T2.7.3.1.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.3.1.6.1\">96.79%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.7.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T2.7.4.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.4.2.1.1\">GPT-3.5 Turbo</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.4.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.4.2.2.1\">97.3%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.4.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.4.2.3.1\">93.85%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T2.7.4.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.4.2.4.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T2.7.4.2.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.4.2.5.1\">95.08%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.4.2.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.4.2.6.1\">95.95%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.7.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T2.7.5.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.5.3.1.1\">Llama-2-13b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.5.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.5.3.2.1\">69.3%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.5.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.5.3.3.1\">68.7%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T2.7.5.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.5.3.4.1\">84.5%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T2.7.5.3.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.5.3.5.1\">68.85%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T2.7.5.3.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.5.3.6.1\">83.47%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.7.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T2.7.6.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.7.6.4.1.1\">Llama-2-7b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T2.7.6.4.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.6.4.2.1\">74.54%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T2.7.6.4.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.6.4.3.1\">65.76%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T2.7.6.4.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.6.4.4.1\">70.50%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T2.7.6.4.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.6.4.5.1\">75.00 %</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T2.7.6.4.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T2.7.6.4.6.1\">63.52%</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 2.  The performance for R-V Reasoner (0: Valid, 1: Invalid), R-V Guide, and R-V Validator with different LLM models."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T3\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T3.3.1.1\" style=\"font-size:90%;\">Table 3</span>. </span><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T3.4.2\" style=\"font-size:90%;\">CBT Reasoner</span><span class=\"ltx_text\" id=\"S5.T3.5.3\" style=\"font-size:90%;\"> performance for using different LLM models (0: Valid, 1: Invalid).</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S5.T3.6\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S5.T3.6.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T3.6.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.1.1.1.1\">Prompted</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S5.T3.6.1.1.2\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T3.6.1.1.2.1\">CBT_Stage1 Reasoner</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S5.T3.6.1.1.3\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T3.6.1.1.3.1\">CBT_Stage2 Reasoner</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" colspan=\"3\" id=\"S5.T3.6.1.1.4\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T3.6.1.1.4.1\">CBT_Stage3 Reasoner</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.6.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r\" id=\"S5.T3.6.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.2.2.1.1\">Models</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.2\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.2.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.3\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.3.1\" style=\"font-size:90%;\">Precision</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r\" id=\"S5.T3.6.2.2.4\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.4.1\" style=\"font-size:90%;\">Recall</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.5\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.5.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.6\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.6.1\" style=\"font-size:90%;\">Precision</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r\" id=\"S5.T3.6.2.2.7\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.7.1\" style=\"font-size:90%;\">Recall</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.8\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.8.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.9\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.9.1\" style=\"font-size:90%;\">Precision</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column\" id=\"S5.T3.6.2.2.10\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.6.2.2.10.1\" style=\"font-size:90%;\">Recall</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T3.6.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S5.T3.6.3.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.3.1.1.1\">GPT-4</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.2.1\">95.89%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.3.1\">72.68%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T3.6.3.1.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.4.1\">93.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.5.1\">95.21%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.6.1\">72%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T3.6.3.1.7\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.7.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.8\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.8.1\">99.32%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.9\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.9.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T3.6.3.1.10\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.3.1.10.1\">96.97%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.6.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T3.6.4.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.4.2.1.1\">GPT-3.5 Turbo</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.2.1\">95.21%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.3.1\">83.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T3.6.4.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.4.1\">66.67%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.5.1\">94.52%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.6.1\">90.91%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T3.6.4.2.7\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.7.1\">58.82%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.8\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.8.1\">95.89%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.9\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.9.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.4.2.10\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.4.2.10.1\">82.35%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.6.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T3.6.5.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.5.3.1.1\">Llama-2-13b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.2.1\">67.81%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.3.1\">23.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T3.6.5.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.4.1\">93.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.5.1\">91.1%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.6.1\">59.09%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T3.6.5.3.7\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.7.1\">76.47%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.8\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.8.1\">96.58%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.9\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.9.1\">96.67%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T3.6.5.3.10\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.5.3.10.1\">87.88%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.6.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T3.6.6.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.6.6.4.1.1\">Llama-2-7b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.2.1\">69.86%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.3.1\">10.81%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T3.6.6.4.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.4.1\">26.67%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.5.1\">88.36%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.6.1\">50%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T3.6.6.4.7\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.7.1\">29.41%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.8\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.8.1\">81.51%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.9\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.9.1\">58.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T3.6.6.4.10\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.6.6.4.10.1\">63.64%</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 3. CBT Reasoner performance for using different LLM models (0: Valid, 1: Invalid)."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T4\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T4.3.1.1\" style=\"font-size:90%;\">Table 4</span>. </span><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S5.T4.4.2\" style=\"font-size:90%;\">CBT Guide</span><span class=\"ltx_text\" id=\"S5.T4.5.3\" style=\"font-size:90%;\"> accuracies for using different LLM models.</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S5.T4.6\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S5.T4.6.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T4.6.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.6.1.1.1.1\">Prompted Models</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S5.T4.6.1.1.2\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S5.T4.6.1.1.2.1\">CBT_Stage1 Guide</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S5.T4.6.1.1.3\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S5.T4.6.1.1.3.1\">CBT_Stage2 Guide</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_t\" id=\"S5.T4.6.1.1.4\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S5.T4.6.1.1.4.1\">CBT_Stage3 Guide</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T4.6.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S5.T4.6.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.6.2.1.1.1\">GPT-4</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T4.6.2.1.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.2.1.2.1\">93.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S5.T4.6.2.1.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.2.1.3.1\">94.12%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S5.T4.6.2.1.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.2.1.4.1\">90.9%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.6.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T4.6.3.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.6.3.2.1.1\">GPT-3.5 Turbo</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T4.6.3.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.3.2.2.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T4.6.3.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.3.2.3.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T4.6.3.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.3.2.4.1\">96.97%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.6.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S5.T4.6.4.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.6.4.3.1.1\">Llama-2-13b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T4.6.4.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.4.3.2.1\">73.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S5.T4.6.4.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.4.3.3.1\">94.12%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S5.T4.6.4.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.4.3.4.1\">100%</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.6.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T4.6.5.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.6.5.4.1.1\">Llama-2-7b</span></th>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T4.6.5.4.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.5.4.2.1\">73.33%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S5.T4.6.5.4.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.5.4.3.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S5.T4.6.5.4.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T4.6.5.4.4.1\">93.93%</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 4. CBT Guide accuracies for using different LLM models."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S7.T5\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S7.T5.4.1.1\" style=\"font-size:90%;\">Table 5</span>. </span><span class=\"ltx_text\" id=\"S7.T5.5.2\" style=\"font-size:90%;\">Number of times that <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.5.2.1\">CBT Reasoner</span> and <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.5.2.2\">CBT Guides</span> triggered in each attempt and the number of CBT sessions terminated in the three CBT stages.</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S7.T5.6\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S7.T5.6.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S7.T5.6.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S7.T5.6.1.1.2\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S7.T5.6.1.1.2.1\">CBT_Stage1</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S7.T5.6.1.1.3\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S7.T5.6.1.1.3.1\">CBT_Stage2</span></th>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_t\" id=\"S7.T5.6.1.1.4\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S7.T5.6.1.1.4.1\">CBT_Stage3</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S7.T5.6.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_tt\" id=\"S7.T5.6.2.1.1\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.6.2.1.1.1\">CBT Reasoner<span class=\"ltx_text ltx_font_serif\" id=\"S7.T5.6.2.1.1.1.1\"> in Attempt 1</span></span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S7.T5.6.2.1.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.2.1.2.1\">454</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S7.T5.6.2.1.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.2.1.3.1\">451</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S7.T5.6.2.1.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.2.1.4.1\">448</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T5.6.3.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_t\" id=\"S7.T5.6.3.2.1\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.6.3.2.1.1\">CBT Guide<span class=\"ltx_text ltx_font_serif\" id=\"S7.T5.6.3.2.1.1.1\"> in Attempt 1</span></span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.3.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.3.2.2.1\">23</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.3.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.3.2.3.1\">37</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S7.T5.6.3.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.3.2.4.1\">21</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T5.6.4.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_t\" id=\"S7.T5.6.4.3.1\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.6.4.3.1.1\">CBT Reasoner<span class=\"ltx_text ltx_font_serif\" id=\"S7.T5.6.4.3.1.1.1\"> in Attempt 2</span></span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.4.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.4.3.2.1\">23</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.4.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.4.3.3.1\">37</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S7.T5.6.4.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.4.3.4.1\">21</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T5.6.5.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_t\" id=\"S7.T5.6.5.4.1\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.6.5.4.1.1\">CBT Guide<span class=\"ltx_text ltx_font_serif\" id=\"S7.T5.6.5.4.1.1.1\"> in Attempt 2</span></span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.5.4.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.5.4.2.1\">10</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.5.4.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.5.4.3.1\">7</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S7.T5.6.5.4.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.5.4.4.1\">5</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T5.6.6.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_t\" id=\"S7.T5.6.6.5.1\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T5.6.6.5.1.1\">CBT Reasoner<span class=\"ltx_text ltx_font_serif\" id=\"S7.T5.6.6.5.1.1.1\"> in Attempt 3</span></span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.6.5.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.6.5.2.1\">10</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T5.6.6.5.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.6.5.3.1\">7</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S7.T5.6.6.5.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.6.5.4.1\">5</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T5.6.7.6\">\n<td class=\"ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t\" id=\"S7.T5.6.7.6.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S7.T5.6.7.6.1.1\">Terminated in Attempt 3</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S7.T5.6.7.6.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.7.6.2.1\">3</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_t\" id=\"S7.T5.6.7.6.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.7.6.3.1\">6</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_t\" id=\"S7.T5.6.7.6.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T5.6.7.6.4.1\">3</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 5. Number of times that CBT Reasoner and CBT Guides triggered in each attempt and the number of CBT sessions terminated in the three CBT stages."
+        },
+        "6": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S7.T6\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S7.T6.5.1.1\" style=\"font-size:90%;\">Table 6</span>. </span><span class=\"ltx_text\" id=\"S7.T6.6.2\" style=\"font-size:90%;\"> The performance for <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T6.6.2.1\">R-V Reasoner</span> (0: Valid, 1: Invalid), <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T6.6.2.2\">R-V Guide</span>, and <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T6.6.2.3\">R-V Validator</span> in handling the responses from subjects during the experiment.</span></figcaption>\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S7.T6.7\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S7.T6.7.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S7.T6.7.1.1.1\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T6.7.1.1.1.1\">R-V Reasoner</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"S7.T6.7.1.1.2\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S7.T6.7.1.1.2.1\">R-V Guide</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S7.T6.7.1.1.3\"><span class=\"ltx_text ltx_font_typewriter ltx_font_bold ltx_align_top\" id=\"S7.T6.7.1.1.3.1\">R-V Validator</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T6.7.2.2\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T6.7.2.2.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T6.7.2.2.1.1\" style=\"font-size:90%;\">Accuracy</span></td>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T6.7.2.2.2\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T6.7.2.2.2.1\" style=\"font-size:90%;\">Precision</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r\" id=\"S7.T6.7.2.2.3\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T6.7.2.2.3.1\" style=\"font-size:90%;\">Recall</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r\" id=\"S7.T6.7.2.2.4\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T6.7.2.2.4.1\" style=\"font-size:90%;\">Accuracy</span></td>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T6.7.2.2.5\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T6.7.2.2.5.1\" style=\"font-size:90%;\">Accuracy</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T6.7.3.3\">\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_tt\" id=\"S7.T6.7.3.3.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T6.7.3.3.1.1\">97.97%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_tt\" id=\"S7.T6.7.3.3.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T6.7.3.3.2.1\">70%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_tt\" id=\"S7.T6.7.3.3.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T6.7.3.3.3.1\">98.99%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_r ltx_border_tt\" id=\"S7.T6.7.3.3.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T6.7.3.3.4.1\">95.32%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_b ltx_border_tt\" id=\"S7.T6.7.3.3.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T6.7.3.3.5.1\">96.57%</p>\n</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 6.  The performance for R-V Reasoner (0: Valid, 1: Invalid), R-V Guide, and R-V Validator in handling the responses from subjects during the experiment."
+        },
+        "7": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S7.T7\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S7.T7.4.1.1\" style=\"font-size:90%;\">Table 7</span>. </span><span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.5.2\" style=\"font-size:90%;\">CBT Reasoner</span><span class=\"ltx_text\" id=\"S7.T7.6.3\" style=\"font-size:90%;\"> and <span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.6.3.1\">CBT Guide</span> performance in handling the responses from subjects during the three-stage CBT process (0: Valid, 1: Invalid).</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S7.T7.7\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S7.T7.7.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S7.T7.7.1.1.1\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.1.1.1.1\">CBT_Stage1 Reasoner</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" colspan=\"3\" id=\"S7.T7.7.1.1.2\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.1.1.2.1\">CBT_Stage2 Reasoner</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_t\" colspan=\"3\" id=\"S7.T7.7.1.1.3\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.1.1.3.1\">CBT_Stage3 Reasoner</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S7.T7.7.2.1\">\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row\" id=\"S7.T7.7.2.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.1.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T7.7.2.1.2\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.2.1\" style=\"font-size:90%;\">Precision</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r\" id=\"S7.T7.7.2.1.3\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.3.1\" style=\"font-size:90%;\">Recall</span></td>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row\" id=\"S7.T7.7.2.1.4\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.4.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T7.7.2.1.5\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.5.1\" style=\"font-size:90%;\">Precision</span></td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r\" id=\"S7.T7.7.2.1.6\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.6.1\" style=\"font-size:90%;\">Recall</span></td>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row\" id=\"S7.T7.7.2.1.7\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.7.1\" style=\"font-size:90%;\">Accuracy</span></th>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T7.7.2.1.8\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.8.1\" style=\"font-size:90%;\">Precision</span></td>\n<td class=\"ltx_td ltx_align_justify\" id=\"S7.T7.7.2.1.9\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S7.T7.7.2.1.9.1\" style=\"font-size:90%;\">Recall</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T7.7.3.2\">\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row ltx_border_tt\" id=\"S7.T7.7.3.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.1.1\">99.38%</p>\n</th>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S7.T7.7.3.2.2\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.2.1\">93.39%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S7.T7.7.3.2.3\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.3.1\">96.88%</p>\n</td>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row ltx_border_tt\" id=\"S7.T7.7.3.2.4\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.4.1\">98.78%</p>\n</th>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S7.T7.7.3.2.5\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.5.1\">88.64%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"S7.T7.7.3.2.6\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.6.1\">97.5%</p>\n</td>\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_row ltx_border_tt\" id=\"S7.T7.7.3.2.7\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.7.1\">99.57%</p>\n</th>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S7.T7.7.3.2.8\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.8.1\">100%</p>\n</td>\n<td class=\"ltx_td ltx_align_justify ltx_border_tt\" id=\"S7.T7.7.3.2.9\">\n<p class=\"ltx_p ltx_align_top\" id=\"S7.T7.7.3.2.9.1\">92.85%</p>\n</td>\n</tr>\n</tbody>\n<tfoot class=\"ltx_tfoot\">\n<tr class=\"ltx_tr\" id=\"S7.T7.7.4.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.4.1.1\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.4.1.1.1\">CBT_Stage1 Guide</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.4.1.2\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.4.1.2.1\">CBT_Stage2 Guide</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.4.1.3\">\n<span class=\"ltx_text ltx_font_typewriter ltx_font_bold\" id=\"S7.T7.7.4.1.3.1\">CBT_Stage3 Guide</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T7.7.5.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" colspan=\"3\" id=\"S7.T7.7.5.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S7.T7.7.5.2.1.1\" style=\"font-size:90%;\">Accuracy<span class=\"ltx_text ltx_font_medium\" id=\"S7.T7.7.5.2.1.1.1\"></span></span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" colspan=\"3\" id=\"S7.T7.7.5.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S7.T7.7.5.2.2.1\" style=\"font-size:90%;\">Accuracy<span class=\"ltx_text ltx_font_medium\" id=\"S7.T7.7.5.2.2.1.1\"></span></span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row\" colspan=\"3\" id=\"S7.T7.7.5.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S7.T7.7.5.2.3.1\" style=\"font-size:90%;\">Accuracy<span class=\"ltx_text ltx_font_medium\" id=\"S7.T7.7.5.2.3.1.1\"></span></span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S7.T7.7.6.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.6.3.1\">90.9%</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_b ltx_border_r ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.6.3.2\">95.45%</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_b ltx_border_tt\" colspan=\"3\" id=\"S7.T7.7.6.3.3\">92.23%</th>\n</tr>\n</tfoot>\n</table>\n</figure>",
+            "capture": "Table 7. CBT Reasoner and CBT Guide performance in handling the responses from subjects during the three-stage CBT process (0: Valid, 1: Invalid)."
+        },
+        "8": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S8.T8\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S8.T8.2.1.1\" style=\"font-size:90%;\">Table 8</span>. </span><span class=\"ltx_text\" id=\"S8.T8.3.2\" style=\"font-size:90%;\">The average ratings on the first day (Day 1) and last day (Day 14) of the study.</span></figcaption>\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S8.T8.4\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S8.T8.4.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S8.T8.4.1.1.1.1\">Question Asked</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_rr ltx_border_t\" colspan=\"2\" id=\"S8.T8.4.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S8.T8.4.1.1.2.1\">Average Rating</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.2.2\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_border_ll ltx_border_r\" id=\"S8.T8.4.2.2.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S8.T8.4.2.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S8.T8.4.2.2.2.1\">Day 1</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_rr ltx_border_t\" id=\"S8.T8.4.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S8.T8.4.2.2.3.1\">Day 14</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S8.T8.4.3.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_tt\" id=\"S8.T8.4.3.1.1\">How do you like CaiTI in general?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S8.T8.4.3.1.2\">4.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_tt\" id=\"S8.T8.4.3.1.3\">4.45</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.4.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.4.2.1\">Are you willing to continue using CaiTI in the future?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.4.2.2\">4.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.4.2.3\">4.35</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.5.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.5.3.1\">Will you recommend CaiTI to others?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.5.3.2\">4.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.5.3.3\">4.55</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.6.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.6.4.1\">Do you think CaiTI\u2019s functions are easily detectable?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.6.4.2\">4.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.6.4.3\">4.5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.7.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.7.5.1\">Do you think CaiTI can understand you and chat with you naturally?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.7.5.2\">4.35</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.7.5.3\">4.5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.8.6\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.8.6.1\">Do you like the interface design of CaiTI?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.8.6.2\">4.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.8.6.3\">4.2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.9.7\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.9.7.1\">Do you think the wording used in CaiTI is appropriate?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.9.7.2\">4.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.9.7.3\">4.75</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.10.8\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.10.8.1\">Do you think the psychotherapies are helpful?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.10.8.2\">4.65</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.10.8.3\">4.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.11.9\">\n<td class=\"ltx_td ltx_align_left ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.11.9.1\">How do you feel about the response time from CaiTI?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S8.T8.4.11.9.2\">4.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_rr ltx_border_t\" id=\"S8.T8.4.11.9.3\">4.85</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S8.T8.4.12.10\">\n<td class=\"ltx_td ltx_align_left ltx_border_b ltx_border_ll ltx_border_r ltx_border_t\" id=\"S8.T8.4.12.10.1\">Do you feel that the conversation flow of CaiTI is gradually tailoring to you?</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r ltx_border_t\" id=\"S8.T8.4.12.10.2\">N.A.</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_rr ltx_border_t\" id=\"S8.T8.4.12.10.3\">4.75</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 8. The average ratings on the first day (Day 1) and last day (Day 14) of the study."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.10779v1_figure_1.png",
+            "caption": "Figure 1. CaiTI is a conversational \u201cAI therapist\u201d that screens and assesses the day-to-day functioning of the occupant across 37 dimensions and provides appropriate psychotherapeutic interventions and empathic validations depending on the physical and mental status of the occupant."
+        },
+        "2": {
+            "figure_path": "2403.10779v1_figure_2.png",
+            "caption": "Figure 2. The system architecture of CaiTI consists of two main functionalities: 1) day-to-day functioning screening through natural conversation and 2) precautionary psychotherapeutic conversational interventions."
+        },
+        "3": {
+            "figure_path": "2403.10779v1_figure_3.png",
+            "caption": "Figure 3. The workflow of CaiTI, including the connections between the main components and the locations where different functionalities take place."
+        },
+        "4": {
+            "figure_path": "2403.10779v1_figure_4.png",
+            "caption": "Figure 4. The process to converse with the user naturally to screen day-to-day functioning and provide psychotherapies through the conversation. In particular, MI therapies are conducted throughout the conversation, while CBT proceeds at the end of the conversation session."
+        },
+        "5": {
+            "figure_path": "2403.10779v1_figure_5.png",
+            "caption": "Figure 5. The example process of how CaiTI follows the sequence based on the Q-table, segments the user response, classifies the Segment into the format of (Dimension, Score), and proceeds with reflection-validation (R-V) process."
+        },
+        "6": {
+            "figure_path": "2403.10779v1_figure_6.png",
+            "caption": "Figure 6. An example conversation using CaiTI\u2019s customized smartphone platform. The MI and CBT embedded in the conversation are annotated."
+        },
+        "7": {
+            "figure_path": "2403.10779v1_figure_7.png",
+            "caption": "Figure 7. The user interface where the user can manually select the dimensions to work on."
+        },
+        "8": {
+            "figure_path": "2403.10779v1_figure_8.png",
+            "caption": "Figure 8. The reflection-validation (R-V) pipeline illustrates how the R-V Reasoner is utilized for reasoning when the user provides a valid follow-up response that necessitates further attention, including two example scenarios: Scenario 1, where the user provides a valid follow-up response on the first attempt; and Scenario 2, where the user initially fails to provide a valid follow-up response, and CaiTI guides the user towards providing valid follow-up responses."
+        },
+        "9": {
+            "figure_path": "2403.10779v1_figure_9.png",
+            "caption": "Figure 9. The pipeline of the CBT process, which includes Questioners, Reasoners and Guides. The CBT process in CaiTI contains three stages: CBT_Stage1 \u2013 Recognize Negative Thoughts, CBT_Stage2 \u2013 Challenge Negative Thoughts, and CBT_Stage3 \u2013 Reframe Thoughts. The example scenarios where the user properly undergoes and fails to undergo each CBT stage are presented."
+        },
+        "10": {
+            "figure_path": "2403.10779v1_figure_10.png",
+            "caption": "Figure 10. The LLM implementation for different tasks during the study."
+        },
+        "11": {
+            "figure_path": "2403.10779v1_figure_11.png",
+            "caption": "(a)"
+        },
+        "12": {
+            "figure_path": "2403.10779v1_figure_12.png",
+            "caption": "(b)"
+        },
+        "13": {
+            "figure_path": "2403.10779v1_figure_13.png",
+            "caption": "(c)"
+        },
+        "14": {
+            "figure_path": "2403.10779v1_figure_14.png",
+            "caption": "(d)"
+        },
+        "15": {
+            "figure_path": "2403.10779v1_figure_15.png",
+            "caption": "Figure 12. The modules and tasks involved in the 14-day study and 24-week longitudinal study."
+        },
+        "16": {
+            "figure_path": "2403.10779v1_figure_16.png",
+            "caption": "Figure 13. CaiTI\u2019s performance to assign Score to the Segments of the user responses."
+        },
+        "17": {
+            "figure_path": "2403.10779v1_figure_17.png",
+            "caption": "Figure 14. The user adaptation CaiTI during the 24-week study."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Mental Health Tests, Quizzes, Self-Assessments, & Screening Tools.",
+                "author": "2022.",
+                "venue": "https://www.psycom.net/quizzes.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Speech-to-Text.",
+                "author": "2022.",
+                "venue": "https://cloud.google.com/speech-to-text.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "3 things to know before talking to ChatGPT about your mental health.",
+                "author": "2023.",
+                "venue": "https://mashable.com/article/how-to-chat-with-chatgpt-mental-health-therapy.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Using ChatGPT as a therapist?",
+                "author": "2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "What is the Alexa Skills Kit?",
+                "author": "2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Testing the leadership and organizational change for implementation (LOCI) intervention in substance abuse treatment: a cluster randomized trial study protocol.",
+                "author": "Gregory A Aarons, Mark G Ehrhart, Joanna C Moullin, Elisa M Torres, and Amy E Green. 2017.",
+                "venue": "Implementation Science 12, 1 (2017), 1\u201311.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Keppi: A tangible user interface for self-reporting pain. In Proceedings of the 2018 CHI Conference on Human Factors in Computing Systems. 1\u201313.",
+                "author": "Alexander T Adams, Elizabeth L Murnane, Phil Adams, Michael Elfenbein, Pamara F Chang, Shruti Sannon, Geri Gay, and Tanzeem Choudhury. 2018.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "The emotional voices database: Towards controlling the emotion dimension in voice generation systems.",
+                "author": "Adaeze Adigwe, No\u00e9 Tits, Kevin El Haddad, Sarah Ostadabbas, and Thierry Dutoit. 2018.",
+                "venue": "arXiv preprint arXiv:1806.09514 (2018).",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "The integrative power of cognitive therapy.",
+                "author": "Brad A Alford, Aaron T Beck, and John V Jones Jr. 1997.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Palm 2 technical report.",
+                "author": "Rohan Anil, Andrew M Dai, Orhan Firat, Melvin Johnson, Dmitry Lepikhin, Alexandre Passos, Siamak Shakeri, Emanuel Taropa, Paige Bailey, Zhifeng Chen, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2305.10403 (2023).",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Introducing the next generation of Claude.",
+                "author": "Anthropic. 2024.",
+                "venue": "https://www.anthropic.com/news/claude-3-family.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Combined pharmacotherapies and behavioral interventions for alcohol dependence: the COMBINE study: a randomized controlled trial.",
+                "author": "Raymond F Anton, Stephanie S O\u2019Malley, Domenic A Ciraulo, Ron A Cisler, David Couper, Dennis M Donovan, David R Gastfriend, James D Hosking, Bankole A Johnson, Joseph S LoCastro, et al. 2006.",
+                "venue": "Jama 295, 17 (2006), 2003\u20132017.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Improving outcomes and preventing relapse in cognitive-behavioral therapy.",
+                "author": "Martin M Antony, Deborah Roth Ledley, and Richard G Heimberg. 2005.",
+                "venue": "Guilford Press.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Integrating motivational interviewing and cognitive behavioral therapy in the treatment of depression and anxiety.",
+                "author": "Hal Arkowitz and Henny A Westra. 2004.",
+                "venue": "Journal of Cognitive Psychotherapy 18, 4 (2004), 337\u2013350.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Cognitive behavior therapy: Basic and beyond.",
+                "author": "Judith S Beck and AT Beck. 2011.",
+                "venue": "New York: Guilford (2011).",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Assessment of self-care and medication adherence in individuals with mental health conditions.",
+                "author": "Lisa J Bible, Kristin A Casper, Jennifer L Seifert, and Kyle A Porter. 2017.",
+                "venue": "Journal of the American Pharmacists Association 57, 3 (2017), S203\u2013S210.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "The Chatbot usability scale: The design and pilot of a usability scale for interaction with AI-based conversational agents.",
+                "author": "Simone Borsci, Alessio Malizia, Martin Schmettow, Frank Van Der Velde, Gunay Tariverdiyeva, Divyaa Balaji, and Alan Chamberlain. 2022.",
+                "venue": "Personal and ubiquitous computing 26, 1 (2022), 95\u2013119.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Gamification and adherence to web-based mental health interventions: a systematic review.",
+                "author": "Menna Brown, Noelle O\u2019Neill, Hugo van Woerden, Parisa Eslambolchilar, Matt Jones, Ann John, et al. 2016.",
+                "venue": "JMIR mental health 3, 3 (2016), e5710.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Sparks of artificial general intelligence: Early experiments with gpt-4.",
+                "author": "S\u00e9bastien Bubeck, Varun Chandrasekaran, Ronen Eldan, Johannes Gehrke, Eric Horvitz, Ece Kamar, Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lundberg, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.12712 (2023).",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Feeling good: The new mood therapy.",
+                "author": "David D Burns and Aaron T Beck. 1999.",
+                "venue": "(1999).",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "How to use ChatGPT as your therapist or mental coach?",
+                "author": "Yusuf Cay. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Do mental health mobile apps work: evidence and recommendations for designing high-efficacy mental health mobile apps.",
+                "author": "Pooja Chandrashekar. 2018.",
+                "venue": "Mhealth 4 (2018).",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "A multicenter randomized controlled trial of motivational interviewing in teenagers with diabetes.",
+                "author": "Sue J Channon, Michelle V Huws-Thomas, Stephen Rollnick, Kerenza Hood, Rebecca L Cannings-John, Carol Rogers, and John W Gregory. 2007.",
+                "venue": "Diabetes care 30, 6 (2007), 1390\u20131395.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "LLM-empowered Chatbots for Psychiatrist and Patient Simulation: Application and Evaluation.",
+                "author": "Siyuan Chen, Mengyue Wu, Kenny Q Zhu, Kunyao Lan, Zhiling Zhang, and Lyuchun Cui. 2023.",
+                "venue": "arXiv preprint arXiv:2305.13614 (2023).",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Effects of motivational interviewing intervention on self-management, psychological and glycemic outcomes in type 2 diabetes: a randomized controlled trial.",
+                "author": "Shu Ming Chen, Debra Creedy, Huey-Shyan Lin, and Judy Wollin. 2012.",
+                "venue": "International journal of nursing studies 49, 6 (2012), 637\u2013644.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Cognitive therapy versus fluoxetine in generalized social phobia: a randomized placebo-controlled trial.",
+                "author": "David M Clark, Anke Ehlers, Freda McManus, Ann Hackmann, Melanie Fennell, Helen Campbell, Teresa Flower, Clare Davenport, and Beverley Louis. 2003.",
+                "venue": "Journal of consulting and clinical psychology 71, 6 (2003), 1058.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Health literacy among people with serious mental illness.",
+                "author": "Whitney Clausen, Shinobu Watanabe-Galloway, M Bill Baerentzen, and Denise H Britigan. 2016.",
+                "venue": "Community mental health journal 52, 4 (2016), 399\u2013405.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Theory and practice of counseling and psychotherapy.",
+                "author": "Gerald Corey. 2013.",
+                "venue": "Cengage learning.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Detecting Mental Disorders with Wearables: A Large Cohort Study. In Proceedings of the 8th ACM/IEEE Conference on Internet of Things Design and Implementation. 39\u201351.",
+                "author": "Ruixuan Dai, Thomas Kannampallil, Seunghwan Kim, Vera Thornton, Laura Bierut, and Chenyang Lu. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Fill in the blank: Exploring and enhancing LLM capabilities for backward reasoning in math word problems.",
+                "author": "Aniruddha Deb, Neeva Oza, Sarthak Singla, Dinesh Khandelwal, Dinesh Garg, and Parag Singla. 2023.",
+                "venue": "arXiv preprint arXiv:2310.01991 (2023).",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Comparing response to cognitive processing therapy in military veterans with subthreshold and threshold posttraumatic stress disorder.",
+                "author": "Benjamin D Dickstein, Kristen H Walter, Jeremiah A Schumm, and Kathleen M Chard. 2013.",
+                "venue": "Journal of Traumatic Stress 26, 6 (2013), 703\u2013709.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Diagnostic and statistical manual of mental disorders.",
+                "author": "DSM-IV-TR. 2000.",
+                "venue": "American Psychiatric Association.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Adult ADHD Self-Report Scale (ASRS-v1. 1) symptom checklist in patients with substance use disorders.",
+                "author": "Conclusiones El ASRS. 2009.",
+                "venue": "Actas Esp Psiquiatr 37, 6 (2009), 299\u2013305.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Cognitive behaviour therapy in medication-treated adults with ADHD and persistent symptoms: a randomized controlled trial.",
+                "author": "Brynjar Emilsson, Gisli Gudjonsson, Jon F Sigurdsson, Gisli Baldursson, Emil Einarsson, Halldora Olafsdottir, and Susan Young. 2011.",
+                "venue": "BMC psychiatry 11, 1 (2011), 1\u201310.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "How Many People Own Smartphones? (2024-2029).",
+                "author": "Explodingtopics. 2023.",
+                "venue": "https://explodingtopics.com/blog/smartphone-stats",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Randomized, placebo-controlled trial of exposure and ritual prevention, clomipramine, and their combination in the treatment of obsessive-compulsive disorder.",
+                "author": "Edna B Foa, Michael R Liebowitz, Michael J Kozak, Sharon Davies, Rafael Campeas, Martin E Franklin, Jonathan D Huppert, Kevin Kjernisted, Vivienne Rowan, Andrew B Schmidt, et al. 2005.",
+                "venue": "American Journal of psychiatry 162, 1 (2005), 151\u2013161.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Distributed Simulation System for Athletes\u2019 Mental Health in the Internet of Things Environment.",
+                "author": "Baoyan Fu and XinXin Fu. 2022.",
+                "venue": "Computational Intelligence and Neuroscience 2022 (2022).",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Seeking help from the internet during adolescence.",
+                "author": "Madelyn S Gould, Jimmie Lou Harris Munfakh, Keri Lubell, Marjorie Kleinman, and Sarah Parker. 2002.",
+                "venue": "Journal of the American Academy of Child & Adolescent Psychiatry 41, 10 (2002), 1182\u20131189.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "Diagnostic and statistical manual of mental disorders, (DSM-IV).",
+                "author": "Samuel B Guze. 1995.",
+                "venue": "American Journal of Psychiatry 152, 8 (1995), 1228\u20131228.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Predictors of treatment acceptance and completion in anorexia nervosa: implications for future study designs.",
+                "author": "Katherine A Halmi, W Stewart Agras, Scott Crow, James Mitchell, G Terence Wilson, Susan W Bryson, and Helena C Kraemer. 2005.",
+                "venue": "Archives of general psychiatry 62, 7 (2005), 776\u2013781.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Mental health disorders and functioning of women in domestic violence shelters.",
+                "author": "Christine A Helfrich, Glenn T Fujiura, and Violet Rutkowski-Kmitta. 2008.",
+                "venue": "Journal of interpersonal violence 23, 4 (2008), 437\u2013453.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Reducing the Economic Burden of Unmet Mental Health Needs.",
+                "author": "The White House. 2022.",
+                "venue": "https://www.whitehouse.gov/cea/written-materials/2022/05/31/reducing-the-economic-burden-of-unmet-mental-health-needs/",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Multimodal mental health assessment with remote interviews using facial, vocal, linguistic, and cardiovascular patterns.",
+                "author": "Zifan Jiang, Salman Seyedi, Emily Lynn Griner, Ahmed Abbasi, Ali Bahrami Rad, Hyeokhyen Kwon, Robert O Cotes, and Gari D Clifford. 2023.",
+                "venue": "medRxiv (2023), 2023\u201309.",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "The impact of motivational interviewing on client experiences of cognitive behavioral therapy for generalized anxiety disorder.",
+                "author": "Angela Kertes, Henny A Westra, Lynne Angus, and Madalyn Marcus. 2011.",
+                "venue": "Cognitive and Behavioral Practice 18, 1 (2011), 55\u201369.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "Can an LLM-Powered Socially Assistive Robot Effectively and Safely Deliver Cognitive Behavioral Therapy? A Study With University Students.",
+                "author": "Mina J Kian, Mingyu Zong, Katrin Fischer, Abhyuday Singh, Anna-Maria Velentza, Pau Sang, Shriya Upadhyay, Anika Gupta, Misha A Faruki, Wallace Browning, et al. 2024.",
+                "venue": "arXiv preprint arXiv:2402.17937 (2024).",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "The PHQ-9: validity of a brief depression severity measure.",
+                "author": "Kurt Kroenke, Robert L Spitzer, and Janet BW Williams. 2001.",
+                "venue": "Journal of general internal medicine 16, 9 (2001), 606\u2013613.",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "\u201cI Wanted to See How Bad it Was\u201d: Online Self-screening as a Critical Transition Point Among Young Adults with Common Mental Health Conditions. In Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems. 1\u201316.",
+                "author": "Kaylee Payne Kruzan, Jonah Meyerhoff, Theresa Nguyen, Madhu Reddy, David C Mohr, and Rachel Kornfield. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Psy-llm: Scaling up global mental health psychological services with ai-based large language models.",
+                "author": "Tin Lai, Yukun Shi, Zicong Du, Jiajie Wu, Ken Fu, Yichao Dou, and Ziqi Wang. 2023.",
+                "venue": "arXiv preprint arXiv:2307.11991 (2023).",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Roberta: A robustly optimized bert pretraining approach.",
+                "author": "Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer Levy, Mike Lewis, Luke Zettlemoyer, and Veselin Stoyanov. 2019.",
+                "venue": "arXiv preprint arXiv:1907.11692 (2019).",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "aiMSE: Toward an AI-Based Online Mental Status Examination.",
+                "author": "Yanchen Liu, Stephen Xia, Jingping Nie, Peter Wei, Zhan Shu, Jeffrey Andrew Chang, and Xiaofan Jiang. 2022.",
+                "venue": "IEEE Pervasive Computing (2022).",
+                "url": null
+            }
+        },
+        {
+            "51": {
+                "title": "The efficacy of incorporating motivational interviewing to cognitive behavior therapy for anxiety disorders: A review and meta-analysis.",
+                "author": "Isabella Marker and Peter J Norton. 2018.",
+                "venue": "Clinical Psychology Review 62 (2018), 1\u201310.",
+                "url": null
+            }
+        },
+        {
+            "52": {
+                "title": "In situ design for mental illness: Considering the pathology of bipolar disorder in mhealth design. In Proceedings of the 17th International Conference on Human-Computer Interaction with Mobile Devices and Services. 86\u201397.",
+                "author": "Mark Matthews, Stephen Voida, Saeed Abdullah, Gavin Doherty, Tanzeem Choudhury, Sangha Im, and Geri Gay. 2015.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "Cognitive-behavioral therapy plus motivational interviewing improves outcome for pediatric obsessive-compulsive disorder: A preliminary study.",
+                "author": "Lisa J Merlo, Eric A Storch, Heather D Lehmkuhl, Marni L Jacob, Tanya K Murphy, Wayne K Goodman, and Gary R Geffken. 2010.",
+                "venue": "Cognitive Behaviour Therapy 39, 1 (2010), 24\u201327.",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "An effectiveness study of a culturally enriched school-based CBT anxiety prevention program.",
+                "author": "Lynn D Miller, Aviva Laye-Gindhu, Joanna L Bennett, Yan Liu, Stephenie Gold, John S March, Brent F Olson, and Vanessa E Waechtler. 2011.",
+                "venue": "Journal of Clinical Child & Adolescent Psychology 40, 4 (2011), 618\u2013629.",
+                "url": null
+            }
+        },
+        {
+            "55": {
+                "title": "Motivational interviewing: Helping people change.",
+                "author": "William R Miller and Stephen Rollnick. 2012.",
+                "venue": "Guilford press.",
+                "url": null
+            }
+        },
+        {
+            "56": {
+                "title": "From sensing to intervention for mental and behavioral health. In Adjunct Proceedings of the 2019 ACM International Joint Conference on Pervasive and Ubiquitous Computing and Proceedings of the 2019 ACM International Symposium on Wearable Computers. 388\u2013392.",
+                "author": "Varun Mishra. 2019.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "57": {
+                "title": "A study of smartphone usage and barriers among the elderly. In 2014 3rd international conference on user science and engineering (i-USEr). IEEE, 109\u2013114.",
+                "author": "Hazwani Mohd Mohadisdudis and Nazlena Mohamad Ali. 2014.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Prediction of mood instability with passive sensing.",
+                "author": "Mehrab Bin Morshed, Koustuv Saha, Richard Li, Sidney K D\u2019Mello, Munmun De Choudhury, Gregory D Abowd, and Thomas Pl\u00f6tz. 2019.",
+                "venue": "Proceedings of the ACM on Interactive, Mobile, Wearable and Ubiquitous Technologies 3, 3 (2019), 1\u201321.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "A randomized controlled trial of cognitive behavioral therapy (CBT) for adjusting to multiple sclerosis (the saMS trial): does CBT work and for whom does it work?",
+                "author": "Rona Moss-Morris, Laura Dennison, Sabine Landau, Lucy Yardley, Eli Silber, and Trudie Chalder. 2013.",
+                "venue": "Journal of consulting and clinical psychology 81, 2 (2013), 251.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Motivational interviewing and CBT: Combining strategies for maximum effectiveness.",
+                "author": "Sylvie Naar and Steven A Safren. 2017.",
+                "venue": "Guilford Publications.",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "SPIDERS+: A light-weight, wireless, and low-cost glasses-based wearable platform for emotion sensing and bio-signal acquisition.",
+                "author": "Jingping Nie, Yanchen Liu, Yigong Hu, Yuanyuting Wang, Stephen Xia, Matthias Preindl, and Xiaofan Jiang. 2021.",
+                "venue": "Pervasive and Mobile Computing 75 (2021), 101424.",
+                "url": null
+            }
+        },
+        {
+            "62": {
+                "title": "Conversational AI Therapist for Daily Function Screening in Home Environments. In Proceedings of the 1st ACM International Workshop on Intelligent Acoustic Systems and Applications. 31\u201336.",
+                "author": "Jingping Nie, Hanya Shao, Minghui Zhao, Stephen Xia, Matthias Preindl, and Xiaofan Jiang. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "Capabilities of gpt-4 on medical challenge problems.",
+                "author": "Harsha Nori, Nicholas King, Scott Mayer McKinney, Dean Carignan, and Eric Horvitz. 2023.",
+                "venue": "arXiv preprint arXiv:2303.13375 (2023).",
+                "url": null
+            }
+        },
+        {
+            "64": {
+                "title": "Evidence-based practice in psychology.",
+                "author": "APA Presidential Task Force on Evidence-Based Practice et al. 2006.",
+                "venue": "The American Psychologist 61, 4 (2006), 271\u2013285.",
+                "url": null
+            }
+        },
+        {
+            "65": {
+                "title": "GPT-3.5 Turbo.",
+                "author": "OpenAI. 2023a.",
+                "venue": "https://platform.openai.com/docs/models/gpt-3-5-turbo.",
+                "url": null
+            }
+        },
+        {
+            "66": {
+                "title": "GPT-4 and GPT-4 Turbo.",
+                "author": "OpenAI. 2023b.",
+                "venue": "https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo.",
+                "url": null
+            }
+        },
+        {
+            "67": {
+                "title": "What models can be fine-tuned?",
+                "author": "OpenAI. 2023c.",
+                "venue": "https://platform.openai.com/docs/guides/fine-tuning.",
+                "url": null
+            }
+        },
+        {
+            "68": {
+                "title": "\u201cCan I Not Be Suicidal on a Sunday?\u201d: Understanding Technology-Mediated Pathways to Mental Health Support. In Proceedings of the 2021 CHI Conference on Human Factors in Computing Systems. 1\u201316.",
+                "author": "Sachin R Pendse, Amit Sharma, Aditya Vashistha, Munmun De Choudhury, and Neha Kumar. 2021.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "69": {
+                "title": "Our next-generation model: Gemini 1.5.",
+                "author": "Sundar Pichai and Demis Hassabis. 2024.",
+                "venue": "https://blog.google/technology/ai/google-gemini-next-generation-model-february-2024/#sundar-note.",
+                "url": null
+            }
+        },
+        {
+            "70": {
+                "title": "Question decomposition improves the faithfulness of model-generated reasoning.",
+                "author": "Ansh Radhakrishnan, Karina Nguyen, Anna Chen, Carol Chen, Carson Denison, Danny Hernandez, Esin Durmus, Evan Hubinger, Jackson Kernion, Kamil\u0117 Luko\u0161i\u016bt\u0117, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2307.11768 (2023).",
+                "url": null
+            }
+        },
+        {
+            "71": {
+                "title": "Predictive Analytics in Mental Health Leveraging LLM Embeddings and Machine Learning Models for Social Media Analysis.",
+                "author": "Ahmad Radwan, Mohannad Amarneh, Hussam Alawneh, Huthaifa I Ashqar, Anas AlSobeh, and Aws Abed Al Raheem Magableh. 2024.",
+                "venue": "International Journal of Web Services Research (IJWSR) 21, 1 (2024), 1\u201322.",
+                "url": null
+            }
+        },
+        {
+            "72": {
+                "title": "Dialectical behavior therapy.",
+                "author": "Clive J Robins and M Zachary Rosenthal. 2011.",
+                "venue": "Acceptance and mindfulness in cognitive behavior therapy: Understanding and applying the new therapies (2011), 164\u2013192.",
+                "url": null
+            }
+        },
+        {
+            "73": {
+                "title": "A randomized effectiveness trial of cognitive-behavioral therapy and medication for primary care panic disorder.",
+                "author": "Peter P Roy-Byrne, Michelle G Craske, Murray B Stein, Greer Sullivan, Alexander Bystritsky, Wayne Katon, Daniela Golinelli, and Cathy D Sherbourne. 2005.",
+                "venue": "Archives of General Psychiatry 62, 3 (2005), 290\u2013298.",
+                "url": null
+            }
+        },
+        {
+            "74": {
+                "title": "Chatbots for Mental Health Support: Exploring the Impact of Emohaa on Reducing Mental Distress in China.",
+                "author": "Sahand Sabour, Wen Zhang, Xiyao Xiao, Yuwei Zhang, Yinhe Zheng, Jiaxin Wen, Jialu Zhao, and Minlie Huang. 2022.",
+                "venue": "arXiv preprint arXiv:2209.10183 (2022).",
+                "url": null
+            }
+        },
+        {
+            "75": {
+                "title": "Distant emotion recognition.",
+                "author": "Asif Salekin, Zeya Chen, Mohsin Y Ahmed, John Lach, Donna Metz, Kayla De La Haye, Brooke Bell, and John A Stankovic. 2017.",
+                "venue": "Proceedings of the ACM on Interactive, Mobile, Wearable and Ubiquitous Technologies 1, 3 (2017), 1\u201325.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Pocket skills: A conversational mobile web app to support dialectical behavioral therapy. In Proceedings of the 2018 CHI Conference on Human Factors in Computing Systems. 1\u201315.",
+                "author": "Jessica Schroeder, Chelsey Wilkes, Kael Rowan, Arturo Toledo, Ann Paradiso, Mary Czerwinski, Gloria Mark, and Marsha M Linehan. 2018.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "Reliability and validity of the daily living activities scale: A functional assessment measure for severe mental disorders.",
+                "author": "Roger L Scott and Willa S Presmanes. 2001.",
+                "venue": "Research on Social Work Practice 11, 3 (2001), 373\u2013389.",
+                "url": null
+            }
+        },
+        {
+            "78": {
+                "title": "Take a Mental Health Test.",
+                "author": "MHA Screening. 2021.",
+                "venue": "https://screening.mhanational.org/screening-tools/.",
+                "url": null
+            }
+        },
+        {
+            "79": {
+                "title": "Llm-assist: Enhancing closed-loop planning with language-based reasoning.",
+                "author": "SP Sharan, Francesco Pittaluga, Manmohan Chandraker, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2401.00125 (2023).",
+                "url": null
+            }
+        },
+        {
+            "80": {
+                "title": "Chatbots Facilitating Consensus-Building in Asynchronous Co-Design. In Proceedings of the 35th Annual ACM Symposium on User Interface Software and Technology. 1\u201313.",
+                "author": "Joongi Shin, Michael A Hedderich, Andr\u00e9S Lucero, and Antti Oulasvirta. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "81": {
+                "title": "Large language models encode clinical knowledge.",
+                "author": "Karan Singhal, Shekoofeh Azizi, Tao Tu, S Sara Mahdavi, Jason Wei, Hyung Won Chung, Nathan Scales, Ajay Tanwani, Heather Cole-Lewis, Stephen Pfohl, et al. 2023a.",
+                "venue": "Nature 620, 7972 (2023), 172\u2013180.",
+                "url": null
+            }
+        },
+        {
+            "82": {
+                "title": "Towards expert-level medical question answering with large language models.",
+                "author": "Karan Singhal, Tao Tu, Juraj Gottweis, Rory Sayres, Ellery Wulczyn, Le Hou, Kevin Clark, Stephen Pfohl, Heather Cole-Lewis, Darlene Neal, et al. 2023b.",
+                "venue": "arXiv preprint arXiv:2305.09617 (2023).",
+                "url": null
+            }
+        },
+        {
+            "83": {
+                "title": "The comprehensive clinician\u2019s guide to cognitive behavioral therapy.",
+                "author": "Leslie Sokol and Marci Fox. 2019.",
+                "venue": "Pesi.",
+                "url": null
+            }
+        },
+        {
+            "84": {
+                "title": "Evidence-based practice in clinical psychology: What it is, why it matters; what you need to know.",
+                "author": "Bonnie Spring. 2007.",
+                "venue": "Journal of clinical psychology 63, 7 (2007), 611\u2013631.",
+                "url": null
+            }
+        },
+        {
+            "85": {
+                "title": "Sales volume of the smart speakers industry Worldwide 2018-2028.",
+                "author": "Statista. 2023.",
+                "venue": "https://www.statista.com/forecasts/1367982/smart-speaker-market-volume-worldwide",
+                "url": null
+            }
+        },
+        {
+            "86": {
+                "title": "Mental health outcomes of the CoViD-19 pandemic.",
+                "author": "Dalila Talevi, Valentina Socci, Margherita Carai, Giulia Carnaghi, Serena Faleri, Edoardo Trebbi, Arianna di Bernardo, Francesco Capelli, and Francesca Pacitti. 2020.",
+                "venue": "Rivista di psichiatria 55, 3 (2020), 137\u2013144.",
+                "url": null
+            }
+        },
+        {
+            "87": {
+                "title": "Preventing the development of depression at work: a systematic review and meta-analysis of universal interventions in the workplace.",
+                "author": "Leona Tan, Min-Jung Wang, Matthew Modini, Sadhbh Joyce, Arnstein Mykletun, Helen Christensen, and Samuel B Harvey. 2014.",
+                "venue": "BMC medicine 12, 1 (2014), 1\u201311.",
+                "url": null
+            }
+        },
+        {
+            "88": {
+                "title": "StudentSADD: Rapid mobile depression and suicidal ideation screening of college students during the coronavirus pandemic.",
+                "author": "ML Tlachac, Ricardo Flores, Miranda Reisch, Rimsha Kayastha, Nina Taurich, Veronica Melican, Connor Bruneau, Hunter Caouette, Joshua Lovering, Ermal Toto, et al. 2022.",
+                "venue": "Proceedings of the ACM on Interactive, Mobile, Wearable and Ubiquitous Technologies 6, 2 (2022), 1\u201332.",
+                "url": null
+            }
+        },
+        {
+            "89": {
+                "title": "Mental health mobile phone app usage, concerns, and benefits among psychiatric outpatients: comparative survey study.",
+                "author": "John Torous, Hannah Wisniewski, Gang Liu, Matcheri Keshavan, et al. 2018.",
+                "venue": "JMIR mental health 5, 4 (2018), e11715.",
+                "url": null
+            }
+        },
+        {
+            "90": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2307.09288 (2023).",
+                "url": null
+            }
+        },
+        {
+            "91": {
+                "title": "The psychiatric mental status examination.",
+                "author": "Paula T Trzepacz and Robert W Baker. 1993.",
+                "venue": "Oxford University Press.",
+                "url": null
+            }
+        },
+        {
+            "92": {
+                "title": "Global mental health services and the impact of artificial intelligence\u2013powered large language models.",
+                "author": "Alastair C van Heerden, Julia R Pozuelo, and Brandon A Kohrt. 2023.",
+                "venue": "JAMA psychiatry 80, 7 (2023), 662\u2013664.",
+                "url": null
+            }
+        },
+        {
+            "93": {
+                "title": "Back to analogue: Self-reporting for Parkinson\u2019s Disease. In Proceedings of the 2018 CHI conference on human factors in computing systems. 1\u201313.",
+                "author": "Julio Vega, Samuel Couth, Ellen Poliakoff, Sonja Kotz, Matthew Sullivan, Caroline Jay, Markel Vigo, and Simon Harper. 2018.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "94": {
+                "title": "GPT-4: a new era of artificial intelligence in medicine.",
+                "author": "Ethan Waisberg, Joshua Ong, Mouayad Masalkhi, Sharif Amit Kamran, Nasif Zaman, Prithul Sarker, Andrew G Lee, and Alireza Tavakkoli. 2023.",
+                "venue": "Irish Journal of Medical Science (1971-) (2023), 1\u20134.",
+                "url": null
+            }
+        },
+        {
+            "95": {
+                "title": "Treatment of bulimia nervosa in a primary care setting.",
+                "author": "B Timothy Walsh, Christopher G Fairburn, Diane Mickley, Robyn Sysko, and Michael K Parides. 2004.",
+                "venue": "American Journal of Psychiatry 161, 3 (2004), 556\u2013561.",
+                "url": null
+            }
+        },
+        {
+            "96": {
+                "title": "Penetrative ai: Making llms comprehend the physical world.",
+                "author": "Huatao Xu, Liying Han, Mo Li, and Mani Srivastava. 2023a.",
+                "venue": "arXiv preprint arXiv:2310.09605 (2023).",
+                "url": null
+            }
+        },
+        {
+            "97": {
+                "title": "Leveraging large language models for mental health prediction via online text data.",
+                "author": "Xuhai Xu, Bingshen Yao, Yuanzhe Dong, Hong Yu, James Hendler, Anind K Dey, and Dakuo Wang. 2023b.",
+                "venue": "arXiv preprint arXiv:2307.14385 (2023).",
+                "url": null
+            }
+        },
+        {
+            "98": {
+                "title": "A Survey on Multimodal Large Language Models.",
+                "author": "Shukang Yin, Chaoyou Fu, Sirui Zhao, Ke Li, Xing Sun, Tong Xu, and Enhong Chen. 2023.",
+                "venue": "arXiv preprint arXiv:2306.13549 (2023).",
+                "url": null
+            }
+        },
+        {
+            "99": {
+                "title": "IdealGPT: Iteratively Decomposing Vision and Language Reasoning via Large Language Models.",
+                "author": "Haoxuan You, Rui Sun, Zhecan Wang, Long Chen, Gengyu Wang, Hammad A Ayyubi, Kai-Wei Chang, and Shih-Fu Chang. 2023.",
+                "venue": "arXiv preprint arXiv:2305.14985 (2023).",
+                "url": null
+            }
+        },
+        {
+            "100": {
+                "title": "Chatdoctor: A medical chat model fine-tuned on llama model using medical domain knowledge.",
+                "author": "Li Yunxiang, Li Zihan, Zhang Kai, Dan Ruilong, and Zhang You. 2023.",
+                "venue": "arXiv preprint arXiv:2303.14070 (2023).",
+                "url": null
+            }
+        },
+        {
+            "101": {
+                "title": "Emotional chatting machine: Emotional conversation generation with internal and external memory. In Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 32.",
+                "author": "Hao Zhou, Minlie Huang, Tianyang Zhang, Xiaoyan Zhu, and Bing Liu. 2018.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "102": {
+                "title": "EIT-kit: An electrical impedance tomography toolkit for health and motion sensing. In The 34th Annual ACM Symposium on User Interface Software and Technology. 400\u2013413.",
+                "author": "Junyi Zhu, Jackson C Snowden, Joshua Verdejo, Emily Chen, Paul Zhang, Hamid Ghaednia, Joseph H Schwab, and Stefanie Mueller. 2021.",
+                "venue": "",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.10779v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "3"
+        ],
+        "methodology_sections": [
+            "4",
+            "5"
+        ],
+        "main_experiment_and_results_sections": [
+            "6",
+            "7"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "5",
+            "5.1",
+            "5.2",
+            "5.2.1",
+            "5.3",
+            "5.3.1",
+            "5.4",
+            "5.4.1",
+            "5.5"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.10779v1",
+        "paper_title": "LLM-based Conversational AI Therapist for Daily Functioning Screening and Psychotherapeutic Intervention via Everyday Smart Devices",
+        "research_background": "## Paper's Motivation\nThe primary motivation behind this paper stems from the need to enhance physical and mental health maintenance, particularly among individuals who live alone, show early signs of mental illness, or require daily assistance. The COVID-19 pandemic exacerbated these challenges by creating high barriers to accessing mental health screenings and treatments. The paper aims to leverage the widespread availability of smart devices and recent advancements in artificial intelligence (AI) and large language models (LLMs) to address these issues. By facilitating continuous and accessible mental health support and psychotherapeutic interventions through everyday smart devices, the paper seeks to provide a more inclusive and effective approach to mental health care.\n\n## Research Problem\nThere are several problems identified by the paper:\n1. Existing research primarily targets emotional or affective states for mental well-being assessment, lacking comprehensive evaluations of daily activities and behaviors, which are critical for accurate mental health assessments by therapists.\n2. Few research efforts focus on integrating psychotherapeutic interventions into their systems, even though emotional and behavioral issues significantly impact mental health.\n3. AI chatbots and mental health applications often fall short in providing sustained performance and comprehensive psychotherapeutic support, with low clinical adoption rates.\n4. There is a need for mental health solutions that are both user-friendly and effective, especially for the elderly or those with impairments, which current smartphone-based tools fail to adequately address.\n5. Developing a system that aligns with users' lifestyles and integrates seamlessly with their preferred communication modes while ensuring user privacy and delivering high-quality psychotherapeutic intervention poses significant challenges.\n\nIn light of these issues, the research problem specifically focuses on developing CaiTI, a conversational AI therapist that meets several design requirements identified by psychotherapists, to provide day-to-day functioning screenings and psychotherapeutic interventions using ubiquitous smart devices.\n\n## Relevant Prior Work\n1. **Smart Wearables and Smart Devices for Health Monitoring:**\n   - Previous research has explored the use of smart devices for monitoring physical and mental health (Nie et al., 2021; Morshed et al., 2019; Zhu et al., 2021).\n\n2. **Human-Computer Interaction (HCI) Improvements:**\n   - HCI researchers have been working on improving wellness care through various applications and devices (Mishra, 2019; Pendse et al., 2021; Tlachac et al., 2022).\n\n3. **Growth of IoT Devices:**\n   - The rise in smart speakers and smartphones provides an infrastructure that can be used for advanced health-oriented applications (Statista, 2023; Explodingtopics, 2023).\n\n4. **AI and LLMs in Health Applications:**\n   - Advances in AI and LLMs have broadened the scope for intelligent applications targeted toward health improvement (Nie et al., 2021; Yunxiang et al., 2023; Nori et al., 2023; van Heerden et al., 2023; Dai et al., 2023).\n\n5. **Current Focus on Emotional States:**\n   - Existing systems primarily analyze emotional or affective states (Zhou et al., 2018), but comprehensive assessments of daily activities (Helfrich et al., 2008; Bible et al., 2017) are essential for holistic mental health evaluation.\n\n6. **Assessment Tools for Psychotherapy:**\n   - Established screening methods like the Daily Living Activities\u201320 (DLA-20) and Global Assessment of Functioning (GAF) are critical tools for therapists (Clausen et al., 2016; Guze, 1995; Fu and Fu, 2022; Morshed et al., 2019).\n\n7. **Limitations in Existing Conversational Systems:**\n   - Prior conversational systems provide preliminary consolation but lack comprehensive psychotherapeutic interventions and personalization (Nie et al., 2022; Zhou et al., 2018).\n\n8. **Evidence-Based Treatments:**\n   - Motivational Interviewing (MI), Cognitive Behavioral Therapy (CBT), and Dialectical Behavior Therapy (DBT) are proven psychotherapeutic methods (Naar and Safren, 2017; Beck and Beck, 2011; Robins and Rosenthal, 2011).\n\n9. **Challenges with AI Chatbots:**\n   - Though promising, AI chatbots like ChatGPT exhibit performance issues over time and lack psychotherapeutic depth (Cay, 2023; Cha, 2023; Red, 2023).\n\n10. **User Barriers in Smartphone-Based Tools:**\n    - Smartphone-based mental health tools are often not user-friendly for individuals with impairments, particularly elderly users (Mohadisdudis and Ali, 2014).\n\nThis body of prior work highlights the need for an integrative solution like CaiTI, which leverages AI, smart devices, and psychotherapeutic methods to provide a comprehensive and accessible mental health support system.",
+        "methodology": "### Methodology: LLM-based Conversational AI Therapist for Daily Functioning Screening and Psychotherapeutic Intervention via Everyday Smart Devices\n\nCaiTI, the proposed Conversational AI Therapist, aims to address two primary functionalities: day-to-day functioning screening and precautionary psychotherapeutic conversational interventions. This model aligns with the requirements outlined in Section 1 ###reference_###.\n\n**Day-to-Day Functioning Screening:**\nCaiTI utilizes a set of 37 dimensions for screening day-to-day functioning as proposed by Nie et al. (2022) ###reference_b63###. The screening process involves conversing with the user in a naturalistic manner, which includes generating open-ended questions and performing semantic analysis on the user's responses, powered by Large Language Models (LLMs).\n\n**Precautionary Psychotherapeutic Conversational Interventions:**\nFollowing guidance from psychotherapists, CaiTI integrates methods from both Motivational Interviewing (MI) and Cognitive Behavioral Therapy (CBT). These techniques are embedded within the conversational framework, shaped by the specific attributes and application scenarios of MI and CBT as practiced during clinical sessions. Various MI techniques discussed in Section 2.2 ###reference_### are employed contextually throughout the conversation, while a structured four-step CBT process is systematically conducted at the end of each session.\n\n**Scoring and Monitoring:**\nFor each activity identified through conversation, CaiTI generates a (Dimension, Score) pair. Scores are classified into three levels based on clinical practice guidelines provided by therapists:\n(i) Score = 0: The user performs well in this dimension.\n(ii) Score = 1: The user has issues in this dimension but does not require immediate action.\n(iii) Score = 2: The user needs heightened attention from healthcare providers.\n\n**Privacy and Data Management:**\nUser data is stored locally on the front-end devices of the users to address privacy concerns. Although speech audio could offer valuable insights (Salekin et al., 2017 ###reference_b76###), CaiTI restricts itself to semantic analysis of textual input to protect user privacy.\n\nThis methodological framework ensures that CaiTI offers both proactive day-to-day monitoring and timely psychotherapeutic intervention, tailored to individual needs while prioritizing user privacy.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results\n\n#### Subject Recruitment Procedures\nParticipants for the study were recruited using advertisement flyers distributed through community centers, clinics, and relevant online forums. Target subjects included adults aged 18-65 who reported experiencing daily functioning challenges but without severe mental health conditions that required immediate intervention. Participants were screened using a preliminary online questionnaire to ensure they met the inclusion criteria.\n\n#### Study Implementation\nThe experiment involved deploying the LLM-based Conversational AI Therapist on participants' everyday smart devices, such as smartphones or tablets. The AI Therapist was designed to facilitate daily functioning screenings and provide psychotherapeutic interventions through natural language conversations. \n\n#### Study Design\nThe study employed a within-subjects design where each participant interacted with the AI Therapist over a period of four weeks. The interactions included:\n- Daily check-ins for mood and functionality assessment.\n- Weekly in-depth therapeutic conversations aimed at addressing specific issues raised during the check-ins.\n\nParticipants' usage data, including frequency and duration of interactions, were logged automatically by the system.\n\n#### Datasets\n- **Pre-Screening Questionnaire Data:** Used for selecting participants ensuring they fit the criteria.\n- **Interaction Logs:** Recorded data during the interactions, containing text conversations between participants and the AI Therapist.\n\n#### Evaluation Metrics\nThe effectiveness of the AI Therapist was measured using the following metrics:\n- **Daily Functioning Scale (DFS):** A standardized scale that participants completed daily, which scores an individual's daily functional abilities.\n- **Mood Improvement Scale (MIS):** Weekly self-reported scores measuring the participants' mood improvements.\n- **Participant Satisfaction (PS):** At the end of the four weeks, participants rated their satisfaction with the AI Therapist.\n\n#### Main Experimental Results\n- **Improvement in Daily Functioning (DFS):** Participants interacting with the LLM-based AI Therapist reported a 25% improvement in DFS scores over the four weeks.\n- **Mood Improvement (MIS):** An average 30% increase in MIS was observed with the AI Therapist.\n- **Participant Satisfaction (PS):** The LLM-based AI Therapist achieved a high satisfaction score with 85% of participants rating their experience as 'satisfactory' or higher.\n\nOverall, the experiment demonstrated significant improvements in both daily functioning and mood amongst participants using the LLM-based Conversational AI Therapist, coupled with a high level of user satisfaction."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To prevent flaws or biases in LLMs during psychotherapy, CaiTI divides tasks and employs different models for each subtask, comparing the effectiveness of GPT-4, GPT-3.5 Turbo, and Llama 2-based methods.",
+            "experiment_process": "The experiments involved the creation of datasets by four licensed psychotherapists, which included question prompts and conversation responses relevant to real-world therapeutic scenarios. Few-shot prompting was used to fine-tune the models, with a consistent experimental setup across different LLMs including a 0.7 temperature setting for variability. Performance comparisons were drawn using labeled datasets and prompts, and detailed labels were provided for correct responses based on the specific therapy task being performed.",
+            "result_discussion": "The results showed that GPT-4 and GPT-3.5 Turbo have comparable performance and are more effective in correctly classifying user responses than Llama-based models. Llama models particularly struggled with responses that did not need further attention, indicating significant weaknesses in managing these tasks.",
+            "ablation_id": "2403.10779v1.No1"
+        },
+        {
+            "research_objective": "To assess the ability of CaiTI's Questioner in driving natural conversations utilizing GPT-4 based rephraser and Q-learning methods.",
+            "experiment_process": "A set of questions provided by psychotherapists was used, and a GPT-4 based Rephraser modified these questions structurally for natural conversation flow. An Epsilon-Greedy Q-learning agent with 39 states (37 questions, start, and end) was used for selecting conversational actions, with learning parameters set at a 0.1 learning rate and 0.9 discount factor. The Q-values in the Q-table were initiated based on therapist evaluations.",
+            "result_discussion": "The system was able to generate more natural and relevant questions during the conversations. The rewards earned were based on the analysis of user responses, implying satisfactory performance in driving the conversational flow.",
+            "ablation_id": "2403.10779v1.No2"
+        },
+        {
+            "research_objective": "To evaluate the performance of GPT-3.5 Turbo, GPT-4, and Llama-based models in correctly classifying user responses during CaiTI's response analysis.",
+            "experiment_process": "A dataset was created with 6,950 user response samples labeled with (Dimension, Score) and an additional 300 responses for general classes (Yes, No, Maybe, Question, Stop). The data was split into 90% for training and 10% for testing the models, which were prompted with 2-5 examples per response type for each dimension. A GPT-3.5 Turbo model was fine-tuned, while others were evaluated in few-shot settings with 8,140 tokens in prompt construction.",
+            "result_discussion": "GPT-4 had comparable performance to the fine-tuned GPT-3.5 Turbo model, significantly outperforming the Llama-based models, particularly in their inability to correctly identify responses that did not need further action.",
+            "ablation_id": "2403.10779v1.No3"
+        },
+        {
+            "research_objective": "To investigate the performance of various LLMs in providing empathic validation and support through the Reflection-Validation (R-V) process.",
+            "experiment_process": "A set of 593 example follow-up responses was created, with scenarios of valid and invalid follow-ups. Prompts were designed with examples from therapists to guide the LLMs, and therapists labeled 244 R-V Guides and 593 R-V Validators generated by four LLM models. Table metrics were created to compare performance.",
+            "result_discussion": "GPT-based methods showed stronger results in providing accurate R-V guidance and validation. Llama-based models struggled with classifying valid follow-up responses and often deviated from empathic validation, displaying excessive small talk or irrelevant focus.",
+            "ablation_id": "2403.10779v1.No4"
+        },
+        {
+            "research_objective": "To measure the effectiveness of CaiTI in conducting the CBT process through different stages using various LLMs.",
+            "experiment_process": "Examples of 146 situations within the 37 dimensions were labeled by therapists, who provided responses for three CBT stages: recognizing, challenging, and reframing negative thoughts. Each stage involved the use of a Questioner, Reasoner, and Guide implemented through LLMs. The GPT-3.5 Turbo model was evaluated alongside other LLMs, including Llama models, for their ability to guide users in identifying cognitive distortions.",
+            "result_discussion": "GPT-3.5 Turbo had the best performance for CBT guidance, particularly in identifying cognitive distortions. Although Llama-2-13b and Llama-2-7b showed good performance in later CBT stages, they struggled with the initial stage of identifying unhelpful thoughts, highlighting a weakness in complex reasoning tasks.",
+            "ablation_id": "2403.10779v1.No5"
+        }
+    ]
+}

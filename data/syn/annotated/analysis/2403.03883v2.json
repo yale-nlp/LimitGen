@@ -1,0 +1,945 @@
+{
+    "title": "SaulLM-7B: A pioneering Large Language Model for Law",
+    "abstract": "In this paper, we introduce SaulLM-7B, a large language model (LLM) tailored for the legal domain. With 7 billion parameters, SaulLM-7B is the first LLM designed explicitly for legal text comprehension and generation. Leveraging the Mistral 7B architecture as its foundation, SaulLM-7B is trained on an English legal corpus of over 30 billion tokens. SaulLM-7B exhibits state-of-the-art proficiency in understanding and processing legal documents. Additionally, we present a novel instructional fine-tuning method that leverages legal datasets to further enhance SaulLM-7B\u2019s performance in legal tasks. SaulLM-7B is released under the MIT License.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "In the rapidly evolving landscape of artificial intelligence, the applications of large language models (LLMs) Achiam et al. (2023  ###reference_b1###); Scao et al. (2022  ###reference_b65###); Penedo et al. (2023  ###reference_b59###); Touvron et al. (2023a  ###reference_b71###); Jiang et al. (2023  ###reference_b34###, 2024  ###reference_b35###); Touvron et al. (2023b  ###reference_b72###); Bai et al. (2023  ###reference_b5###) have witnessed large advancements across various domains, like e.g. translation Xu et al. (2023  ###reference_b85###), medical Chen et al. (2023  ###reference_b12###), and code generation Roziere et al. (2023  ###reference_b63###); Li et al. (2023  ###reference_b41###). From natural language processing to machine translation, these models have exhibited exceptional capabilities in understanding and generating human-like text Weber-Wulff et al. (2023  ###reference_b80###); Islam et al. (2023  ###reference_b32###); Mitchell et al. (2023  ###reference_b49###).\nHowever, one field that has yet to experience the full benefit of this transformative technology is the legal domain Martin et al. (2024  ###reference_b47###); Licari and Comand\u00e8 (2022  ###reference_b43###). As legal professionals grapple with an ever-expanding volume of complex documents, there is a growing need for a dedicated LLM that can help navigate and interpret legal material Savelka et al. (2023  ###reference_b64###); Katz et al. (2023  ###reference_b36###); Xiao et al. (2021  ###reference_b84###).\nIn this paper, we present a pioneering initiative to develop the first legal LLM publicly available.\nLegal text, characterized by its unique syntax and specialized vocabulary presents a distinct linguistic challenge Chalkidis et al. (2020  ###reference_b11###); Niklaus et al. (2021  ###reference_b53###).\nOur approach focuses on extensive pretraining Gururangan et al. (2020  ###reference_b27###); Yao et al. (2021  ###reference_b86###) using dedicated legal corpora from English-speaking jurisdictions such as the USA, Canada, the UK, and Europe Aletras et al. (2016  ###reference_b2###); Guti\u00e9rrez-Fandi\u00f1o et al. (2021  ###reference_b28###).\nLeveraging the pretraining on a large and diverse legal dataset, both scraped by our team as well as from previous literature (Niklaus and Giofr\u00e9, 2022  ###reference_b54###), our LLM, SaulLM-7B, aims not only to comprehend the complexities of legal documents but also to adapt to the evolving nature of legal discourse.\nBy focusing on the needs of legal practitioners and harnessing the power of pretraining on dedicated legal corpora, our work represents an important step towards fulfilling the unique demands of the legal domain. We anticipate that introducing the first LLM for law will not only empower legal professionals but also catalyze further innovation at the intersection of artificial intelligence and the legal community - making a significant contribution to legal language understanding and application Prakken (2013  ###reference_b60###). We summarize the contributions of this work as follows:\nIn this paper, we introduce the SaulLM-7B\u2019s family, a collection of Legal Language Models meticulously crafted to tackle the distinctive challenges encountered within the legal domain. We unveil SaulLM-7B, a 7-billion-parameter language model specifically tailored to legal text. With its specialized training regimen, SaulLM-7B demonstrates a superior understanding of the nuances in legal language compared to generic models. Furthermore, we release SaulLM-7B-Instruct, an instruction-tuned variant, carefully engineered to outperform existing models such as Mistral or Llama on a variety of legal tasks111Model is available at https://huggingface.co/Equall  ###reference_huggingface.co/Equall###..\nConcurrently, we introduce LegalBench-Instruct, a supplemental iteration of LegalBench Guha et al. (2022  ###reference_b25###, 2023  ###reference_b26###)222Dataset is processed and available at https://huggingface.co/Equall  ###reference_huggingface.co/Equall###, crafted to better gauge and refine the legal proficiency of language models, which we hope will contribute to future advancements into research in the legal domain. To further enrich the models\u2019 capabilities in legal contexts, we also include the legal tasks of the popular MMLU benchmark Hendrycks et al. (2020  ###reference_b31###) in our evaluation protocol, particularly focusing on international law, professional law333We use the term \u201cprofessional law\u201d here as defined in (Hendrycks et al., 2020  ###reference_b31###) and jurisprudence.\n###figure_1### To foster widespread adoption and promote innovation, we release SaulLM-7B and SaulLM-7B-Instruct, as well as our evaluation code under the MIT License. This open licensing approach encourages collaborative development and adoption into a wide array of commercial and research endeavors within the legal domain and beyond."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "SaulLM-7B: Extending the legal capabilities of Language Models",
+            "text": "A wide range of open-source large language models is available for the backbone, spanning from  million parameter models like Pythia (Biderman et al., 2023  ###reference_b6###) to  billion parameter models like Falcon (Almazrouei et al., 2023  ###reference_b3###). In this work, we choose the Mistral B model, a  billion parameter open-source model that achieves high performance across benchmarks and tasks (Jiang et al., 2023  ###reference_b34###).\nOur methodology, shown in Figure 1  ###reference_### involves a two-step process that we describe below."
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "Enhancing Mistral\u2019s Legal Capabilities",
+            "text": "While generic models Touvron et al. (2023a  ###reference_b71###); Taylor et al. (2022  ###reference_b70###); Zhang et al. (2022  ###reference_b89###); Gu and Dao (2023  ###reference_b24###); Almazrouei et al. (2023  ###reference_b3###); Zhang et al. (2024  ###reference_b88###); Faysse et al. (2024  ###reference_b21###) gain some exposure to legal data during their training, it typically only represents a minor fraction of the overall data. A straightforward method to enhance performance for legal tasks is to perform additional training focusing on legal data. This approach, particularly focused on decoder models, has been successfully used in various fields such as medicine Chen et al. (2023  ###reference_b12###); Ji et al. (2023  ###reference_b33###), translation Xu et al. (2023  ###reference_b85###); Wu et al. (2024  ###reference_b83###), and coding Roziere et al. (2023  ###reference_b63###).\nThe key advantage of this approach is its scalability and independence from the specific characteristics of the training data.\nOther research on domain adaptation has attempted to specialize language models via pretext tasks. However, these efforts often rely on smaller-scale approaches Niklaus and Giofr\u00e9 (2023  ###reference_b55###), are computationally expensive Vu et al. (2020  ###reference_b76###); Lu et al. (2023  ###reference_b45###), or lack scalability Cheng et al. (2023  ###reference_b13###); Cui et al. (2023  ###reference_b16###); Nishida et al. (2019  ###reference_b57###).\nFor these reasons, as well as the availability of large-scale legal corpora from the web, we chose to focus on continued pretraining.\nWe meticulously curate a high-quality dataset sourced from diverse legal content repositories. After rigorous filtering\n(Penedo et al., 2023  ###reference_b59###) and deduplication (Mou et al., 2023  ###reference_b50###; Kocetkov et al., 2023  ###reference_b37###), we end up with a corpus of  billion tokens, which serves as a robust foundation for continued pretraining."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "Improving Legal Instruction Following",
+            "text": "To support user requests and conversational interaction, LLMs typically undergo instruction tuning, a critical process involving training on supervised conversational pairs. This step is essential for crafting a versatile model, adept at addressing user queries Wang et al. (2023a  ###reference_b77###); Wei et al. (2021  ###reference_b81###); Chung et al. (2022  ###reference_b14###); Faysse et al. (2023  ###reference_b22###); Ding et al. (2023  ###reference_b19###); Wang et al. (2023b  ###reference_b78###).\nFor general-purpose language models, diversity and quality of instruction are crucial Cao et al. (2023  ###reference_b9###); Zhou et al. (2023  ###reference_b90###). However, in specialized domains it is crucial to incorporate task-specific and specialized prompts to enhance performance. Our instruction fine-tuning stage involves  key components: generic (ie, non-legal) and legal instructions. The former help enhance the model\u2019s understanding and following of commands, and includes data from diverse domains such as coding, mathematics, and general conversations. For the latter we employ an extensive collection of datasets tailored to the nuances of legal domains, covering legal question answering and summarization, among others.\nThrough this meticulous fine-tuning on instructional data, our model, SaulLM-7B-Instruct, is able to grasp legal intricacies and excels in a wide range of associated tasks.\nIt\u2019s worth noting that many common LLMs Tunstall et al. (2023  ###reference_b74###) include an additional step of to align the model with human preference Rafailov et al. (2023  ###reference_b62###); Munos et al. (2023  ###reference_b52###); von Werra et al. (2020  ###reference_b75###). In our case, early experiments did not show any meaningful improvement in performance and so we opted to not pursue this avenue for the present paper."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Data",
+            "text": "In this section we describe our data collection and cleaning schemes.\nWe combine both previously available datasets, such as the FreeLaw subset from The Pile (Gao et al., 2020  ###reference_b23###) and MultiLegal Pile (Niklaus et al., 2023  ###reference_b56###), as well as data scraped from publicly available sources on the Web. We list the different sources of data in Table 1  ###reference_###.\n###table_1### There is quite a lot of overlap between the different sources, and we run very aggressive cleaning and deduplication steps, described in Section 3.1.2  ###reference_.SSS2###.\nTo reduce the risk of catastrophic forgetting (McCloskey and Cohen, 1989  ###reference_b48###) during continued pretraining, we incorporate data from the prior training distribution, following prior literature Chen et al. (2023  ###reference_b12###); Sun et al. (2020  ###reference_b69###). However, since the training data for Mistral is undisclosed, we introduce commonly available \u201cgeneral\u201d data from Wikipedia, StackExchange, and GitHub, comprising roughly  of the final training mix. These datasets are sampled from SlimPajama Shen et al. (2023  ###reference_b66###); Computer (2023  ###reference_b15###); Soboleva et al. (2023  ###reference_b68###).\nAdditionally, we found it beneficial to include conversational data during pretraining. This is inspired by recent advances in neural machine translation, which highlight that the robust capabilities of LLMs in translation are due to the existence of accidental parallel data in the training corpus Anil et al. (2023  ###reference_b4###); Briakou et al. (2023  ###reference_b7###). Specifically, this means that we include the Super Natural Instruction Wang et al. (2022  ###reference_b79###) and FLAN collection Longpre et al. (2023  ###reference_b44###) during pretraining.\nWe normalize all unicode with the NFKC method, available through the unicodedata Python package.\nFollowing Elazar et al. (2023  ###reference_b20###), we found the most common 10-grams in our dataset and used regular expressions to remove the undesired ones, which were mostly repeated characters. Concretely,  of the top  10-grams in the original data were repeated characters, eg: \u201c- - - - - - - - - -\u201d, \u201c. . . . . . . . . .\u201d, or \u201c* * * * * * * * * *\u201d, and weird characters, ie encoding issues. Additionally, we removed repeated whitespace (spaces, new lines, and tabs), as well as any HTML tag that made it through our pipeline.\nWe trained a KenLM model (Heafield, 2011  ###reference_b29###) on a small subset of carefully inspected legal data, and used it to filter any high perplexity paragraph. This removed non-English text as well as most of the \u201cweird\u201d unicode sequences present in the data. We show some of the most common -grams in the filtered data on Table 2  ###reference_###.\nWhen it comes to general instructions, we gather them from four primary sources:\nSlimOrca This subset of the FLAN collection comprises generic instructions, offering a focused resource for various tasks Mukherjee et al. (2023  ###reference_b51###); Lian et al. (2023  ###reference_b42###).\nMeta Math Question Answering Instructions Designed for mathematical inquiry, this dataset151515Accessible at meta-math/MetaMathQA  ###reference_h/MetaMathQA### presents a range of mathematical questions, facilitating research in math-based natural language processing Yu et al. (2023  ###reference_b87###).\nGeneral Conversations from UltraChat Capturing diverse conversational contexts, this GPT-derived dataset contributes to enhancing natural language understanding and generation systems Ding et al. (2023  ###reference_b19###).\nCode Instructions from Glaive Code Assistant v2161616Available at https://huggingface.co/datasets/glaiveai/glaive-code-assistant-v2  ###reference_laive-code-assistant-v2### Training on code has been shown to increase the reasoning ability of models (Ma et al., 2023  ###reference_b46###)\nWe meticulously filter, deduplicate, and curate all this data, resulting in a refined dataset comprising K instructions.\nWe synthetically generate comprehensive conversations addressing fundamental legal competencies across multiple legal document types Ding et al. (2023  ###reference_b19###). We leverage a Mistral-7B-instruct to transform legal texts augmented with metadata into coherent conversations.\nThe methodology involves initiating the conversation with  predefined turns: (1) the user articulates a request related to the legal document, (2) the assistant responds by rephrasing the metadata (e.g., document type, date, name of a judge), and (3) the user prompts the assistant to elaborate on its reasoning. Subsequently, we extend the conversation through a series of turns, where a user model progressively poses more specific questions to grasp the assistant\u2019s reasoning. Simultaneously, an assistant model provides in-depth insights. An illustrative example is presented in Figure 2  ###reference_###. Notably, we ensure the exclusion of the test set from existing benchmarks.\n###figure_2###"
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Legal Pretraining Corpora",
+            "text": "Unlike fields such as science and medicine, the legal landscape varies significantly across countries and jurisdictions, reflecting differences not only in local laws but also in legal traditions, like common law versus civil law Henderson et al. (2022  ###reference_b30###). Thus, we gathered legal texts from various jurisdictions, with a primary focus on the English language due to its widespread use in legal contexts worldwide. Our collection includes data from the U.S. Tuggener et al. (2020  ###reference_b73###), Europe Chalkidis et al. (2019  ###reference_b10###), and Australia Butler (2023  ###reference_b8###), covering a diverse range of legal systems. Through this thorough curation process and aggressive cleaning (see Section 3.1.2  ###reference_.SSS2###), we end up with a corpus of 30 billion tokens, capturing the intricacies of legal language across regions.\nWe combine both previously available datasets, such as the FreeLaw subset from The Pile (Gao et al., 2020  ###reference_b23###  ###reference_b23###) and MultiLegal Pile (Niklaus et al., 2023  ###reference_b56###  ###reference_b56###), as well as data scraped from publicly available sources on the Web. We list the different sources of data in Table 1  ###reference_###  ###reference_###.\n###table_2### There is quite a lot of overlap between the different sources, and we run very aggressive cleaning and deduplication steps, described in Section 3.1.2  ###reference_.SSS2###  ###reference_.SSS2###.\nTo reduce the risk of catastrophic forgetting (McCloskey and Cohen, 1989  ###reference_b48###  ###reference_b48###) during continued pretraining, we incorporate data from the prior training distribution, following prior literature Chen et al. (2023  ###reference_b12###  ###reference_b12###); Sun et al. (2020  ###reference_b69###  ###reference_b69###). However, since the training data for Mistral is undisclosed, we introduce commonly available \u201cgeneral\u201d data from Wikipedia, StackExchange, and GitHub, comprising roughly  of the final training mix. These datasets are sampled from SlimPajama Shen et al. (2023  ###reference_b66###  ###reference_b66###); Computer (2023  ###reference_b15###  ###reference_b15###); Soboleva et al. (2023  ###reference_b68###  ###reference_b68###).\nAdditionally, we found it beneficial to include conversational data during pretraining. This is inspired by recent advances in neural machine translation, which highlight that the robust capabilities of LLMs in translation are due to the existence of accidental parallel data in the training corpus Anil et al. (2023  ###reference_b4###  ###reference_b4###); Briakou et al. (2023  ###reference_b7###  ###reference_b7###). Specifically, this means that we include the Super Natural Instruction Wang et al. (2022  ###reference_b79###  ###reference_b79###) and FLAN collection Longpre et al. (2023  ###reference_b44###  ###reference_b44###) during pretraining.\nWe normalize all unicode with the NFKC method, available through the unicodedata Python package.\nFollowing Elazar et al. (2023  ###reference_b20###  ###reference_b20###), we found the most common 10-grams in our dataset and used regular expressions to remove the undesired ones, which were mostly repeated characters. Concretely,  of the top  10-grams in the original data were repeated characters, eg: \u201c- - - - - - - - - -\u201d, \u201c. . . . . . . . . .\u201d, or \u201c* * * * * * * * * *\u201d, and weird characters, ie encoding issues. Additionally, we removed repeated whitespace (spaces, new lines, and tabs), as well as any HTML tag that made it through our pipeline.\nWe trained a KenLM model (Heafield, 2011  ###reference_b29###  ###reference_b29###) on a small subset of carefully inspected legal data, and used it to filter any high perplexity paragraph. This removed non-English text as well as most of the \u201cweird\u201d unicode sequences present in the data. We show some of the most common -grams in the filtered data on Table 2  ###reference_###  ###reference_###."
+        },
+        {
+            "section_id": "3.1.1",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.1 Dataset Composition",
+            "text": "We combine both previously available datasets, such as the FreeLaw subset from The Pile (Gao et al., 2020  ###reference_b23###  ###reference_b23###  ###reference_b23###) and MultiLegal Pile (Niklaus et al., 2023  ###reference_b56###  ###reference_b56###  ###reference_b56###), as well as data scraped from publicly available sources on the Web. We list the different sources of data in Table 1  ###reference_###  ###reference_###  ###reference_###.\n###table_3### There is quite a lot of overlap between the different sources, and we run very aggressive cleaning and deduplication steps, described in Section 3.1.2  ###reference_.SSS2###  ###reference_.SSS2###  ###reference_.SSS2###.\nTo reduce the risk of catastrophic forgetting (McCloskey and Cohen, 1989  ###reference_b48###  ###reference_b48###  ###reference_b48###) during continued pretraining, we incorporate data from the prior training distribution, following prior literature Chen et al. (2023  ###reference_b12###  ###reference_b12###  ###reference_b12###); Sun et al. (2020  ###reference_b69###  ###reference_b69###  ###reference_b69###). However, since the training data for Mistral is undisclosed, we introduce commonly available \u201cgeneral\u201d data from Wikipedia, StackExchange, and GitHub, comprising roughly  of the final training mix. These datasets are sampled from SlimPajama Shen et al. (2023  ###reference_b66###  ###reference_b66###  ###reference_b66###); Computer (2023  ###reference_b15###  ###reference_b15###  ###reference_b15###); Soboleva et al. (2023  ###reference_b68###  ###reference_b68###  ###reference_b68###).\nAdditionally, we found it beneficial to include conversational data during pretraining. This is inspired by recent advances in neural machine translation, which highlight that the robust capabilities of LLMs in translation are due to the existence of accidental parallel data in the training corpus Anil et al. (2023  ###reference_b4###  ###reference_b4###  ###reference_b4###); Briakou et al. (2023  ###reference_b7###  ###reference_b7###  ###reference_b7###). Specifically, this means that we include the Super Natural Instruction Wang et al. (2022  ###reference_b79###  ###reference_b79###  ###reference_b79###) and FLAN collection Longpre et al. (2023  ###reference_b44###  ###reference_b44###  ###reference_b44###) during pretraining."
+        },
+        {
+            "section_id": "3.1.2",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.2 Data Cleaning",
+            "text": "A significant fraction of the collected data is either in PDF files or is text extracted from PDFs141414We used Poppler  ###reference_poppler.freedesktop.org/### for text extraction from PDF files.. This means that the text has some artifacts, including i) page numbers in the middle of sentences; ii) line numbers; iii) non-normalized unicode characters; iv) broken lines of text; v) repeated characters: new lines, dashes, etc; vi) other artifacts. We addressed these issues using a combination of rules and heuristics to filter the data.\nWe normalize all unicode with the NFKC method, available through the unicodedata Python package.\nFollowing Elazar et al. (2023  ###reference_b20###  ###reference_b20###  ###reference_b20###), we found the most common 10-grams in our dataset and used regular expressions to remove the undesired ones, which were mostly repeated characters. Concretely,  of the top  10-grams in the original data were repeated characters, eg: \u201c- - - - - - - - - -\u201d, \u201c. . . . . . . . . .\u201d, or \u201c* * * * * * * * * *\u201d, and weird characters, ie encoding issues. Additionally, we removed repeated whitespace (spaces, new lines, and tabs), as well as any HTML tag that made it through our pipeline.\nWe trained a KenLM model (Heafield, 2011  ###reference_b29###  ###reference_b29###  ###reference_b29###) on a small subset of carefully inspected legal data, and used it to filter any high perplexity paragraph. This removed non-English text as well as most of the \u201cweird\u201d unicode sequences present in the data. We show some of the most common -grams in the filtered data on Table 2  ###reference_###  ###reference_###  ###reference_###."
+        },
+        {
+            "section_id": "3.1.3",
+            "parent_section_id": "3.1",
+            "section_name": "3.1.3 Data Deduplication",
+            "text": "Inspired by Kocetkov et al. (2023  ###reference_b37###); Lee et al. (2021  ###reference_b39###), we removed duplicates and near-duplicates from the training data using Mou et al. (2023  ###reference_b50###), with default parameters, after which we were left with roughly B tokens of high-quality text."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Instruction Finetuning Mixes",
+            "text": "Instruction fine-tuning is crucial for getting the best performance out of the pre-trained decoder models across different tasks. We use a mix of general and legal instructions to train the model to understand and follow instructions well, with a focus on legal expertise.\nWhen it comes to general instructions, we gather them from four primary sources:\nSlimOrca This subset of the FLAN collection comprises generic instructions, offering a focused resource for various tasks Mukherjee et al. (2023  ###reference_b51###  ###reference_b51###); Lian et al. (2023  ###reference_b42###  ###reference_b42###).\nMeta Math Question Answering Instructions Designed for mathematical inquiry, this dataset151515Accessible at meta-math/MetaMathQA  ###reference_h/MetaMathQA###  ###reference_h/MetaMathQA### presents a range of mathematical questions, facilitating research in math-based natural language processing Yu et al. (2023  ###reference_b87###  ###reference_b87###).\nGeneral Conversations from UltraChat Capturing diverse conversational contexts, this GPT-derived dataset contributes to enhancing natural language understanding and generation systems Ding et al. (2023  ###reference_b19###  ###reference_b19###).\nCode Instructions from Glaive Code Assistant v2161616Available at https://huggingface.co/datasets/glaiveai/glaive-code-assistant-v2  ###reference_laive-code-assistant-v2###  ###reference_laive-code-assistant-v2### Training on code has been shown to increase the reasoning ability of models (Ma et al., 2023  ###reference_b46###  ###reference_b46###)\nWe meticulously filter, deduplicate, and curate all this data, resulting in a refined dataset comprising K instructions.\nWe synthetically generate comprehensive conversations addressing fundamental legal competencies across multiple legal document types Ding et al. (2023  ###reference_b19###  ###reference_b19###). We leverage a Mistral-7B-instruct to transform legal texts augmented with metadata into coherent conversations.\nThe methodology involves initiating the conversation with  predefined turns: (1) the user articulates a request related to the legal document, (2) the assistant responds by rephrasing the metadata (e.g., document type, date, name of a judge), and (3) the user prompts the assistant to elaborate on its reasoning. Subsequently, we extend the conversation through a series of turns, where a user model progressively poses more specific questions to grasp the assistant\u2019s reasoning. Simultaneously, an assistant model provides in-depth insights. An illustrative example is presented in Figure 2  ###reference_###  ###reference_###. Notably, we ensure the exclusion of the test set from existing benchmarks.\n###figure_3###"
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Evaluation of Legal Knowledge",
+            "text": "To evaluate the model\u2019s legal abilities, we use  benchmarks (i) we compare the perplexity of the backbones on  types of legal documents, (ii) we enhance LegalBench with LegalBench-Instruct for deeper evaluation, (iii) we rely on the legal section of MMLU for additional insights.\nTo evaluate the adaptability of the backbones to legal documents, we assess perplexity using benchmark datasets spanning four distinct legal domains: contracts, judicial decisions, opinion text, and legislation. We ensure that the datasets are up-to-date, and sourced after the collection cut-off date from LLM data. Specifically, contract data is sourced from EDGAR (first quarter of 2024), legal decisions from ICSID court decisions published after October 2023, legislation focuses on US bills submitted before the House or Senate after October 2023, and party submissions include Texas briefs submitted after October 2023.\nDuring our investigations, we found a significant limitation in the original prompts of LegalBench. The complex nature of these prompts, combined with the challenges encountered by open source LLMs in adhering to instructions - particularly in handling formatting - leads to a substantial drop in performance (as measured by accuracy). The generated sentences are often verbose and difficult to parse, rendering LegalBench in its current form too stringent and failing to accurately gauge improvement on the task.\nFor example, in some of the tasks, performance is evaluated by the first word the model predicts, and this word is expected to be a Yes/No. This means that if the response is a bit verbose it will be counted as incorrect, even if a human would classify it as a correct answer. To remedy this shortcoming, we refine the prompts by 1) removing distracting few-shot examples and 2) concluding with a specific instruction for the model to generate tags (see Table 3  ###reference_###).\nThe Telemarketing Sales Rule is provided by 16 C.F.R. \u00a7 310.3(a)(1) and 16 C.F.R. \u00a7 310.3(a)(2).\nQuestion: Acme Toys is a telemarketer subject to the Telemarketing Sales Rule. Acme Toys told a customer that its frisbees cost $10 each, when in fact the frisbees cost $12 each. The customer agreed to the sale and was charged $12. Is this a violation of the Telemarketing Sales Rule?\nAnswer: Yes\nQuestion: Acme Toys is a telemarketer subject to the Telemarketing Sales Rule. Acme Toys told a customer that its frisbees cost $10 each, when in fact the frisbees did cost $10, but Acme Toys did not disclose that shipping would cost an additional $5. The customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?\nAnswer: Yes\nQuestion: Acme Industrial Products is a telemarketer subject to the Telemarketing Sales Rule. Acme Industrial Products told a customer that its brooms cost $12 each, and the brooms did in fact cost $12. The customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?\nAnswer: No\nQuestion: Acme Industrial Products is a telemarketer subject to the Telemarketing Sales Rule. Acme Industrial Products told a customer that it would sell them 4 brooms for $10 and that shipping would be $5. Then, the customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?\nAnswer: No\nQuestion: {text}\nCurated Prompt (Ours)\nThe Telemarketing Sales Rule is provided by 16 C.F.R. \u00a7 310.3(a)(1) and 16 C.F.R. \u00a7 310.3(a)(2).\nAnswer the following question: {text}\nAnswer by only outputting \"Yes\" or \"No\"\nThe MMLU benchmark (Hendrycks et al., 2020  ###reference_b31###) has been widely employed to gauge the advances in LLM performance. In our study, we center our analysis on the legal domain, with a specific focus on:\ninternational law, professional law, and jurisprudence. Those tasks respectively contain , , and  examples."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Metrics",
+            "text": "We use the same metric as the original LegalBench Guha et al. (2023  ###reference_b26###) paper: balanced accuracy. Balanced accuracy allows for handling better-imbalanced classification tasks, such as the ones presented in both benchmarks. We also use balanced accuracy for the legal tasks of MMLU. Unless otherwise noted, any score reported throughout this section refers to the balanced accuracy."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Experimental Setting",
+            "text": "###figure_4### Our codebase relies on open-source frameworks Shoeybi et al. (2019  ###reference_b67###); Wolf et al. (2019  ###reference_b82###); Lhoest et al. (2021  ###reference_b40###) utilizing DeepSpeed (level 3) with Flash attention Dao et al. (2022  ###reference_b18###); Dao (2023  ###reference_b17###). It is built on PyTorch Paszke et al. (2019  ###reference_b58###), and our models are available on the Huggingface hub.\nContinuous pretraining utilizes  MI250 AMD GPUs. For instruction fine-tuning, workload distribution occurs across 16 MI250. Evaluation procedures are seamlessly conducted on a single MI250."
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "Baselines",
+            "text": "We compare the SaulLM-7B family to other state-of-the-art B and B open-source models. Concretely, we include the following instruction and DPO finetuned variants of Mistral-7B (Jiang et al., 2023  ###reference_b34###): Mistral-7B-Instruct-v0.1, Mistral-7B-Instruct-v0.2\n, as well as zephyr-7b-beta171717https://huggingface.co/HuggingFaceH4/zephyr-7b-beta  ###reference_r-7b-beta###. We also evaluate the Llama2 (Touvron et al., 2023a  ###reference_b71###) family, more specifically Llama2-7b-Chatand Llama2-13b-Chat."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "Implementation Details",
+            "text": "Our codebase relies on open-source frameworks Shoeybi et al. (2019  ###reference_b67###  ###reference_b67###); Wolf et al. (2019  ###reference_b82###  ###reference_b82###); Lhoest et al. (2021  ###reference_b40###  ###reference_b40###) utilizing DeepSpeed (level 3) with Flash attention Dao et al. (2022  ###reference_b18###  ###reference_b18###); Dao (2023  ###reference_b17###  ###reference_b17###). It is built on PyTorch Paszke et al. (2019  ###reference_b58###  ###reference_b58###), and our models are available on the Huggingface hub.\nContinuous pretraining utilizes  MI250 AMD GPUs. For instruction fine-tuning, workload distribution occurs across 16 MI250. Evaluation procedures are seamlessly conducted on a single MI250."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Results",
+            "text": "In this section, we discuss our main experimental findings and results.\nWe start by analyzing the impact of our proposed continued pretraining. As seen on Figure 3  ###reference_###, SaulLM-7B is a strong standalone model. We speculate that its strong performance is largely due to the integration of instructions in the pre-training data, as mentioned in subsubsection 3.1.1  ###reference_.SSS1###. Nevertheless, we still note that even without a dedicated instruction fine-tuning stage, SaulLM-7B performs on par with Llama2-7B-chat ( v.s. ). More importantly, SaulLM-7B serves as a strong base model for building IFT models with strong legal capabilities. When combined with Generic instruction finetuning, as seen on Figure 4  ###reference_###, it achieves a strong average of , i.e.  absolute points of improvement with respect to the best open-source instruct model Mistral-7B-Instruct-v0.1.\n###figure_5### As seen on Figure 2  ###reference_###, finetuning SaulLM-7B on both general and legal instructions (SaulLM-7B-Instruct) establishes a new state-of-the-art on the LegalBench-Instruct benchmark, with an average score of , i.e. an % relative improvement compared to the best open-source instruct model (Figure 5  ###reference_###.\nFinally, DPO-aligned models tend to underperform their instruction-tuned counterparts, which could be explained by the fact that generic alignment is not suited for out-of-distribution tasks, such as the ones present in LegalBench-Instruct. Although beyond the scope of the present work, an interesting research direction would be to explore how legal-specific DPO can help.\n###figure_6### ###figure_7### Next, we follow the original LegalBench taxonomy (Guha et al., 2023  ###reference_b26###) to gain a more granular understanding of SaulLM-7B-Instruct\u2019s performance, by partitioning the tasks into  core legal abilities: Issue Spotting, Rule-Recall, Interpretation, Rhetoric Understanding, and Rule-Conclusion. Results show an interesting trend (Figure 7  ###reference_###): SaulLM-7B-Instruct shows clear superior performance over the best non-legal competitor Mistral-7B-Instruct-v0.1 on the four areas that require the most legal expertise, i.e. Issue, Rule, Interpretation and Understanding. On the other hand, it falls short of Mistral-7B-Instruct-v0.1 on the Conclusion tasks, which interestingly require much more pure deductive reasoning than actual legal knowledge. We speculate that augmenting our pretraining and fine-tuning corpora with more deductive reasoning content, including but not limited to mathematics datasets could reduce the gap and fully unlock the potential of SaulLM-7B-Instruct.\n###figure_8###"
+        },
+        {
+            "section_id": "6.2",
+            "parent_section_id": "6",
+            "section_name": "Results on Legal-MMLU",
+            "text": "To confirm our observations on LegalBench-Instruct, we analyze the results on Legal-MMLU shown in Figure 6  ###reference_###. Again, SaulLM-7B-Instruct exhibits consistent superiority over non-legal instruction-tuned models, with a gap between  and  absolute points to the best 7B open-source competitor across the three tasks, providing additional evidence that SaulLM-7B-Instruct is as a strong foundation to build models tailored to legal workflows.\n###figure_13###"
+        },
+        {
+            "section_id": "6.3",
+            "parent_section_id": "6",
+            "section_name": "Perplexity Analysis",
+            "text": "To assess the adaptation of SaulLM-7B backbone to the legal domain, we present perplexity scores across four document types: contracts, legal decisions, legislation, and party submissions. Refer to Figure 8  ###reference_### for the results. Our model, SaulLM-7B, consistently outperforms Mistral-7B across all categories, exhibiting lower average perplexity scores with reduced variance. Interestingly, Llama2-7B demonstrates lower perplexity specifically in legislation documents, suggesting a potentially higher proportion of legislative text in the pertaining corpora compared to Mistral-7B.\nOverall, compared to Mistral-7B, our model shows a median perplexity reduction of 3 percent across legal corpora and 11 percent when compared to Llama2-7B."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "Conclusion & Future Perspectives",
+            "text": "In this paper, we introduce SaulLM-7B, an open-source decoder model delivering state-of-the-art performance, compared to 7B models, within the legal domain. Our approach entails fine-tuning legal data alongside instruction fine-tuning on synthetic datasets. Additionally, we contribute by providing a cleaned version of LegalBench and introducing a new set of documents for perplexity measurement. We hope that our model, which is released under the MIT license, will contribute to the open-source ecosystem and the community."
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S3.T1.11\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.11.12.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_tt\" id=\"S3.T1.11.12.1.1\">Name</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.11.12.1.2\">Tokens</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.1.1.2\">FreeLaw<span class=\"ltx_note ltx_role_footnote\" id=\"footnote4\"><sup class=\"ltx_note_mark\">4</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">4</sup><span class=\"ltx_tag ltx_tag_note\">4</span>We used the subset from The Pile <cite class=\"ltx_cite ltx_citemacro_citep\">(Gao et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.03883v2#bib.bib23\" title=\"\">2020</a>)</cite>.</span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.1.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.11.13.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.11.13.2.1\">EDGAR<span class=\"ltx_note ltx_role_footnote\" id=\"footnote5\"><sup class=\"ltx_note_mark\">5</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">5</sup><span class=\"ltx_tag ltx_tag_note\">5</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://www.sec.gov/edgar\" title=\"\">https://www.sec.gov/edgar</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.11.13.2.2\">5B</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.2.2.2\">English MultiLegal Pile<span class=\"ltx_note ltx_role_footnote\" id=\"footnote6\"><sup class=\"ltx_note_mark\">6</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">6</sup><span class=\"ltx_tag ltx_tag_note\">6</span>We limited ourselves to the commercially-licensed subset: <a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://huggingface.co/datasets/joelniklaus/Multi_Legal_Pile_Commercial\" title=\"\">https://huggingface.co/datasets/joelniklaus/Multi_Legal_Pile_Commercial</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.2.2.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.3.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.3.3.2\">English EuroParl <cite class=\"ltx_cite ltx_citemacro_citep\">(Koehn, <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.03883v2#bib.bib38\" title=\"\">2005</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.3.3.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.4.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.4.4.2\">GovInfo<span class=\"ltx_note ltx_role_footnote\" id=\"footnote7\"><sup class=\"ltx_note_mark\">7</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">7</sup><span class=\"ltx_tag ltx_tag_note\">7</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://www.govinfo.gov/\" title=\"\">https://www.govinfo.gov/</a></span></span></span> Statutes, Opinions &amp; Codes</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.4.4.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.5.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.5.5.2\">Law Stack Exchange<span class=\"ltx_note ltx_role_footnote\" id=\"footnote8\"><sup class=\"ltx_note_mark\">8</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">8</sup><span class=\"ltx_tag ltx_tag_note\">8</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://huggingface.co/datasets/ymoslem/Law-StackExchange\" title=\"\">https://huggingface.co/datasets/ymoslem/Law-StackExchange</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.5.5.1\">\nM</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.6.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.6.6.2\">Commercial Open Australian Legal Corpus<span class=\"ltx_note ltx_role_footnote\" id=\"footnote9\"><sup class=\"ltx_note_mark\">9</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">9</sup><span class=\"ltx_tag ltx_tag_note\">9</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://github.com/umarbutler/open-australian-legal-corpus-creator\" title=\"\">https://github.com/umarbutler/open-australian-legal-corpus-creator</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.6.6.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.7.7\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.7.7.2\">EU Legislation<span class=\"ltx_note ltx_role_footnote\" id=\"footnote10\"><sup class=\"ltx_note_mark\">10</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">10</sup><span class=\"ltx_tag ltx_tag_note\">10</span>Scraped from <a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://eur-lex.europa.eu/homepage.html\" title=\"\">https://eur-lex.europa.eu/homepage.html</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.7.7.1\">\nM</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.8.8\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.8.8.2\">UK Legislation<span class=\"ltx_note ltx_role_footnote\" id=\"footnote11\"><sup class=\"ltx_note_mark\">11</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">11</sup><span class=\"ltx_tag ltx_tag_note\">11</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://www.legislation.gov.uk/\" title=\"\">https://www.legislation.gov.uk/</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.8.8.1\">\nM</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.9.9\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.9.9.2\">Court Transcripts<span class=\"ltx_note ltx_role_footnote\" id=\"footnote12\"><sup class=\"ltx_note_mark\">12</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">12</sup><span class=\"ltx_tag ltx_tag_note\">12</span>Obtained from CourtListener: <a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://www.courtlistener.com/\" title=\"\">https://www.courtlistener.com/</a>. We use Whisper <cite class=\"ltx_cite ltx_citemacro_citep\">(Radford et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.03883v2#bib.bib61\" title=\"\">2022</a>)</cite> to transcribe the audio files.</span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.9.9.1\">\nM</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.10.10\">\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T1.10.10.2\">UPSTO<span class=\"ltx_note ltx_role_footnote\" id=\"footnote13\"><sup class=\"ltx_note_mark\">13</sup><span class=\"ltx_note_outer\"><span class=\"ltx_note_content\"><sup class=\"ltx_note_mark\">13</sup><span class=\"ltx_tag ltx_tag_note\">13</span><a class=\"ltx_ref ltx_url ltx_font_typewriter\" href=\"https://bulkdata.uspto.gov/\" title=\"\">https://bulkdata.uspto.gov/</a></span></span></span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.10.10.1\">\nB</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.11.11\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.11.11.2\">Total</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.11.11.1\">\nB</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.13.1\">Sources of Legal Pretraining Data.</span> These sources contain noise and heavily duplicated documents, which we filtered and deduplicated, resulting in a 30 billion tokens dataset.</figcaption>\n</figure>",
+            "capture": "Table 1: Sources of Legal Pretraining Data. These sources contain noise and heavily duplicated documents, which we filtered and deduplicated, resulting in a 30 billion tokens dataset."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T2\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T2.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T2.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T2.1.1.1.1\">Common 10-grams</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T2.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T2.1.2.1.1\"><span class=\"ltx_text ltx_font_typewriter\" id=\"S3.T2.1.2.1.1.1\">have been obvious to one of ordinary skill in the</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.1.3.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.1.3.2.1\"><span class=\"ltx_text ltx_font_typewriter\" id=\"S3.T2.1.3.2.1.1\">before the effective filing date of the claimed invention to</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.1.4.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T2.1.4.3.1\"><span class=\"ltx_text ltx_font_typewriter\" id=\"S3.T2.1.4.3.1.1\">rejected under 35 U.S.C . 103 as being unpatentable over</span></td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.3.1\">Most common 10-grams</span> in the pretraining dataset.</figcaption>\n</figure>",
+            "capture": "Table 2: Most common 10-grams in the pretraining dataset."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1\">\n<th class=\"ltx_td ltx_align_justify ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1\" style=\"width:199.2pt;\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S4.T3.1.1.1.1.1\">Original Prompt</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.2.1\">\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S4.T3.1.2.1.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.2.1.1.1\">The Telemarketing Sales Rule is provided by 16 C.F.R. \u00a7 310.3(a)(1) and 16 C.F.R. \u00a7 310.3(a)(2).</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.3.2\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.3.2.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.3.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.3.2.1.1.1\">Question:</span> Acme Toys is a telemarketer subject to the Telemarketing Sales Rule. Acme Toys told a customer that its frisbees cost $10 each, when in fact the frisbees cost $12 each. The customer agreed to the sale and was charged $12. Is this a violation of the Telemarketing Sales Rule?</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.4.3\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.4.3.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.4.3.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.4.3.1.1.1\">Answer:</span> Yes</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.5.4\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.5.4.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.5.4.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.5.4.1.1.1\">Question:</span> Acme Toys is a telemarketer subject to the Telemarketing Sales Rule. Acme Toys told a customer that its frisbees cost $10 each, when in fact the frisbees did cost $10, but Acme Toys did not disclose that shipping would cost an additional $5. The customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.6.5\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.6.5.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.6.5.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.6.5.1.1.1\">Answer:</span> Yes</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.7.6\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.7.6.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.7.6.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.7.6.1.1.1\">Question:</span> Acme Industrial Products is a telemarketer subject to the Telemarketing Sales Rule. Acme Industrial Products told a customer that its brooms cost $12 each, and the brooms did in fact cost $12. The customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.8.7\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.8.7.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.8.7.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.8.7.1.1.1\">Answer:</span> No</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.9.8\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.9.8.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.9.8.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.9.8.1.1.1\">Question:</span> Acme Industrial Products is a telemarketer subject to the Telemarketing Sales Rule. Acme Industrial Products told a customer that it would sell them 4 brooms for $10 and that shipping would be $5. Then, the customer agreed to the sale. Is this a violation of the Telemarketing Sales Rule?</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.10.9\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.10.9.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.10.9.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.10.9.1.1.1\">Answer:</span> No</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.11.10\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.11.10.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.11.10.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.11.10.1.1.1\">Question:</span> {text}</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.12.11\">\n<td class=\"ltx_td ltx_align_justify\" id=\"S4.T3.1.12.11.1\" style=\"width:199.2pt;\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S4.T3.1.12.11.1.1\">Answer:</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.13.12\">\n<td class=\"ltx_td ltx_align_justify ltx_border_t\" id=\"S4.T3.1.13.12.1\" style=\"width:199.2pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"S4.T3.1.13.12.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.13.12.1.1.1\">Curated Prompt</span> (Ours)</p>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.14.13\">\n<td class=\"ltx_td ltx_align_justify ltx_border_bb ltx_border_t\" id=\"S4.T3.1.14.13.1\" style=\"width:199.2pt;\">\n<div class=\"ltx_block ltx_align_top\" id=\"S4.T3.1.14.13.1.1\">\n<p class=\"ltx_p\" id=\"S4.T3.1.14.13.1.1.1\">The Telemarketing Sales Rule is provided by 16 C.F.R. \u00a7 310.3(a)(1) and 16 C.F.R. \u00a7 310.3(a)(2).</p>\n<p class=\"ltx_p\" id=\"S4.T3.1.14.13.1.1.2\">Answer the following question: {text}</p>\n<p class=\"ltx_p\" id=\"S4.T3.1.14.13.1.1.3\"><span class=\"ltx_text ltx_font_italic\" id=\"S4.T3.1.14.13.1.1.3.1\">Answer by only outputting \"Yes\" or \"No\"</span></p>\n</div>\n</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.3.1\">Example from LegalBench-Instruct</span>. We manually curated and corrected typos, removing a few short examples from LegalBench as they were found to distract LLMs of size 7B.</figcaption>\n</figure>",
+            "capture": "Table 3: Example from LegalBench-Instruct. We manually curated and corrected typos, removing a few short examples from LegalBench as they were found to distract LLMs of size 7B."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.03883v2_figure_1.png",
+            "caption": "Figure 1: Procedure for constructing SaulLM-7B. We rely on legal datasets augmented with replay data, and instructions datasets. For fine-tuning we enrich our instruction finetuning dataset further with legal instructions."
+        },
+        "2": {
+            "figure_path": "2403.03883v2_figure_2.png",
+            "caption": "Figure 2: Turning dataset with metadata into a conversation. Taking the example of Reddit post classification, we turn a labeled example {\"My employer fired me because \u2026Is it legal?\", \"employment\" }, we hard-code the first three turns of the conversation by simply reformulating the query and answer as a natural conversation. We then complete the conversation using a user model(blue dashed), whose task is to continue generating relevant questions from the ongoing conversation, and an assistant model that provides answers. Both assistant and user models are Mistral-7B-instruct."
+        },
+        "3": {
+            "figure_path": "2403.03883v2_figure_3.png",
+            "caption": "Figure 3: Performance of base models on LegalBench-Instruct. Interestingly, although not instruction fine-tuned, SaulLM-7B is still able to achieve impressive improvements on the benchmark, compared to other base models, including SaulLM-7B\u2019s initial checkpoint (Mistral-7B)."
+        },
+        "4": {
+            "figure_path": "2403.03883v2_figure_4.png",
+            "caption": "Figure 4: Influence of the base model. Starting the instruction finetuning from our base model SaulLM-7B brings noticeable improvements compared to the Mistral-7B. Indeed, even with a generic IFT mix (without legal), SaulLM-7B (Gen.) outperforms its Mistral-Instruct counterpart significantly. Adding legal instructions to the IFT mix further boosts the results."
+        },
+        "5": {
+            "figure_path": "2403.03883v2_figure_5.png",
+            "caption": "Figure 5: Comparison of instruct models on LegalBench-Instruct. SaulLM-7B-Instruct establishes the state-of-the-art, outperforming the best Mistral-Instruct model by a significant 6 absolute points."
+        },
+        "6": {
+            "figure_path": "2403.03883v2_figure_6.png",
+            "caption": "Figure 6: Instruct models on Legal-MMLU. Echoing finding on LegalBench-Instruct, SaulLM-7B-Instruct displays superior performance on all three tasks of Legal-MMLU, with an average absolute improvement of 5 points with respect to Mistral-7B-Instruct-v0.1."
+        },
+        "7": {
+            "figure_path": "2403.03883v2_figure_7.png",
+            "caption": "Figure 7: Per-task performance breakdown. SaulLM-7B-Instruct largely outperforms generic Instruct models on tasks that most require legal-specific knowledge, but is outperformed by Mistral-Instruct on the conclusion tasks, which necessitates more deductive reasoning."
+        },
+        "8": {
+            "figure_path": "2403.03883v2_figure_8.png",
+            "caption": "Figure 8: Perplexity on legal documents for pretrained backbones. SaulLM-7B-Instruct outperforms other pretrained backbones on most types of legal documents, but is outperformed by Llama2-7b on Legislation.\nSaulLM-7B-Instruct exhibits a median perplexity of 8.698.698.698.69, having a reduction of 5.55.55.55.5 percent compared to Mistral-7B, 9.209.209.209.20, and 10.810.810.810.8 percent compared to Llama2-7B, with a median perplexity of 9.749.749.749.74."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Gpt-4 technical report.",
+                "author": "Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal Anadkat, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.08774.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Predicting judicial decisions of the european court of human rights: A natural language processing perspective.",
+                "author": "Nikolaos Aletras, Dimitrios Tsarapatsanis, Daniel Preo\u0163iuc-Pietro, and Vasileios Lampos. 2016.",
+                "venue": "PeerJ computer science, 2:e93.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "The falcon series of open language models.",
+                "author": "Ebtesam Almazrouei, Hamza Alobeidli, Abdulaziz Alshamsi, Alessandro Cappelli, Ruxandra Cojocaru, M\u00e9rouane Debbah, \u00c9tienne Goffinet, Daniel Hesslow, Julien Launay, Quentin Malartic, Daniele Mazzotta, Badreddine Noune, Baptiste Pannier, and Guilherme Penedo. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2311.16867"
+            }
+        },
+        {
+            "4": {
+                "title": "Palm 2 technical report.",
+                "author": "Rohan Anil, Andrew M Dai, Orhan Firat, Melvin Johnson, Dmitry Lepikhin, Alexandre Passos, Siamak Shakeri, Emanuel Taropa, Paige Bailey, Zhifeng Chen, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2305.10403.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Qwen technical report.",
+                "author": "Jinze Bai, Shuai Bai, Yunfei Chu, Zeyu Cui, Kai Dang, Xiaodong Deng, Yang Fan, Wenbin Ge, Yu Han, Fei Huang, Binyuan Hui, Luo Ji, Mei Li, Junyang Lin, Runji Lin, Dayiheng Liu, Gao Liu, Chengqiang Lu, Keming Lu, Jianxin Ma, Rui Men, Xingzhang Ren, Xuancheng Ren, Chuanqi Tan, Sinan Tan, Jianhong Tu, Peng Wang, Shijie Wang, Wei Wang, Shengguang Wu, Benfeng Xu, Jin Xu, An Yang, Hao Yang, Jian Yang, Shusheng Yang, Yang Yao, Bowen Yu, Hongyi Yuan, Zheng Yuan, Jianwei Zhang, Xingxuan Zhang, Yichang Zhang, Zhenru Zhang, Chang Zhou, Jingren Zhou, Xiaohuan Zhou, and Tianhang Zhu. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2309.16609"
+            }
+        },
+        {
+            "6": {
+                "title": "Pythia: A suite for analyzing large language models across training and scaling.",
+                "author": "Stella Biderman, Hailey Schoelkopf, Quentin Gregory Anthony, Herbie Bradley, Kyle O\u2019Brien, Eric Hallahan, Mohammad Aflah Khan, Shivanshu Purohit, USVSN Sai Prashanth, Edward Raff, et al. 2023.",
+                "venue": "In International Conference on Machine Learning, pages 2397\u20132430. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Searching for needles in a haystack: On the role of incidental bilingualism in palm\u2019s translation capability.",
+                "author": "Eleftheria Briakou, Colin Cherry, and George Foster. 2023.",
+                "venue": "arXiv preprint arXiv:2305.10266.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Open australian legal corpus.",
+                "author": "Umar Butler. 2023.",
+                "venue": null,
+                "url": "https://doi.org/10.57967/hf/1306"
+            }
+        },
+        {
+            "9": {
+                "title": "Instruction mining: High-quality instruction data selection for large language models.",
+                "author": "Yihan Cao, Yanbin Kang, and Lichao Sun. 2023.",
+                "venue": "arXiv preprint arXiv:2307.06290.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Neural legal judgment prediction in english.",
+                "author": "Ilias Chalkidis, Ion Androutsopoulos, and Nikolaos Aletras. 2019.",
+                "venue": "arXiv preprint arXiv:1906.02059.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Legal-bert: The muppets straight out of law school.",
+                "author": "Ilias Chalkidis, Manos Fergadiotis, Prodromos Malakasiotis, Nikolaos Aletras, and Ion Androutsopoulos. 2020.",
+                "venue": "arXiv preprint arXiv:2010.02559.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Meditron-70b: Scaling medical pretraining for large language models.",
+                "author": "Zeming Chen, Alejandro Hern\u00e1ndez Cano, Angelika Romanou, Antoine Bonnet, Kyle Matoba, Francesco Salvi, Matteo Pagliardini, Simin Fan, Andreas K\u00f6pf, Amirkeivan Mohtashami, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2311.16079.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Adapting large language models via reading comprehension.",
+                "author": "Daixuan Cheng, Shaohan Huang, and Furu Wei. 2023.",
+                "venue": "arXiv preprint arXiv:2309.09530.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Scaling instruction-finetuned language models.",
+                "author": "Hyung Won Chung, Le Hou, Shayne Longpre, Barret Zoph, Yi Tay, William Fedus, Eric Li, Xuezhi Wang, Mostafa Dehghani, Siddhartha Brahma, et al. 2022.",
+                "venue": "arXiv preprint arXiv:2210.11416.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Redpajama: an open dataset for training large language models.",
+                "author": "Together Computer. 2023.",
+                "venue": null,
+                "url": "https://github.com/togethercomputer/RedPajama-Data"
+            }
+        },
+        {
+            "16": {
+                "title": "Chatlaw: Open-source legal large language model with integrated external knowledge bases.",
+                "author": "Jiaxi Cui, Zongjian Li, Yang Yan, Bohua Chen, and Li Yuan. 2023.",
+                "venue": "arXiv preprint arXiv:2306.16092.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Flashattention-2: Faster attention with better parallelism and work partitioning.",
+                "author": "Tri Dao. 2023.",
+                "venue": "arXiv preprint arXiv:2307.08691.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Flashattention: Fast and memory-efficient exact attention with io-awareness.",
+                "author": "Tri Dao, Dan Fu, Stefano Ermon, Atri Rudra, and Christopher R\u00e9. 2022.",
+                "venue": "Advances in Neural Information Processing Systems, 35:16344\u201316359.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Enhancing chat language models by scaling high-quality instructional conversations.",
+                "author": "Ning Ding, Yulin Chen, Bokai Xu, Yujia Qin, Zhi Zheng, Shengding Hu, Zhiyuan Liu, Maosong Sun, and Bowen Zhou. 2023.",
+                "venue": "arXiv preprint arXiv:2305.14233.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "What\u2019s in my big data?",
+                "author": "Yanai Elazar, Akshita Bhagia, Ian Magnusson, Abhilasha Ravichander, Dustin Schwenk, Alane Suhr, Pete Walsh, Dirk Groeneveld, Luca Soldaini, Sameer Singh, Hanna Hajishirzi, Noah A. Smith, and Jesse Dodge. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2310.20707"
+            }
+        },
+        {
+            "21": {
+                "title": "Croissantllm: A truly bilingual french-english language model.",
+                "author": "Manuel Faysse, Patrick Fernandes, Nuno Guerreiro, Ant\u00f3nio Loison, Duarte Alves, Caio Corro, Nicolas Boizard, Jo\u00e3o Alves, Ricardo Rei, Pedro Martins, et al. 2024.",
+                "venue": "arXiv preprint arXiv:2402.00786.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Revisiting instruction fine-tuned model evaluation to guide industrial applications.",
+                "author": "Manuel Faysse, Gautier Viaud, C\u00e9line Hudelot, and Pierre Colombo. 2023.",
+                "venue": "In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2023.emnlp-main.559"
+            }
+        },
+        {
+            "23": {
+                "title": "The pile: An 800gb dataset of diverse text for language modeling.",
+                "author": "Leo Gao, Stella Biderman, Sid Black, Laurence Golding, Travis Hoppe, Charles Foster, Jason Phang, Horace He, Anish Thite, Noa Nabeshima, Shawn Presser, and Connor Leahy. 2020.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2101.00027"
+            }
+        },
+        {
+            "24": {
+                "title": "Mamba: Linear-time sequence modeling with selective state spaces.",
+                "author": "Albert Gu and Tri Dao. 2023.",
+                "venue": "arXiv preprint arXiv:2312.00752.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Legalbench: Prototyping a collaborative benchmark for legal reasoning.",
+                "author": "Neel Guha, Daniel E Ho, Julian Nyarko, and Christopher R\u00e9. 2022.",
+                "venue": "arXiv preprint arXiv:2209.06120.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Legalbench: A collaboratively built benchmark for measuring legal reasoning in large language models.",
+                "author": "Neel Guha, Julian Nyarko, Daniel E Ho, Christopher R\u00e9, Adam Chilton, Aditya Narayana, Alex Chohlas-Wood, Austin Peters, Brandon Waldon, Daniel N Rockmore, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2308.11462.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Don\u2019t stop pretraining: Adapt language models to domains and tasks.",
+                "author": "Suchin Gururangan, Ana Marasovi\u0107, Swabha Swayamdipta, Kyle Lo, Iz Beltagy, Doug Downey, and Noah A Smith. 2020.",
+                "venue": "arXiv preprint arXiv:2004.10964.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Spanish legalese language model and corpora.",
+                "author": "Asier Guti\u00e9rrez-Fandi\u00f1o, Jordi Armengol-Estap\u00e9, Aitor Gonzalez-Agirre, and Marta Villegas. 2021.",
+                "venue": "arXiv preprint arXiv:2110.12201.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "KenLM: Faster and smaller language model queries.",
+                "author": "Kenneth Heafield. 2011.",
+                "venue": "In Proceedings of the Sixth Workshop on Statistical Machine Translation, pages 187\u2013197, Edinburgh, Scotland. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/W11-2123"
+            }
+        },
+        {
+            "30": {
+                "title": "Pile of law: Learning responsible data filtering from the law and a 256gb open-source legal dataset.",
+                "author": "Peter Henderson, Mark Krass, Lucia Zheng, Neel Guha, Christopher D Manning, Dan Jurafsky, and Daniel Ho. 2022.",
+                "venue": "Advances in Neural Information Processing Systems, 35:29217\u201329234.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Measuring massive multitask language understanding.",
+                "author": "Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas Mazeika, Dawn Song, and Jacob Steinhardt. 2020.",
+                "venue": "arXiv preprint arXiv:2009.03300.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Distinguishing human generated text from chatgpt generated text using machine learning.",
+                "author": "Niful Islam, Debopom Sutradhar, Humaira Noor, Jarin Tasnim Raya, Monowara Tabassum Maisha, and Dewan Md Farid. 2023.",
+                "venue": "arXiv preprint arXiv:2306.01761.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Domain-specific continued pretraining of language models for capturing long context in mental health.",
+                "author": "Shaoxiong Ji, Tianlin Zhang, Kailai Yang, Sophia Ananiadou, Erik Cambria, and J\u00f6rg Tiedemann. 2023.",
+                "venue": "arXiv preprint arXiv:2304.10447.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Mistral 7b.",
+                "author": "Albert Q. Jiang, Alexandre Sablayrolles, Arthur Mensch, Chris Bamford, Devendra Singh Chaplot, Diego de las Casas, Florian Bressand, Gianna Lengyel, Guillaume Lample, Lucile Saulnier, L\u00e9lio Renard Lavaud, Marie-Anne Lachaux, Pierre Stock, Teven Le Scao, Thibaut Lavril, Thomas Wang, Timoth\u00e9e Lacroix, and William El Sayed. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2310.06825"
+            }
+        },
+        {
+            "35": {
+                "title": "Mixtral of experts.",
+                "author": "Albert Q. Jiang, Alexandre Sablayrolles, Antoine Roux, Arthur Mensch, Blanche Savary, Chris Bamford, Devendra Singh Chaplot, Diego de las Casas, Emma Bou Hanna, Florian Bressand, Gianna Lengyel, Guillaume Bour, Guillaume Lample, L\u00e9lio Renard Lavaud, Lucile Saulnier, Marie-Anne Lachaux, Pierre Stock, Sandeep Subramanian, Sophia Yang, Szymon Antoniak, Teven Le Scao, Th\u00e9ophile Gervet, Thibaut Lavril, Thomas Wang, Timoth\u00e9e Lacroix, and William El Sayed. 2024.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2401.04088"
+            }
+        },
+        {
+            "36": {
+                "title": "Gpt-4 passes the bar exam.",
+                "author": "Daniel Martin Katz, Michael James Bommarito, Shang Gao, and Pablo Arredondo. 2023.",
+                "venue": "Available at SSRN 4389233.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "The stack: 3 TB of permissively licensed source code.",
+                "author": "Denis Kocetkov, Raymond Li, Loubna Ben allal, Jia LI, Chenghao Mou, Yacine Jernite, Margaret Mitchell, Carlos Mu\u00f1oz Ferrandis, Sean Hughes, Thomas Wolf, Dzmitry Bahdanau, Leandro Von Werra, and Harm de Vries. 2023.",
+                "venue": "Transactions on Machine Learning Research.",
+                "url": "https://openreview.net/forum?id=pxpbTdUEpD"
+            }
+        },
+        {
+            "38": {
+                "title": "Europarl: A parallel corpus for statistical machine translation.",
+                "author": "Philipp Koehn. 2005.",
+                "venue": "In Proceedings of Machine Translation Summit X: Papers, pages 79\u201386, Phuket, Thailand.",
+                "url": "https://aclanthology.org/2005.mtsummit-papers.11"
+            }
+        },
+        {
+            "39": {
+                "title": "Deduplicating training data makes language models better.",
+                "author": "Katherine Lee, Daphne Ippolito, Andrew Nystrom, Chiyuan Zhang, Douglas Eck, Chris Callison-Burch, and Nicholas Carlini. 2021.",
+                "venue": "arXiv preprint arXiv:2107.06499.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Datasets: A community library for natural language processing.",
+                "author": "Quentin Lhoest, Albert Villanova del Moral, Yacine Jernite, Abhishek Thakur, Patrick von Platen, Suraj Patil, Julien Chaumond, Mariama Drame, Julien Plu, Lewis Tunstall, et al. 2021.",
+                "venue": "arXiv preprint arXiv:2109.02846.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Starcoder: may the source be with you!",
+                "author": "Raymond Li, Loubna Ben Allal, Yangtian Zi, Niklas Muennighoff, Denis Kocetkov, Chenghao Mou, Marc Marone, Christopher Akiki, Jia Li, Jenny Chim, Qian Liu, Evgenii Zheltonozhskii, Terry Yue Zhuo, Thomas Wang, Olivier Dehaene, Mishig Davaadorj, Joel Lamy-Poirier, Jo\u00e3o Monteiro, Oleh Shliazhko, Nicolas Gontier, Nicholas Meade, Armel Zebaze, Ming-Ho Yee, Logesh Kumar Umapathi, Jian Zhu, Benjamin Lipkin, Muhtasham Oblokulov, Zhiruo Wang, Rudra Murthy, Jason Stillerman, Siva Sankalp Patel, Dmitry Abulkhanov, Marco Zocca, Manan Dey, Zhihan Zhang, Nour Fahmy, Urvashi Bhattacharyya, Wenhao Yu, Swayam Singh, Sasha Luccioni, Paulo Villegas, Maxim Kunakov, Fedor Zhdanov, Manuel Romero, Tony Lee, Nadav Timor, Jennifer Ding, Claire Schlesinger, Hailey Schoelkopf, Jan Ebert, Tri Dao, Mayank Mishra, Alex Gu, Jennifer Robinson, Carolyn Jane Anderson, Brendan Dolan-Gavitt, Danish Contractor, Siva Reddy, Daniel Fried, Dzmitry Bahdanau, Yacine Jernite, Carlos Mu\u00f1oz Ferrandis, Sean Hughes, Thomas Wolf, Arjun Guha, Leandro von\nWerra, and Harm de Vries. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2305.06161"
+            }
+        },
+        {
+            "42": {
+                "title": "Slimorca: An open dataset of gpt-4 augmented flan reasoning traces, with verification.",
+                "author": "Wing Lian, Guan Wang, Bleys Goodson, Eugene Pentland, Austin Cook, Chanvichet Vong, and \"Teknium\". 2023.",
+                "venue": null,
+                "url": "https://https://huggingface.co/Open-Orca/SlimOrca"
+            }
+        },
+        {
+            "43": {
+                "title": "Italian-legal-bert: A pre-trained transformer language model for italian law.",
+                "author": "Daniele Licari and Giovanni Comand\u00e8. 2022.",
+                "venue": "In CEUR Workshop Proceedings (Ed.), The Knowledge Management for Law Workshop (KM4LAW).",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "The flan collection: Designing data and methods for effective instruction tuning.",
+                "author": "Shayne Longpre, Le Hou, Tu Vu, Albert Webson, Hyung Won Chung, Yi Tay, Denny Zhou, Quoc V Le, Barret Zoph, Jason Wei, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2301.13688.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "Prompt discriminative language models for domain adaptation.",
+                "author": "Keming Lu, Peter Potash, Xihui Lin, Yuwen Sun, Zihan Qian, Zheng Yuan, Tristan Naumann, Tianxi Cai, and Junwei Lu. 2023.",
+                "venue": "In Proceedings of the 5th Clinical Natural Language Processing Workshop, pages 247\u2013258.",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "At which training stage does code data help llms reasoning?",
+                "author": "Yingwei Ma, Yue Liu, Yue Yu, Yuanliang Zhang, Yu Jiang, Changjian Wang, and Shanshan Li. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2309.16298"
+            }
+        },
+        {
+            "47": {
+                "title": "Better call gpt, comparing large language models against lawyers.",
+                "author": "Lauren Martin, Nick Whitehouse, Stephanie Yiu, Lizzie Catterson, and Rivindu Perera. 2024.",
+                "venue": "arXiv preprint arXiv:2401.16212.",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Catastrophic interference in connectionist networks: The sequential learning problem.",
+                "author": "Michael McCloskey and Neal J. Cohen. 1989.",
+                "venue": "volume 24 of Psychology of Learning and Motivation, pages 109\u2013165. Academic Press.",
+                "url": "https://doi.org/https://doi.org/10.1016/S0079-7421(08)60536-8"
+            }
+        },
+        {
+            "49": {
+                "title": "Detectgpt: Zero-shot machine-generated text detection using probability curvature.",
+                "author": "Eric Mitchell, Yoonho Lee, Alexander Khazatsky, Christopher D Manning, and Chelsea Finn. 2023.",
+                "venue": "arXiv preprint arXiv:2301.11305.",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "Chenghaomou/text-dedup: Reference snapshot.",
+                "author": "Chenghao Mou, Chris Ha, Kenneth Enevoldsen, and Peiyuan Liu. 2023.",
+                "venue": null,
+                "url": "https://doi.org/10.5281/zenodo.8364980"
+            }
+        },
+        {
+            "51": {
+                "title": "Orca: Progressive learning from complex explanation traces of gpt-4.",
+                "author": "Subhabrata Mukherjee, Arindam Mitra, Ganesh Jawahar, Sahaj Agarwal, Hamid Palangi, and Ahmed Awadallah. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2306.02707"
+            }
+        },
+        {
+            "52": {
+                "title": "Nash learning from human feedback.",
+                "author": "R\u00e9mi Munos, Michal Valko, Daniele Calandriello, Mohammad Gheshlaghi Azar, Mark Rowland, Zhaohan Daniel Guo, Yunhao Tang, Matthieu Geist, Thomas Mesnard, Andrea Michi, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2312.00886.",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "Swiss-judgment-prediction: A multilingual legal judgment prediction benchmark.",
+                "author": "Joel Niklaus, Ilias Chalkidis, and Matthias St\u00fcrmer. 2021.",
+                "venue": "arXiv preprint arXiv:2110.00806.",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "Budgetlongformer: Can we cheaply pretrain a sota legal language model from scratch?",
+                "author": "Joel Niklaus and Daniele Giofr\u00e9. 2022.",
+                "venue": "arXiv preprint arXiv:2211.17135.",
+                "url": null
+            }
+        },
+        {
+            "55": {
+                "title": "Can we pretrain a sota legal language model on a budget from scratch?",
+                "author": "Joel Niklaus and Daniele Giofr\u00e9. 2023.",
+                "venue": "Association for Computational Linguistics.",
+                "url": null
+            }
+        },
+        {
+            "56": {
+                "title": "Multilegalpile: A 689gb multilingual legal corpus.",
+                "author": "Joel Niklaus, Veton Matoshi, Matthias St\u00fcrmer, Ilias Chalkidis, and Daniel E. Ho. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2306.02069"
+            }
+        },
+        {
+            "57": {
+                "title": "Unsupervised domain adaptation of language models for reading comprehension.",
+                "author": "Kosuke Nishida, Kyosuke Nishida, Itsumi Saito, Hisako Asano, and Junji Tomita. 2019.",
+                "venue": "arXiv preprint arXiv:1911.10768.",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Pytorch: An imperative style, high-performance deep learning library.",
+                "author": "Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer, James Bradbury, Gregory Chanan, Trevor Killeen, Zeming Lin, Natalia Gimelshein, Luca Antiga, et al. 2019.",
+                "venue": "Advances in neural information processing systems, 32.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "The refinedweb dataset for falcon llm: Outperforming curated corpora with web data, and web data only.",
+                "author": "Guilherme Penedo, Quentin Malartic, Daniel Hesslow, Ruxandra Cojocaru, Alessandro Cappelli, Hamza Alobeidli, Baptiste Pannier, Ebtesam Almazrouei, and Julien Launay. 2023.",
+                "venue": "arXiv preprint arXiv:2306.01116.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Logical tools for modelling legal argument: a study of defeasible reasoning in law, volume 32.",
+                "author": "Henry Prakken. 2013.",
+                "venue": "Springer Science & Business Media.",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "Robust speech recognition via large-scale weak supervision.",
+                "author": "Alec Radford, Jong Wook Kim, Tao Xu, Greg Brockman, Christine McLeavey, and Ilya Sutskever. 2022.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2212.04356"
+            }
+        },
+        {
+            "62": {
+                "title": "Direct preference optimization: Your language model is secretly a reward model.",
+                "author": "Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher D Manning, and Chelsea Finn. 2023.",
+                "venue": "arXiv preprint arXiv:2305.18290.",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "Code llama: Open foundation models for code.",
+                "author": "Baptiste Roziere, Jonas Gehring, Fabian Gloeckle, Sten Sootla, Itai Gat, Xiaoqing Ellen Tan, Yossi Adi, Jingyu Liu, Tal Remez, J\u00e9r\u00e9my Rapin, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2308.12950.",
+                "url": null
+            }
+        },
+        {
+            "64": {
+                "title": "Explaining legal concepts with augmented large language models (gpt-4).",
+                "author": "Jaromir Savelka, Kevin D Ashley, Morgan A Gray, Hannes Westermann, and Huihui Xu. 2023.",
+                "venue": "arXiv preprint arXiv:2306.09525.",
+                "url": null
+            }
+        },
+        {
+            "65": {
+                "title": "Bloom: A 176b-parameter open-access multilingual language model.",
+                "author": "Teven Le Scao, Angela Fan, Christopher Akiki, Ellie Pavlick, Suzana Ili\u0107, Daniel Hesslow, Roman Castagn\u00e9, Alexandra Sasha Luccioni, Fran\u00e7ois Yvon, Matthias Gall\u00e9, et al. 2022.",
+                "venue": "arXiv preprint arXiv:2211.05100.",
+                "url": null
+            }
+        },
+        {
+            "66": {
+                "title": "Slimpajama-dc: Understanding data combinations for llm training.",
+                "author": "Zhiqiang Shen, Tianhua Tao, Liqun Ma, Willie Neiswanger, Joel Hestness, Natalia Vassilieva, Daria Soboleva, and Eric Xing. 2023.",
+                "venue": "arXiv preprint arXiv:2309.10818.",
+                "url": null
+            }
+        },
+        {
+            "67": {
+                "title": "Megatron-lm: Training multi-billion parameter language models using model parallelism.",
+                "author": "Mohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper, and Bryan Catanzaro. 2019.",
+                "venue": "arXiv preprint arXiv:1909.08053.",
+                "url": null
+            }
+        },
+        {
+            "68": {
+                "title": "Slimpajama: A 627b token cleaned and deduplicated version of redpajama.",
+                "author": "Daria Soboleva, Faisal Al-Khateeb, Robert Myers, Jacob R Steeves, Joel Hestness, and Nolan Dey. 2023.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "69": {
+                "title": "Distill and replay for continual language learning.",
+                "author": "Jingyuan Sun, Shaonan Wang, Jiajun Zhang, and Chengqing Zong. 2020.",
+                "venue": "In Proceedings of the 28th international conference on computational linguistics, pages 3569\u20133579.",
+                "url": null
+            }
+        },
+        {
+            "70": {
+                "title": "Galactica: A large language model for science.",
+                "author": "Ross Taylor, Marcin Kardas, Guillem Cucurull, Thomas Scialom, Anthony Hartshorn, Elvis Saravia, Andrew Poulton, Viktor Kerkez, and Robert Stojnic. 2022.",
+                "venue": "arXiv preprint arXiv:2211.09085.",
+                "url": null
+            }
+        },
+        {
+            "71": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric Hambro, Faisal Azhar, et al. 2023a.",
+                "venue": "arXiv preprint arXiv:2302.13971.",
+                "url": null
+            }
+        },
+        {
+            "72": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton Ferrer, Moya Chen, Guillem Cucurull, David Esiobu, Jude Fernandes, Jeremy Fu, Wenyin Fu, Brian Fuller, Cynthia Gao, Vedanuj Goswami, Naman Goyal, Anthony Hartshorn, Saghar Hosseini, Rui Hou, Hakan Inan, Marcin Kardas, Viktor Kerkez, Madian Khabsa, Isabel Kloumann, Artem Korenev, Punit Singh Koura, Marie-Anne Lachaux, Thibaut Lavril, Jenya Lee, Diana Liskovich, Yinghai Lu, Yuning Mao, Xavier Martinet, Todor Mihaylov, Pushkar Mishra, Igor Molybog, Yixin Nie, Andrew Poulton, Jeremy Reizenstein, Rashi Rungta, Kalyan Saladi, Alan Schelten, Ruan Silva, Eric Michael Smith, Ranjan Subramanian, Xiaoqing Ellen Tan, Binh Tang, Ross Taylor, Adina Williams, Jian Xiang Kuan, Puxin Xu, Zheng Yan, Iliyan Zarov, Yuchen Zhang, Angela Fan, Melanie Kambadur, Sharan Narang, Aurelien Rodriguez, Robert Stojnic, Sergey Edunov, and Thomas\nScialom. 2023b.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2307.09288"
+            }
+        },
+        {
+            "73": {
+                "title": "Ledgar: A large-scale multi-label corpus for text classification of legal provisions in contracts.",
+                "author": "Don Tuggener, Pius Von D\u00e4niken, Thomas Peetz, and Mark Cieliebak. 2020.",
+                "venue": "In Proceedings of the Twelfth Language Resources and Evaluation Conference, pages 1235\u20131241.",
+                "url": null
+            }
+        },
+        {
+            "74": {
+                "title": "Zephyr: Direct distillation of lm alignment.",
+                "author": "Lewis Tunstall, Edward Beeching, Nathan Lambert, Nazneen Rajani, Kashif Rasul, Younes Belkada, Shengyi Huang, Leandro von Werra, Cl\u00e9mentine Fourrier, Nathan Habib, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2310.16944.",
+                "url": null
+            }
+        },
+        {
+            "75": {
+                "title": "Trl: Transformer reinforcement learning.",
+                "author": "Leandro von Werra, Younes Belkada, Lewis Tunstall, Edward Beeching, Tristan Thrush, Nathan Lambert, and Shengyi Huang. 2020.",
+                "venue": "https://github.com/huggingface/trl.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Effective unsupervised domain adaptation with adversarially trained language models.",
+                "author": "Thuy-Trang Vu, Dinh Phung, and Gholamreza Haffari. 2020.",
+                "venue": "arXiv preprint arXiv:2010.01739.",
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "How far can camels go? exploring the state of instruction tuning on open resources.",
+                "author": "Yizhong Wang, Hamish Ivison, Pradeep Dasigi, Jack Hessel, Tushar Khot, Khyathi Raghavi Chandu, David Wadden, Kelsey MacMillan, Noah A Smith, Iz Beltagy, et al. 2023a.",
+                "venue": "arXiv preprint arXiv:2306.04751.",
+                "url": null
+            }
+        },
+        {
+            "78": {
+                "title": "Self-instruct: Aligning language models with self-generated instructions.",
+                "author": "Yizhong Wang, Yeganeh Kordi, Swaroop Mishra, Alisa Liu, Noah A. Smith, Daniel Khashabi, and Hannaneh Hajishirzi. 2023b.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2212.10560"
+            }
+        },
+        {
+            "79": {
+                "title": "Super-naturalinstructions: Generalization via declarative instructions on 1600+ nlp tasks.",
+                "author": "Yizhong Wang, Swaroop Mishra, Pegah Alipoormolabashi, Yeganeh Kordi, Amirreza Mirzaei, Anjana Arunkumar, Arjun Ashok, Arut Selvan Dhanasekaran, Atharva Naik, David Stap, et al. 2022.",
+                "venue": "arXiv preprint arXiv:2204.07705.",
+                "url": null
+            }
+        },
+        {
+            "80": {
+                "title": "Testing of detection tools for ai-generated text.",
+                "author": "Debora Weber-Wulff, Alla Anohina-Naumeca, Sonja Bjelobaba, Tom\u00e1\u0161 Folt\u1ef3nek, Jean Guerrero-Dib, Olumide Popoola, Petr \u0160igut, and Lorna Waddington. 2023.",
+                "venue": "International Journal for Educational Integrity, 19(1):26.",
+                "url": null
+            }
+        },
+        {
+            "81": {
+                "title": "Finetuned language models are zero-shot learners.",
+                "author": "Jason Wei, Maarten Bosma, Vincent Y Zhao, Kelvin Guu, Adams Wei Yu, Brian Lester, Nan Du, Andrew M Dai, and Quoc V Le. 2021.",
+                "venue": "arXiv preprint arXiv:2109.01652.",
+                "url": null
+            }
+        },
+        {
+            "82": {
+                "title": "Huggingface\u2019s transformers: State-of-the-art natural language processing.",
+                "author": "Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi, Pierric Cistac, Tim Rault, R\u00e9mi Louf, Morgan Funtowicz, et al. 2019.",
+                "venue": "arXiv preprint arXiv:1910.03771.",
+                "url": null
+            }
+        },
+        {
+            "83": {
+                "title": "Adapting large language models for document-level machine translation.",
+                "author": "Minghao Wu, Thuy-Trang Vu, Lizhen Qu, George Foster, and Gholamreza Haffari. 2024.",
+                "venue": "arXiv preprint arXiv:2401.06468.",
+                "url": null
+            }
+        },
+        {
+            "84": {
+                "title": "Lawformer: A pre-trained language model for chinese legal long documents.",
+                "author": "Chaojun Xiao, Xueyu Hu, Zhiyuan Liu, Cunchao Tu, and Maosong Sun. 2021.",
+                "venue": "AI Open, 2:79\u201384.",
+                "url": null
+            }
+        },
+        {
+            "85": {
+                "title": "A paradigm shift in machine translation: Boosting translation performance of large language models.",
+                "author": "Haoran Xu, Young Jin Kim, Amr Sharaf, and Hany Hassan Awadalla. 2023.",
+                "venue": "arXiv preprint arXiv:2309.11674.",
+                "url": null
+            }
+        },
+        {
+            "86": {
+                "title": "Adapt-and-distill: Developing small, fast and effective pretrained language models for domains.",
+                "author": "Yunzhi Yao, Shaohan Huang, Wenhui Wang, Li Dong, and Furu Wei. 2021.",
+                "venue": "arXiv preprint arXiv:2106.13474.",
+                "url": null
+            }
+        },
+        {
+            "87": {
+                "title": "Metamath: Bootstrap your own mathematical questions for large language models.",
+                "author": "Longhui Yu, Weisen Jiang, Han Shi, Jincheng Yu, Zhengying Liu, Yu Zhang, James T Kwok, Zhenguo Li, Adrian Weller, and Weiyang Liu. 2023.",
+                "venue": "arXiv preprint arXiv:2309.12284.",
+                "url": null
+            }
+        },
+        {
+            "88": {
+                "title": "Tinyllama: An open-source small language model.",
+                "author": "Peiyuan Zhang, Guangtao Zeng, Tianduo Wang, and Wei Lu. 2024.",
+                "venue": "arXiv preprint arXiv:2401.02385.",
+                "url": null
+            }
+        },
+        {
+            "89": {
+                "title": "Opt: Open pre-trained transformer language models.",
+                "author": "Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya Chen, Shuohui Chen, Christopher Dewan, Mona Diab, Xian Li, Xi Victoria Lin, et al. 2022.",
+                "venue": "arXiv preprint arXiv:2205.01068.",
+                "url": null
+            }
+        },
+        {
+            "90": {
+                "title": "Lima: Less is more for alignment.",
+                "author": "Chunting Zhou, Pengfei Liu, Puxin Xu, Srini Iyer, Jiao Sun, Yuning Mao, Xuezhe Ma, Avia Efrat, Ping Yu, Lili Yu, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2305.11206.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.03883v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2",
+            "2.1",
+            "2.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "5",
+            "5.1",
+            "5.2",
+            "6",
+            "6.1",
+            "6.2",
+            "6.3"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "6.1",
+            "6.2",
+            "6.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.03883v2",
+        "paper_title": "SaulLM-7B: A pioneering Large Language Model for Law",
+        "research_background": "### Paper's Motivation:\nThe paper is motivated by the need to address the unique challenges posed by the legal domain, which has yet to fully benefit from the advancements in large language models (LLMs). As legal professionals face an increasing volume of complex documents, there is a growing necessity for a specialized LLM that can effectively navigate, comprehend, and interpret legal material. The legal field's distinct linguistic characteristics, marked by specialized vocabulary and unique syntax, further underscore the need for a dedicated LLM.\n\n### Research Problem:\nThe primary research problem addressed by the paper is the development of a large language model specifically designed for legal text. The model aims to overcome the challenges posed by the specialized nature of legal language and to meet the specific needs of legal practitioners. The goal is to create a pioneering LLM that not only understands the complexities of legal documents but also adapts to the evolving nature of legal discourse, thereby empowering legal professionals and fostering innovation within the intersection of artificial intelligence and the legal community.\n\n### Relevant Prior Work:\nThe paper builds on and references a broad array of prior work across multiple domains, including:\n\n- **General Advancements in LLMs**:\n  - Achiam et al. (2023), Scao et al. (2022), Penedo et al. (2023), Touvron et al. (2023a, 2023b), Jiang et al. (2023, 2024), Bai et al. (2023) highlight the recent advancements in LLMs and their applications in various fields.\n  - Xu et al. (2023), Chen et al. (2023), Roziere et al. (2023), and Li et al. (2023) discuss the application of LLMs in translation, medical fields, and code generation.\n  - Weber-Wulff et al. (2023), Islam et al. (2023), and Mitchell et al. (2023) focus on the exceptional capabilities of these models in understanding and generating human-like text.\n\n- **Legal Domain Applications**:\n  - Martin et al. (2024), Licari and Comand\u00e8 (2022), Savelka et al. (2023), Katz et al. (2023), and Xiao et al. (2021) emphasize the untapped potential of LLMs in the legal field and the need for legal-specific LLMs.\n\n- **Challenges of Legal Text**:\n  - Chalkidis et al. (2020) and Niklaus et al. (2021) outline the distinct linguistic challenges posed by legal text, including its unique syntax and specialized vocabulary.\n\n- **Pretraining Approaches**:\n  - Gururangan et al. (2020) and Yao et al. (2021) describe the importance of extensive pretraining using dedicated corpora.\n  - Aletras et al. (2016) and Guti\u00e9rrez-Fandi\u00f1o et al. (2021) discuss pretraining on legal corpora from various English-speaking jurisdictions.\n  - Niklaus and Giofr\u00e9 (2022) and Prakken (2013) further detail the necessity of leveraging large and diverse legal datasets.\n\n- **Evaluation and Benchmarking**:\n  - Guha et al. (2022, 2023) introduce LegalBench, a benchmark for evaluating legal proficiency.\n  - Hendrycks et al. (2020) describe the inclusion of legal tasks in the MMLU benchmark, focusing on international law, professional law, and jurisprudence.\n\nBy summarizing the contributions and highlighting these prior works, the paper positions itself as an important step towards addressing the unique challenges of the legal domain through the development of a specialized LLM.",
+        "methodology": "Our methodology involves a two-step process that we describe below:\n\n1. **Model Selection**: We leveraged the Mistral B model, a 7 billion parameter open-source model known for its high performance across various benchmarks and tasks (Jiang et al., 2023  ###reference_b34###). The selection criteria were based on state-of-the-art performance and the availability of comparable open-source models. Options considered ranged from smaller models like Pythia (Biderman et al., 2023  ###reference_b6###) to larger ones like Falcon (Almazrouei et al., 2023  ###reference_b3###).\n\n2. **Customization for Legal Domain**: After choosing the Mistral B model, we adapted it specifically for legal applications. This involved:\n   - **Data Collection and Curation**: We aggregated a comprehensive dataset from various legal sources including case laws, statutes, legal commentaries, and other relevant documents. The dataset underwent meticulous preprocessing to ensure quality and relevance.\n   - **Fine-Tuning and Evaluation**: The Mistral B model was fine-tuned using our curated legal dataset. Extensive evaluation metrics were employed to ascertain the model's performance in tasks specific to the legal domain, such as legal question answering, legal document summarization, and statute comprehension.\n\nThis methodology allows SaulLM-7B to exhibit a groundbreaking level of performance in legal-specific language understanding and generation tasks, making it a pioneering tool for law professionals and researchers.",
+        "main_experiment_and_results": "In the main experiment setup for SaulLM-7B, the following components were utilized:\n\n1. **Codebase and Frameworks**: The experiment relies on several open-source frameworks, including:\n   - Shoeybi et al. (2019)\n   - Wolf et al. (2019)\n   - Lhoest et al. (2021)\n   - It also leverages DeepSpeed with Flash attention based on work by Dao et al. (2022) and Dao (2023).\n   - Built on PyTorch (Paszke et al., 2019), with models made available on the Huggingface hub.\n\n2. **Hardware**: \n   - Continuous pretraining is performed utilizing MI250 AMD GPUs.\n   - Instruction fine-tuning is distributed across 16 MI250 GPUs.\n   - Evaluation is seamlessly conducted on a single MI250 GPU.\n\nThe setup focuses primarily on the efficiency and scalability of training and fine-tuning using robust and high-performance GPUs, ensuring that both pretraining and evaluation adhere to best practices in computational law applications. \n\n### Main Experimental Results:\nDetails of the main experimental results were not provided in the snippet. For a comprehensive interpretation, access to the full dataset descriptions, baselines, and concrete evaluation metrics would be necessary. However, the description highlights the computational strategies and resources used to develop and refine SaulLM-7B."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "The goal is to assess the impact of continued pretraining and instruction fine-tuning on SaulLM-7B\u2019s performance in legal tasks, compared to other models like Llama2-7B-chat and Mistral-7B-Instruct-v0.1.",
+            "experiment_process": "The experiment involves evaluating SaulLM-7B on the LegalBench-Instruct benchmark. The performance is analyzed in terms of general capabilities and specific legal abilities such as Issue Spotting, Rule-Recall, Interpretation, Rhetoric Understanding, and Rule-Conclusion. Comparison is made against Mistral-7B-Instruct-v0.1 and other baseline models. Evaluation metrics focus on average scores and relative improvements.",
+            "result_discussion": "SaulLM-7B demonstrates strong standalone performance and serves as an effective base model for building instruction fine-tuned models with legal capabilities. It outperforms Mistral-7B-Instruct-v0.1 on tasks requiring legal expertise but underperforms on Conclusion tasks which demand more deductive reasoning. This indicates a potential area for further improvement by including more deductive reasoning content in the training data.",
+            "ablation_id": "2403.03883v2.No1"
+        },
+        {
+            "research_objective": "The objective is to confirm SaulLM-7B-Instruct\u2019s superiority over non-legal instruction-tuned models by assessing performance on Legal-MMLU tasks.",
+            "experiment_process": "The study analyzes SaulLM-7B-Instruct\u2019s performance on Legal-MMLU tasks, comparing it to the best 7B open-source competitor. The performance metrics used are the absolute point differences in scores across three tasks.",
+            "result_discussion": "SaulLM-7B-Instruct consistently outperforms non-legal instruction-tuned models, with a notable absolute point gap, reinforcing its effectiveness as a foundation for legal-specific model development.",
+            "ablation_id": "2403.03883v2.No2"
+        },
+        {
+            "research_objective": "To evaluate how well SaulLM-7B adapts to the legal domain based on perplexity scores across different legal document types.",
+            "experiment_process": "Perplexity scores are recorded for four types of legal documents: contracts, legal decisions, legislation, and party submissions. SaulLM-7B\u2019s scores are compared against Mistral-7B and Llama2-7B, focusing on average perplexity and variance.",
+            "result_discussion": "SaulLM-7B exhibits lower average perplexity scores and reduced variance across all categories compared to Mistral-7B. It outperforms Llama2-7B except in legislation documents, where Llama2-7B has lower perplexity, likely due to higher proportions of legislative text in its training data. Overall, SaulLM-7B shows a significant median perplexity reduction compared to both Mistral-7B and Llama2-7B.",
+            "ablation_id": "2403.03883v2.No3"
+        }
+    ]
+}

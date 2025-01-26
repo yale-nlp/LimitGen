@@ -1,0 +1,816 @@
+{
+    "title": "Semantic Map-based Generation of Navigation Instructions",
+    "abstract": "We are interested in the generation of navigation instructions, either in their own right or as training material for robotic navigation task.\nIn this paper, we propose a new approach to navigation instruction generation by framing the problem\nas an image captioning task using semantic maps as visual input.\nConventional approaches employ a sequence of panorama images to generate navigation instructions.\nSemantic maps abstract away from visual details and fuse the information in multiple panorama images into a single top-down representation, thereby reducing computational complexity to process the input.\nWe present a benchmark dataset for instruction generation using semantic maps, propose an initial model and ask human subjects to manually assess the quality of generated instructions.\nOur initial investigations show promise in using semantic maps for instruction generation instead of a sequence of panorama images, but there is vast scope for improvement.\nWe release the code for data preparation and model training at https://github.com/chengzu-li/VLGen.\n\n\n\nKeywords:\u2009semantic map, navigation instruction generation, Room2Room",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1.   Introduction",
+            "text": "Vision and Language Navigation (VLN) is a task that involves an agent navigating in a physical environment in response to natural language instructions (Wu et al., 2021  ###reference_b69###).\nThe data annotation for the VLN task is time-consuming and costly to scale up, and\nthe development of models that address the task is severely limited by the availability of training data (Gu et al., 2022  ###reference_b16###).\nNavigation instruction generation (VL-GEN) is the reverse of the VLN task in that it generates natural language instructions for a path in the virtual (or physical) environment, which is helpful for interactions with users and explainability.\nPrevious work has also demonstrated the effectiveness of VL-GEN in improving the performance of VLN systems such as the Speaker-Follower model (Fried et al., 2018  ###reference_b14###) and Env Drop (Tan et al., 2019  ###reference_b57###).\nThis paper explores the VL-GEN task of generating navigation instruction framing it as an image captioning task.\nVL-GEN requires the model to generate language instruction in the context of the physical environment, grounding objects references and action instructions to the given space.\nPrevious studies use photo-realistic RGB panoramic images as the visual input; they frame VL-GEN as the end-to-end task of generating text from a sequence of photo-realistic RGB images (Fried et al., 2018  ###reference_b14###; Tan et al., 2019  ###reference_b57###; Wang et al., 2022d  ###reference_b66###).\nWhile Zhao et al. (2021  ###reference_b75###) report that the overall quality of instructions generated with end-to-end models is only slightly better than that of template-based generation, the application of object grounding to the panoramic images achieves a better result Wang et al. (2022d  ###reference_b66###).\nThe existing approach to this task has two shortcomings.\nFrom the perspective of representation, using panoramic images is resource-intensive as it requires processing of multiple image inputs corresponding to different points on the path.\nSecond, panoramic images contain many details that are irrelevant for the task.\nThe model has to learn to interpret the environments from RGB panoramas, such as object recognition, and generate instructions at the same time.\nAs it is natural for humans to understand navigation instructions from a top-down map (as in Google Maps) Paz-Argaman et al. (2024  ###reference_b47###), we propose to separate the VL-GEN task into two steps: 1) environment interpretation, which is addressed by semantic SLAM in physical robotic systems Chaplot et al. (2020  ###reference_b7###), and 2) spatial reasoning.\nIn this paper, we focus on the second step and explore the feasibility of using top-down semantic map for VL-GEN.\n###figure_1### Our research question is whether it is feasible to use the top-down semantic map (a single RGB image) as our main source of information.\nWe also explore which other data sources, in addition to the semantic map, can further improve performance.\nTo address this question, we formalize the VL-GEN task as image captioning with the input of a semantic map with the path (see Figure 1  ###reference_###).\nWe extract the images of top-down maps from the Habitat simulator (Savva et al., 2019  ###reference_b51###) based on Room-to-Room dataset (Anderson et al., 2018  ###reference_b3###) and VLN-CE (Krantz et al., 2020  ###reference_b32###).\nOur key contributions and findings include the following:\nWe extend the R2R dataset with semantic maps, providing a new benchmark dataset and a baseline that demonstrates the feasibility of using semantic maps for VL-GEN task.\nWe demonstrate experimentally with both automatic and human evaluations that including additional information (namely, region, action, and prompt) leads to more accurate and robust navigation instructions than using only semantic maps.\nWe also conduct an intrinsic human evaluation of the quality of the generated instructions with fine-grained error analysis."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2.   Task Definition and Data",
+            "text": "A semantic map  is a top-down view of the scene , which contains a path , represented as a sequence of points connected by a line, and a set of  objects .\nIn light of the success of image captioning models Li et al. (2022  ###reference_b34###); Wang et al. (2022b  ###reference_b64###), we frame the VL-GEN task as image captioning task.\nGiven a semantic map , the task is to generate a natural language description  that describes the path  shown.\nOur task description replaces the photo-realistic RGB images used previously, with a semantic map.\nThe processing of RGB images is resource-intensive, while our task definition has the advantage of abstracting away from the object recognition task, concentrating on the instruction generation task instead.\nWe also experiment with providing the model with additional features of the navigation path beyond the semantic maps alone, including actions, names of regions, and panoramic images.\nThere is a fixed set of action types (left, right, straight, stop), which are determined heuristically from the path shape at each navigation point.\nFor each navigation point, we use the name of its associated region (e.g., hallway, meeting room).\nWe do not think that panoramic images constitute ideal input to the system,\nbut it is possible that they may provide additional visual information not shown in the map.\nTherefore, we also conduct experiments with panoramic images as part of the input information to the model.\nWe extract semantic maps, region and action information from the Habitat (Savva et al., 2019  ###reference_b51###; Krantz et al., 2020  ###reference_b32###) simulation environment.\nIn a deployed robot, it may be obtained with a semantic SLAM component Chaplot et al. (2020  ###reference_b7###).\nEach object type on the map is represented in a unique color.\nWe adopt the navigation paths and human annotations from the R2R dataset (Anderson et al., 2018  ###reference_b3###).\nPanoramic images in RGB are obtained from the Matterport3D simulator (Chang et al., 2017  ###reference_b6###) at each discrete navigation point.\nAn example of the new dataset derived from R2R, including a semantic map with a path, language instruction, panorama images, actions, and region names, is shown in Figure 1  ###reference_###.\nStatistics about the semantic maps are presented in Table 1  ###reference_###.\nThe data splits we use are inherited from the original R2R dataset.\nThe difference between seen validation set and the unseen validation set in R2R is whether the room environment is included in the train set.111Further details on the dataset are presented in Appendix A.1  ###reference_###."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3.   Method",
+            "text": "Motivated by the success of the multimodal pre-trained models, we construct a multimodal text generation model using BLIP222The implementation is based on the Huggingface transformers library (Wolf et al., 2019  ###reference_b68###): Salesforce/blip-image-captioning-base  ###reference_ge-captioning-base### (Li et al., 2022  ###reference_b34###).\nFigure 2  ###reference_### illustrates the architecture of the proposed model with modules that process different inputs; these will be described in Section 3.1  ###reference_###.\nIn Section 3.2  ###reference_###, we describe the augmentations applied to the BLIP model in our experiments.\n###figure_2### The semantic map forms the main input used in all experiments.\nIt is encoded by the image encoder in the BLIP model.\nWe first resize the image by nearest sampling to  and then feed it to the vision transformer with patch size 16.\nRegion names and actions are frequently mentioned in human navigation instructions.\nTo give the model information about the relevant region names, we represent them as a sequence of strings for each navigation point.\nWe use a text encoder from the pre-trained BLIP model to represent the region names.\nThe region embedding for each point is obtained by applying a mean pooling operation to the word embeddings.\nFor actions, we apply an embedding layer to the discrete action values and get action embeddings in the same dimension as the region embedding.\nWe add the region and the action embeddings together at each point and use a 3-layer LSTM model to embed the sequential information along the navigation path.\nBased on our analysis, visual object properties such as color and shape are mentioned in more than 25% of human instructions.\nAs semantic maps only include object types but not the properties of visual objects, we augment the model input with panoramic images.\nThis might enable the model to learn the visual properties mentioned in the instructions.\nWe initialize the image encoder based on the pre-trained image encoder in BLIP model.\nWe freeze its parameters during training because the model is pre-trained on photo-realistic images, which we believe endows the model with capabilities of recognizing panoramic images in our case.\nIn order to increase the flexibility of the visual embedding, we apply an additional MLP with two linear layers on top of the panoramic vision encoder.\nFollowing the methods in the video captioning task (Tang et al., 2021  ###reference_b58###; Luo et al., 2022  ###reference_b42###), we treat the panoramas as discrete frames and use the mean average of all panoramic embeddings to represent the panorama information of the navigation path.\nFinally, the embedded input representations are added together to form the input to the decoder that outputs natural language instructions.\nContrastive learning is an effective method used in self-supervised learning for visual representation learning Radford et al. (2021  ###reference_b48###); Li et al. (2022  ###reference_b34###) and multimodal pre-training in BLIP (Li et al., 2022  ###reference_b34###).\nWe investigate the effectiveness of introducing contrastive training for navigation instruction generation task as an auxiliary loss.\nWe define the positive examples  as pairs of the combined input embedding and the instruction embedding.\nThe negative examples  consist of the pairs of the input embedding and the embedding of a randomly sampled instruction.\nFollowing CLIP (Radford et al., 2021  ###reference_b48###), we multiply the multimodal input matrix  and textual instruction matrix  to obtain the predicted compatible matrix  between inputs and labels and then compute the CrossEntropy loss on  with the ground-truth correspondence .\nThe prompting of LLMs has demonstrated its effectiveness across various domains in previous works (Li and Liang, 2021  ###reference_b36###; Liu et al., 2021  ###reference_b41###; Tang et al., 2022  ###reference_b59###; Keicher et al., 2022  ###reference_b28###; Song et al., 2022  ###reference_b54###).\nWe generate the prompt from a template, which describes the nearby objects and regions, such as Starting from the dark yellow point near sofa cushion in the living room region.\nWe tune the model with prompting and feed the prompt template to the decoder during inference.\nWe argue that prompting can benefit the generation task in two ways.\nFirst, it can help visual-language grounding because the prompting template describes nearby landmarks and regions.\nSecond, at inference time, the instructions that are generated are conditioned on the prompt template in an auto-regressive way, resulting in more controllable generation in VL-GEN task."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1.   Model Input",
+            "text": "The semantic map forms the main input used in all experiments.\nIt is encoded by the image encoder in the BLIP model.\nWe first resize the image by nearest sampling to  and then feed it to the vision transformer with patch size 16.\nRegion names and actions are frequently mentioned in human navigation instructions.\nTo give the model information about the relevant region names, we represent them as a sequence of strings for each navigation point.\nWe use a text encoder from the pre-trained BLIP model to represent the region names.\nThe region embedding for each point is obtained by applying a mean pooling operation to the word embeddings.\nFor actions, we apply an embedding layer to the discrete action values and get action embeddings in the same dimension as the region embedding.\nWe add the region and the action embeddings together at each point and use a 3-layer LSTM model to embed the sequential information along the navigation path.\nBased on our analysis, visual object properties such as color and shape are mentioned in more than 25% of human instructions.\nAs semantic maps only include object types but not the properties of visual objects, we augment the model input with panoramic images.\nThis might enable the model to learn the visual properties mentioned in the instructions.\nWe initialize the image encoder based on the pre-trained image encoder in BLIP model.\nWe freeze its parameters during training because the model is pre-trained on photo-realistic images, which we believe endows the model with capabilities of recognizing panoramic images in our case.\nIn order to increase the flexibility of the visual embedding, we apply an additional MLP with two linear layers on top of the panoramic vision encoder.\nFollowing the methods in the video captioning task (Tang et al., 2021  ###reference_b58###  ###reference_b58###; Luo et al., 2022  ###reference_b42###  ###reference_b42###), we treat the panoramas as discrete frames and use the mean average of all panoramic embeddings to represent the panorama information of the navigation path.\nFinally, the embedded input representations are added together to form the input to the decoder that outputs natural language instructions."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2.   Model Augmentation",
+            "text": "Contrastive learning is an effective method used in self-supervised learning for visual representation learning Radford et al. (2021  ###reference_b48###  ###reference_b48###); Li et al. (2022  ###reference_b34###  ###reference_b34###) and multimodal pre-training in BLIP (Li et al., 2022  ###reference_b34###  ###reference_b34###).\nWe investigate the effectiveness of introducing contrastive training for navigation instruction generation task as an auxiliary loss.\nWe define the positive examples  as pairs of the combined input embedding and the instruction embedding.\nThe negative examples  consist of the pairs of the input embedding and the embedding of a randomly sampled instruction.\nFollowing CLIP (Radford et al., 2021  ###reference_b48###  ###reference_b48###), we multiply the multimodal input matrix  and textual instruction matrix  to obtain the predicted compatible matrix  between inputs and labels and then compute the CrossEntropy loss on  with the ground-truth correspondence .\nThe prompting of LLMs has demonstrated its effectiveness across various domains in previous works (Li and Liang, 2021  ###reference_b36###  ###reference_b36###; Liu et al., 2021  ###reference_b41###  ###reference_b41###; Tang et al., 2022  ###reference_b59###  ###reference_b59###; Keicher et al., 2022  ###reference_b28###  ###reference_b28###; Song et al., 2022  ###reference_b54###  ###reference_b54###).\nWe generate the prompt from a template, which describes the nearby objects and regions, such as Starting from the dark yellow point near sofa cushion in the living room region.\nWe tune the model with prompting and feed the prompt template to the decoder during inference.\nWe argue that prompting can benefit the generation task in two ways.\nFirst, it can help visual-language grounding because the prompting template describes nearby landmarks and regions.\nSecond, at inference time, the instructions that are generated are conditioned on the prompt template in an auto-regressive way, resulting in more controllable generation in VL-GEN task."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4.   Experiments",
+            "text": "We perform two evaluations over experiments: an automatic evaluation according to performance on the task (extrinsic) and a human evaluation of the quality of the instructions (intrinsic).\nThese evaluations can tell us about the influence of region, actions, prompting, and contrastive loss on the quality of the instructions both quantitatively and qualitatively."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1.   Experimental setup",
+            "text": "We train the model using the train split of the R2R dataset and evaluate it both on validation seen and unseen sets.\nWe use the BLIP-base model for experiments.\nWe setup the baselines with different combinations of the input: 1) top-down semantic map (TD) 2) + regions (Reg) and actions (Act); 3) + panoramic images (Pano). We also experiment with contrastive loss and prompting, making 9 system variants for experiments in total.\nIn the intrinsic human evaluation, we use a Latin Square design of size 5.\nWe therefore compare only a subset of the above system variants with different combinations of input (TD, TD+Reg+Act and TD+Reg+Act+Pano), and prompting and contrastive loss on TD+Reg+Act."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2.   Human Participants and Procedure",
+            "text": "For the human experiment, we recruit 5 evaluators who have never contributed to or been involved in the project before under the consent from the Ethics Committee. The evaluation workload for each participant is designed to be within 30 minutes for them to concentrate on the task. We also provide two specific illustration examples about the evaluation task for the human participants.\nThe evaluation materials consist of 15 navigation paths in the unseen environments, randomly sampled.\nThe experiment is performed online using an evaluation interface.\nThe participants are shown the semantic map with the path as well as panorama images.\nThey are asked to assign a score from 0 (worst) to 10 (best) based on the quality of the instruction candidates generated by different systems."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "4.3.   Automatic Evaluation Metrics",
+            "text": "In the automatic evaluation, we compare the performance of 9 system variants based on an automatic metric SPICE (Semantic Propositional Image Caption Evaluation) (Anderson et al., 2016  ###reference_b2###), following Zhao et al. (2021  ###reference_b75###).\nSPICE is a metric used to evaluate the quality of image captions, focusing on the semantic content of captions.\nIt identifies semantic propositions within the parse trees and compares the semantic propositions from the generated caption with those from the reference captions.\nWhen comparing different systems, we use the two-sided permutation test to see if the arithmetic means of the two systems\u2019 performances are equal.\nIf the p-value is larger than 0.05, we consider the performance of the two systems to be not significantly different."
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "4.4.   Evaluation Results",
+            "text": "Table 2  ###reference_### shows the SPICE and human evaluation scores in seen and unseen environments.\nAs expected, the models perform better in seen than in unseen setting by 3.88 in SPICE score on average across all 9 systems.\nFor both settings, we observe that using region and action information with the prompt improves the model\u2019s performance with , while contrastive learning does not seem to help.\nAdding panoramic images tends to improve the performance, but not significantly ().\nWhen comparing with previous methods in SPICE score, our systems (17.84/22.14) perform on par or even achieve higher SPICE scores than Speaker Fol. Fried et al. (2018  ###reference_b14###) (17.0/18.7) and EnvDrop Tan et al. (2019  ###reference_b57###) (18.1/20.2) on unseen/seen settings.\nIn the results for the human evaluation, shown in Table 2  ###reference_###, we observe that using the semantic map as the only input results in the lowest average score across all systems (3.42).\nThis repeats the observations from the automatic evaluation.\nUsing regions, actions, and panoramas achieves the highest rating (4.36) which is significantly better than the baseline (p=0.05), followed by using regions, actions, and prompts (4.29).\nHowever, incorporating Pano (4.36) alongside TD+Reg+Act (4.20) does not show a noteworthy difference.\nIn addition to the results above, we were also curious about the degree to which our automatic results in SPICE correlate with the human judgments.\nWe measure a Kendall  correlation between SPICE and human evaluation results of 0.6 and conclude that this is satisfactory, justifying the use of SPICE for automatic evaluation.333We also computed BLEU and ROUGE scores, however they show lower correlation with the human-assigned scores, which are omitted here.\nOur findings indicate that incorporating more information in different modalities tends to improve the performance for the generation task.\nOur semantic map abstracts information in a way that is useful for current systems, although it consists of only a single image.\nMost of our system variants that do not use panorama images performs on-par with the existing LSTM-based end-to-end approaches that use only panoramic images.\nHowever, the absolute performance of all models is still low, indicating that there is much room for improvement."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5.   Conclusion",
+            "text": "Our longer-term goal is to build mobile robots with spatial awareness and reasoning capabilities which can follow natural language instructions and express their intentions in natural language.\nWe propose to use semantic maps as the intermediate representation for spatial reasoning as it is a human-interpretable and light-weight approach that encodes information necessary for the navigation in a single abstract image.\nIn this work, we create the dataset with top-down semantic maps for R2R corpus and reframe instruction generation task as image captioning, using abstract top-down semantic map as main input. We set a baseline for the instruction generation from semantic map input. Our experimental results show that using the top-down semantic map performs on-par with the end-to-end methods that use sequence of panorama images as input."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Data Extraction",
+            "text": ""
+        },
+        {
+            "section_id": "Appendix 2",
+            "parent_section_id": null,
+            "section_name": "Appendix B Experimental Setup",
+            "text": ""
+        },
+        {
+            "section_id": "Appendix 3",
+            "parent_section_id": null,
+            "section_name": "Appendix C Prompt Design",
+            "text": ""
+        },
+        {
+            "section_id": "Appendix 4",
+            "parent_section_id": null,
+            "section_name": "Appendix D Experiment Results",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S2.T1\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S2.T1.1\" style=\"width:433.6pt;height:88pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(54.2pt,-11.0pt) scale(1.33318746222841,1.33318746222841) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S2.T1.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S2.T1.1.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_t\" id=\"S2.T1.1.1.1.1.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">split</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_t\" id=\"S2.T1.1.1.1.1.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">size</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S2.T1.1.1.1.1.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">Avg. # points</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S2.T1.1.1.1.1.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">Avg. # regions</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S2.T1.1.1.1.1.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">Avg. # objects</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S2.T1.1.1.2.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_t\" id=\"S2.T1.1.1.2.1.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">train</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_t\" id=\"S2.T1.1.1.2.1.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">10623</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S2.T1.1.1.2.1.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">5.95</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S2.T1.1.1.2.1.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">3.26</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S2.T1.1.1.2.1.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">22.64</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S2.T1.1.1.3.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row\" id=\"S2.T1.1.1.3.2.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">val seen</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row\" id=\"S2.T1.1.1.3.2.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">768</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S2.T1.1.1.3.2.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">6.07</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S2.T1.1.1.3.2.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">3.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S2.T1.1.1.3.2.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">22.36</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S2.T1.1.1.4.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_b\" id=\"S2.T1.1.1.4.3.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">val unseen</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_b\" id=\"S2.T1.1.1.4.3.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">1839</th>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S2.T1.1.1.4.3.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">5.87</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S2.T1.1.1.4.3.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">3.11</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S2.T1.1.1.4.3.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">22.13</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>Statistics of extracted semantic maps. Avg. # region: average number of distinct regions along the path. Avg. # object: average number of object types in the semantic map. </figcaption>\n</figure>",
+            "capture": "Table 1: Statistics of extracted semantic maps. Avg. # region: average number of distinct regions along the path. Avg. # object: average number of object types in the semantic map. "
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T2.5\" style=\"width:433.6pt;height:251.9pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(60.6pt,-35.2pt) scale(1.38782827738965,1.38782827738965) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.5.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.1.1.1\" rowspan=\"2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"><span class=\"ltx_text\" id=\"S4.T2.5.1.1.1.1.1\">Input</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.1.1.2\" rowspan=\"2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"><span class=\"ltx_text\" id=\"S4.T2.5.1.1.1.2.1\">P</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.1.1.3\" rowspan=\"2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"><span class=\"ltx_text\" id=\"S4.T2.5.1.1.1.3.1\">C</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" colspan=\"2\" id=\"S4.T2.5.1.1.1.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">SPICE</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.5.1.1.1.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">Human Score</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.2.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column\" id=\"S4.T2.5.1.2.2.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">seen</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r\" id=\"S4.T2.5.1.2.2.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">unseen</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column\" id=\"S4.T2.5.1.2.2.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">unseen</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.3.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.3.1.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">TD (baseline)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.3.1.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.3.1.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.3.1.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">20.50</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.3.1.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">16.19</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.3.1.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">3.42 (5)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.4.2\">\n<td class=\"ltx_td\" id=\"S4.T2.5.1.4.2.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.4.2.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.4.2.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.4.2.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">20.79</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.4.2.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">15.77</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.4.2.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.5.3\">\n<td class=\"ltx_td\" id=\"S4.T2.5.1.5.3.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.5.3.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.5.3.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.5.3.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">21.78*</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.5.3.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.10</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.5.3.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.6.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.6.4.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">TD+Reg+Act</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.6.4.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.6.4.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.6.4.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">21.00</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.6.4.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.00</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.6.4.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">4.20 (3)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.7.5\">\n<td class=\"ltx_td\" id=\"S4.T2.5.1.7.5.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.7.5.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.7.5.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.7.5.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">21.86*</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.7.5.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.7.5.5.1\">17.84</span>**</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.7.5.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">4.29 (2)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.8.6\">\n<td class=\"ltx_td\" id=\"S4.T2.5.1.8.6.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.8.6.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.8.6.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.8.6.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">19.96</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.8.6.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.09</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.8.6.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">3.98 (4)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.9.7\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T2.5.1.9.7.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">TD+Reg+Act+Pano</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.9.7.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.9.7.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.9.7.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">19.87</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.5.1.9.7.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.44*</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.5.1.9.7.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.9.7.6.1\">4.36</span>* (1)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.10.8\">\n<td class=\"ltx_td\" id=\"S4.T2.5.1.10.8.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.10.8.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.10.8.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.10.8.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.5.1.10.8.4.1\">22.14</span>**</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.5.1.10.8.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.79**</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.5.1.10.8.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.5.1.11.9\">\n<td class=\"ltx_td ltx_border_b\" id=\"S4.T2.5.1.11.9.1\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T2.5.1.11.9.2\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T2.5.1.11.9.3\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T2.5.1.11.9.4\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">20.36</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T2.5.1.11.9.5\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">17.08</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T2.5.1.11.9.6\" style=\"padding-top:1.5pt;padding-bottom:1.5pt;\">-</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Automatic (SPICE) and human evaluation results with inputs of different modalities in seen and unseen environments, where P is short for prompt and C is short for contrastive loss. ** and * indicate statistically significant difference with the baseline (p0.01) and (p0.05). </figcaption>\n</figure>",
+            "capture": "Table 2: Automatic (SPICE) and human evaluation results with inputs of different modalities in seen and unseen environments, where P is short for prompt and C is short for contrastive loss. ** and * indicate statistically significant difference with the baseline (p0.01) and (p0.05). "
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T3.1\" style=\"width:433.6pt;height:104.2pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(10.8pt,-2.6pt) scale(1.05240314170134,1.05240314170134) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">Input Information</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">P</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_t\" id=\"S4.T3.1.1.1.1.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">C</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">Incorrect</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">Hallucination</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">Redundancy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.1.1.1.1.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">Linguistic</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.1.1.2.1.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">TD</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.1.1.2.1.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">15</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">10</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.3.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.3.2.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">TD + Reg + Act</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.3.2.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">15</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">10</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">1</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.4.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.4.3.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">TD + Reg + Act</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.4.3.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">12</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.5.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.5.4.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">TD + Reg + Act</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.5.4.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">12</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.6.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_b\" id=\"S4.T3.1.1.6.5.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">TD + Reg + Act + Pano</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T3.1.1.6.5.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r\" id=\"S4.T3.1.1.6.5.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T3.1.1.6.5.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">11</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T3.1.1.6.5.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T3.1.1.6.5.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b\" id=\"S4.T3.1.1.6.5.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Error analysis on randomly selected predictions from the systems in unseen environments, where P is short for prompt and C is short for contrastive loss. </figcaption>\n</figure>",
+            "capture": "Table 3: Error analysis on randomly selected predictions from the systems in unseen environments, where P is short for prompt and C is short for contrastive loss. "
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A4.T4\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"A4.T4.1\" style=\"width:433.6pt;height:150.4pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(2.8pt,-1.0pt) scale(1.01312851806979,1.01312851806979) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A4.T4.1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.1.1\">\n<td class=\"ltx_td\" id=\"A4.T4.1.1.1.1.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.2.1\">2(15.77)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.3.1\">3(17.10)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.4.1\">4(17.00)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.5.1\">5(17.84)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.6.1\">6(17.09)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.7.1\">7(17.44)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.8.1\">8(17.79)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T4.1.1.1.1.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.1.1.9.1\">9(17.08)</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.2.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.2.2.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.2.2.1.1\">1(16.19)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.4421</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.7891</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1554</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.2.2.5.1\">0.0030</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1050</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.2.2.7.1\">0.0269</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.2.2.8.1\">0.0055</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.2.2.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1115</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.3.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.3.3.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.3.3.1.1\">2(15.77)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.2992</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.4.1\">0.0310</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.5.1\">0.0002</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.6.1\">0.0175</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.7.1\">0.0033</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.8.1\">0.0004</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.3.3.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.3.3.9.1\">0.0194</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.4.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.4.4.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.4.4.1.1\">3(17.10)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.2432</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.4.4.5.1\">0.0072</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1726</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.0505</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"A4.T4.1.1.4.4.8.1\">0.0113</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.4.4.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1825</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.5.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.5.5.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.5.5.1.1\">4(17.00)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1459</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.8774</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.4536</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1825</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.5.5.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.8890</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.6.6\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.6.6.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.6.6.1.1\">5(17.84)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1822</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.4809</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.9318</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.6.6.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.1830</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.7.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.7.7.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.7.7.1.1\">6(17.09)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.5423</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.2256</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.7.7.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.9913</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.8.8\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.8.8.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.8.8.1.1\">7(17.44)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.5463</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.8.8.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.5401</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T4.1.1.9.9\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T4.1.1.9.9.1\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T4.1.1.9.9.1.1\">8(17.79)</span></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.2\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.3\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.4\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.5\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.6\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.7\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.8\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T4.1.1.9.9.9\" style=\"padding-top:2.5pt;padding-bottom:2.5pt;\">0.2271</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 4: </span>Two-sided permutation test p-values on SPICE in validation unseen environments. The row names and column names are the system indices for different systems, with the SPICE values in the parenthesis brackets. The numbers in bold are the p-values below 0.05. </figcaption>\n</figure>",
+            "capture": "Table 4: Two-sided permutation test p-values on SPICE in validation unseen environments. The row names and column names are the system indices for different systems, with the SPICE values in the parenthesis brackets. The numbers in bold are the p-values below 0.05. "
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A4.T5\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"A4.T5.1\" style=\"width:216.8pt;height:79.1pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-4.7pt,1.7pt) scale(0.958862963170162,0.958862963170162) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"A4.T5.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A4.T5.1.1.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column\" id=\"A4.T5.1.1.1.1.1\" style=\"padding-top:4pt;padding-bottom:4pt;\"></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column\" id=\"A4.T5.1.1.1.1.2\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.1.1.2.1\">4(4.20)</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column\" id=\"A4.T5.1.1.1.1.3\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.1.1.3.1\">5(4.29)</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column\" id=\"A4.T5.1.1.1.1.4\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.1.1.4.1\">6(3.98)</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column\" id=\"A4.T5.1.1.1.1.5\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.1.1.5.1\">7(4.36)</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A4.T5.1.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T5.1.1.2.1.1\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.2.1.1.1\">1(3.42)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.2.1.2\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.10</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.2.1.3\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.06</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.2.1.4\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.27</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.2.1.5\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.05</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T5.1.1.3.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T5.1.1.3.2.1\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.3.2.1.1\">4(4.20)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.3.2.2\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.3.2.3\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.88</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.3.2.4\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.68</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.3.2.5\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.77</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T5.1.1.4.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T5.1.1.4.3.1\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.4.3.1.1\">5(4.29)</span></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.4.3.2\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.4.3.3\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.4.3.4\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.55</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.4.3.5\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.92</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T5.1.1.5.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"A4.T5.1.1.5.4.1\" style=\"padding-top:4pt;padding-bottom:4pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"A4.T5.1.1.5.4.1.1\">6(3.98)</span></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.5.4.2\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.5.4.3\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.5.4.4\" style=\"padding-top:4pt;padding-bottom:4pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r ltx_border_t\" id=\"A4.T5.1.1.5.4.5\" style=\"padding-top:4pt;padding-bottom:4pt;\">0.47</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 5: </span>Two-sided permutation test results between systems based on the human evaluation. The row indices and column indices are the system indices following Table <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19603v1#A4.T4\" title=\"Table 4 \u2023 D.1. Significance Test Results on SPICE Scores \u2023 Appendix D Experiment Results \u2023 Semantic Map-based Generation of Navigation Instructions\"><span class=\"ltx_text ltx_ref_tag\">4</span></a> and their quality scores in the parenthesis. </figcaption>\n</figure>",
+            "capture": "Table 5: Two-sided permutation test results between systems based on the human evaluation. The row indices and column indices are the system indices following Table 4 and their quality scores in the parenthesis. "
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.19603v1_figure_1.png",
+            "caption": "Figure 1: \nAn example navigation scenario from our new dataset for instruction generation, with the navigation path overlayed on the semantic map."
+        },
+        "2": {
+            "figure_path": "2403.19603v1_figure_2.png",
+            "caption": "Figure 2: Illustration of the overall model architecture. Text input is encoded with pretrained BLIP text encoder and LSTM, and image input is encoded with the pretrained BLIP encoder. Modules shown in the same color share the weights. The weights of the panorama encoder are fixed."
+        },
+        "3": {
+            "figure_path": "2403.19603v1_figure_3.png",
+            "caption": "Figure 3: Screenshot of the evaluation interface for human evaluation."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Bevbert: Multimodal map pre-training for language-guided navigation.",
+                "author": "Dong An, Yuankai Qi, Yangguang Li, Yan Huang, Liang Wang, Tieniu Tan, and Jing Shao. 2023.",
+                "venue": "Proceedings of the IEEE/CVF International Conference on Computer Vision.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "SPICE: Semantic propositional image caption evaluation.",
+                "author": "Peter Anderson, Basura Fernando, Mark Johnson, and Stephen Gould. 2016.",
+                "venue": "In ECCV.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Vision-and-language navigation: Interpreting visually-grounded navigation instructions in real environments.",
+                "author": "Peter Anderson, Qi Wu, Damien Teney, Jake Bruce, Mark Johnson, Niko S\u00fcnderhauf, Ian Reid, Stephen Gould, and Anton van den Hengel. 2018.",
+                "venue": "In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR).",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "METEOR: An automatic metric for MT evaluation with improved correlation with human judgments.",
+                "author": "Satanjeev Banerjee and Alon Lavie. 2005.",
+                "venue": "In Proceedings of the ACL Workshop on Intrinsic and Extrinsic Evaluation Measures for Machine Translation and/or Summarization, pages 65\u201372, Ann Arbor, Michigan. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/W05-0909"
+            }
+        },
+        {
+            "5": {
+                "title": "Language models are few-shot learners.",
+                "author": "Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. 2020.",
+                "venue": "Advances in neural information processing systems, 33:1877\u20131901.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Matterport3d: Learning from rgb-d data in indoor environments.",
+                "author": "Angel Chang, Angela Dai, Thomas Funkhouser, Maciej Halber, Matthias Niessner, Manolis Savva, Shuran Song, Andy Zeng, and Yinda Zhang. 2017.",
+                "venue": "arXiv preprint arXiv:1709.06158.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Learning to explore using active neural slam.",
+                "author": "Devendra Singh Chaplot, Dhiraj Gandhi, Saurabh Gupta, Abhinav Gupta, and Ruslan Salakhutdinov. 2020.",
+                "venue": "In International Conference on Learning Representations (ICLR).",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Touchdown: Natural language navigation and spatial reasoning in visual street environments.",
+                "author": "Howard Chen, Alane Suhr, Dipendra Misra, Noah Snavely, and Yoav Artzi. 2019.",
+                "venue": "In 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pages 12530\u201312539.",
+                "url": "https://doi.org/10.1109/CVPR.2019.01282"
+            }
+        },
+        {
+            "9": {
+                "title": "Just ask: An interactive learning framework for vision and language navigation.",
+                "author": "Ta-Chung Chi, Minmin Shen, Mihail Eric, Seokhwan Kim, and Dilek Hakkani-tur. 2020.",
+                "venue": "In Proceedings of the AAAI Conference on Artificial Intelligence, volume 34, pages 2459\u20132466.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Unifying vision-and-language tasks via text generation.",
+                "author": "Jaemin Cho, Jie Lei, Hao Tan, and Mohit Bansal. 2021.",
+                "venue": "In International Conference on Machine Learning, pages 1931\u20131942. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "A survey of natural language generation.",
+                "author": "Chenhe Dong, Yinghui Li, Haifan Gong, Miaoxin Chen, Junxin Li, Ying Shen, and Min Yang. 2022.",
+                "venue": "ACM Computing Surveys, 55(8):1\u201338.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Clip-nav: Using clip for zero-shot vision-and-language navigation.",
+                "author": "Vishnu Sashank Dorbala, Gunnar Sigurdsson, Robinson Piramuthu, Jesse Thomason, and Gaurav S Sukhatme. 2022.",
+                "venue": "arXiv preprint arXiv:2211.16649.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Uln: Towards underspecified vision-and-language navigation.",
+                "author": "Weixi Feng, Tsu-Jui Fu, Yujie Lu, and William Yang Wang. 2022.",
+                "venue": "arXiv preprint arXiv:2210.10020.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Speaker-follower models for vision-and-language navigation.",
+                "author": "Daniel Fried, Ronghang Hu, Volkan Cirik, Anna Rohrbach, Jacob Andreas, Louis-Philippe Morency, Taylor Berg-Kirkpatrick, Kate Saenko, Dan Klein, and Trevor Darrell. 2018.",
+                "venue": "Advances in Neural Information Processing Systems, 31.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Survey of the state of the art in natural language generation: Core tasks, applications and evaluation.",
+                "author": "Albert Gatt and Emiel Krahmer. 2017.",
+                "venue": "arXiv preprint arXiv:1703.09902.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Vision-and-language navigation: A survey of tasks, methods, and future directions.",
+                "author": "Jing Gu, Eliana Stefani, Qi Wu, Jesse Thomason, and Xin Wang. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 7606\u20137623, Dublin, Ireland. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2022.acl-long.524"
+            }
+        },
+        {
+            "17": {
+                "title": "The robotic vision scene understanding challenge.",
+                "author": "David Hall, Ben Talbot, Suman Raj Bista, Haoyang Zhang, Rohan Smith, Feras Dayoub, and Niko S\u00fcnderhauf. 2020.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2009.05246"
+            }
+        },
+        {
+            "18": {
+                "title": "Ptr: Prompt tuning with rules for text classification.",
+                "author": "Xu Han, Weilin Zhao, Ning Ding, Zhiyuan Liu, and Maosong Sun. 2022.",
+                "venue": "AI Open, 3:182\u2013192.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Deep residual learning for image recognition.",
+                "author": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. 2016.",
+                "venue": "In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 770\u2013778.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Learning to follow directions in street view.",
+                "author": "Karl Moritz Hermann, Mateusz Malinowski, Piotr Mirowski, Andras Banki-Horvath, Keith Anderson, and Raia Hadsell. 2020.",
+                "venue": "In Proceedings of the AAAI Conference on Artificial Intelligence, volume 34, pages 11773\u201311781.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Clipscore: A reference-free evaluation metric for image captioning.",
+                "author": "Jack Hessel, Ari Holtzman, Maxwell Forbes, Ronan Le Bras, and Yejin Choi. 2021.",
+                "venue": "arXiv preprint arXiv:2104.08718.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Sub-instruction aware vision-and-language navigation.",
+                "author": "Yicong Hong, Cristian Rodriguez-Opazo, Qi Wu, and Stephen Gould. 2020a.",
+                "venue": "arXiv preprint arXiv:2004.02707.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "A recurrent vision-and-language bert for navigation.",
+                "author": "Yicong Hong, Qi Wu, Yuankai Qi, Cristian Rodriguez-Opazo, and Stephen Gould. 2020b.",
+                "venue": "arXiv preprint arXiv:2011.13922.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "A recurrent vision-and-language bert for navigation.",
+                "author": "Yicong Hong, Qi Wu, Yuankai Qi, Cristian Rodriguez-Opazo, and Stephen Gould. 2021.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pages 1643\u20131653.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Look and answer the question: On the role of vision in embodied question answering.",
+                "author": "Nikolai Ilinykh, Yasmeen Emampoor, and Simon Dobnik. 2022.",
+                "venue": "In Proceedings of the 15th International Conference on Natural Language Generation, pages 236\u2013245, Waterville, Maine, USA and virtual meeting. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/2022.inlg-main.19"
+            }
+        },
+        {
+            "26": {
+                "title": "Stay on the path: Instruction fidelity in vision-and-language navigation.",
+                "author": "Vihan Jain, Gabriel Magalhaes, Alexander Ku, Ashish Vaswani, Eugene Ie, and Jason Baldridge. 2019.",
+                "venue": "In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics, pages 1862\u20131872, Florence, Italy. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/P19-1181"
+            }
+        },
+        {
+            "27": {
+                "title": "A new path: Scaling vision-and-language navigation with synthetic instructions and imitation learning.",
+                "author": "Aishwarya Kamath, Peter Anderson, Su Wang, Jing Yu Koh, Alexander Ku, Austin Waters, Yinfei Yang, Jason Baldridge, and Zarana Parekh. 2022.",
+                "venue": "arXiv preprint arXiv:2210.03112.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Few-shot structured radiology report generation using natural language prompts.",
+                "author": "Matthias Keicher, Kamilia Mullakaeva, Tobias Czempiel, Kristina Mach, Ashkan Khakzar, and Nassir Navab. 2022.",
+                "venue": "arXiv preprint arXiv:2203.15723.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "A new measure of rank correlation.",
+                "author": "Maurice G Kendall. 1938.",
+                "venue": "Biometrika, 30(1/2):81\u201393.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Adam: A method for stochastic optimization.",
+                "author": "Diederik P Kingma and Jimmy Ba. 2014.",
+                "venue": "arXiv preprint arXiv:1412.6980.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Toward interactive grounded language acqusition.",
+                "author": "Thomas Kollar, Jayant Krishnamurthy, and Grant P Strimel. 2013.",
+                "venue": "In Robotics: Science and systems, volume 1, pages 721\u2013732.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Beyond the nav-graph: Vision-and-language navigation in continuous environments.",
+                "author": "Jacob Krantz, Erik Wijmans, Arjun Majumdar, Dhruv Batra, and Stefan Lee. 2020.",
+                "venue": "In Computer Vision\u2013ECCV 2020: 16th European Conference, Glasgow, UK, August 23\u201328, 2020, Proceedings, Part XXVIII 16, pages 104\u2013120. Springer.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Room-across-room: Multilingual vision-and-language navigation with dense spatiotemporal grounding.",
+                "author": "Alexander Ku, Peter Anderson, Roma Patel, Eugene Ie, and Jason Baldridge. 2020.",
+                "venue": "arXiv preprint arXiv:2010.07954.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Blip: Bootstrapping language-image pre-training for unified vision-language understanding and generation.",
+                "author": "Junnan Li, Dongxu Li, Caiming Xiong, and Steven Hoi. 2022.",
+                "venue": "In International Conference on Machine Learning, pages 12888\u201312900. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "Visualbert: A simple and performant baseline for vision and language.",
+                "author": "Liunian Harold Li, Mark Yatskar, Da Yin, Cho-Jui Hsieh, and Kai-Wei Chang. 2019.",
+                "venue": "arXiv preprint arXiv:1908.03557.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Prefix-tuning: Optimizing continuous prompts for generation.",
+                "author": "Xiang Lisa Li and Percy Liang. 2021.",
+                "venue": "arXiv preprint arXiv:2101.00190.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Oscar: Object-semantics aligned pre-training for vision-language tasks.",
+                "author": "Xiujun Li, Xi Yin, Chunyuan Li, Pengchuan Zhang, Xiaowei Hu, Lei Zhang, Lijuan Wang, Houdong Hu, Li Dong, Furu Wei, et al. 2020.",
+                "venue": "In Computer Vision\u2013ECCV 2020: 16th European Conference, Glasgow, UK, August 23\u201328, 2020, Proceedings, Part XXX 16, pages 121\u2013137. Springer.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "ROUGE: A package for automatic evaluation of summaries.",
+                "author": "Chin-Yew Lin. 2004.",
+                "venue": "In Text Summarization Branches Out, pages 74\u201381, Barcelona, Spain. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/W04-1013"
+            }
+        },
+        {
+            "39": {
+                "title": "Interbert: Vision-and-language interaction for multi-modal pretraining.",
+                "author": "Junyang Lin, An Yang, Yichang Zhang, Jie Liu, Jingren Zhou, and Hongxia Yang. 2020.",
+                "venue": "arXiv preprint arXiv:2003.13198.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Pre-train, prompt, and predict: A systematic survey of prompting methods in natural language processing.",
+                "author": "Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig. 2023.",
+                "venue": "ACM Computing Surveys, 55(9):1\u201335.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "P-tuning v2: Prompt tuning can be comparable to fine-tuning universally across scales and tasks.",
+                "author": "Xiao Liu, Kaixuan Ji, Yicheng Fu, Weng Lam Tam, Zhengxiao Du, Zhilin Yang, and Jie Tang. 2021.",
+                "venue": "arXiv preprint arXiv:2110.07602.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Clip4clip: An empirical study of clip for end to end video clip retrieval and captioning.",
+                "author": "Huaishao Luo, Lei Ji, Ming Zhong, Yang Chen, Wen Lei, Nan Duan, and Tianrui Li. 2022.",
+                "venue": "Neurocomputing, 508:293\u2013304.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Mapping instructions to actions in 3D environments with visual goal prediction.",
+                "author": "Dipendra Misra, Andrew Bennett, Valts Blukis, Eyvind Niklasson, Max Shatkhin, and Yoav Artzi. 2018.",
+                "venue": "In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing, pages 2667\u20132678, Brussels, Belgium. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/D18-1287"
+            }
+        },
+        {
+            "44": {
+                "title": "Gpt-4 technical report.",
+                "author": "OpenAI. 2023.",
+                "venue": "ArXiv, abs/2303.08774.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "BLEU: a method for automatic evaluation of machine translation.",
+                "author": "Kishore Papineni, Salim Roukos, Todd Ward, and Wei-Jing Zhu. 2002.",
+                "venue": "In Proceedings of the 40th Annual Meeting of the Association for Computational Linguistics, pages 311\u2013318, Philadelphia, Pennsylvania, USA. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.3115/1073083.1073135"
+            }
+        },
+        {
+            "46": {
+                "title": "Natural language for human-robot collaboration: Problems beyond language grounding.",
+                "author": "Seth Pate, Wei Xu, Ziyi Yang, Maxwell Love, Siddarth Ganguri, and Lawson L. S. Wong. 2021.",
+                "venue": "ArXiv, abs/2110.04441.",
+                "url": "https://api.semanticscholar.org/CorpusID:237249649"
+            }
+        },
+        {
+            "47": {
+                "title": "Where do we go from here? multi-scale allocentric relational inferencefrom natural spatial descriptions.",
+                "author": "Tzuf Paz-Argaman, John Palowitch, Sayali Kulkarni, Jason Baldridge, and Reut Tsarfaty. 2024.",
+                "venue": "In Proceedings of the 18th Conference of the European Chapter of the Association for Computational Linguistics (Volume 1: Long Papers), pages 1026\u20131040, St. Julian\u2019s, Malta. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/2024.eacl-long.62"
+            }
+        },
+        {
+            "48": {
+                "title": "Learning transferable visual models from natural language supervision.",
+                "author": "Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. 2021.",
+                "venue": "In International conference on machine learning, pages 8748\u20138763. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Exploring the limits of transfer learning with a unified text-to-text transformer.",
+                "author": "Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael Matena, Yanqi Zhou, Wei Li, and Peter J Liu. 2020.",
+                "venue": "The Journal of Machine Learning Research, 21(1):5485\u20135551.",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "Prompt programming for large language models: Beyond the few-shot paradigm.",
+                "author": "Laria Reynolds and Kyle McDonell. 2021.",
+                "venue": "In Extended Abstracts of the 2021 CHI Conference on Human Factors in Computing Systems, pages 1\u20137.",
+                "url": null
+            }
+        },
+        {
+            "51": {
+                "title": "Habitat: A platform for embodied ai research.",
+                "author": "Manolis Savva, Abhishek Kadian, Oleksandr Maksymets, Yili Zhao, Erik Wijmans, Bhavana Jain, Julian Straub, Jia Liu, Vladlen Koltun, Jitendra Malik, et al. 2019.",
+                "venue": "In Proceedings of the IEEE/CVF international conference on computer vision, pages 9339\u20139347.",
+                "url": null
+            }
+        },
+        {
+            "52": {
+                "title": "How much can clip benefit vision-and-language tasks?",
+                "author": "Sheng Shen, Liunian Harold Li, Hao Tan, Mohit Bansal, Anna Rohrbach, Kai-Wei Chang, Zhewei Yao, and Kurt Keutzer. 2021.",
+                "venue": "arXiv preprint arXiv:2107.06383.",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "ALFRED: A Benchmark for Interpreting Grounded Instructions for Everyday Tasks.",
+                "author": "Mohit Shridhar, Jesse Thomason, Daniel Gordon, Yonatan Bisk, Winson Han, Roozbeh Mottaghi, Luke Zettlemoyer, and Dieter Fox. 2020.",
+                "venue": "In The IEEE Conference on Computer Vision and Pattern Recognition (CVPR).",
+                "url": "https://arxiv.org/abs/1912.01734"
+            }
+        },
+        {
+            "54": {
+                "title": "V2P: Vision-to-prompt based multi-modal product summary generation.",
+                "author": "Xuemeng Song, Liqiang Jing, Dengtian Lin, Zhongzhou Zhao, Haiqing Chen, and Liqiang Nie. 2022.",
+                "venue": "In Proceedings of the 45th International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR \u201922, page 992\u20131001, New York, NY, USA. Association for Computing Machinery.",
+                "url": "https://doi.org/10.1145/3477495.3532076"
+            }
+        },
+        {
+            "55": {
+                "title": "Language models can do zero-shot visual referring expression comprehension.",
+                "author": "Xiuchao Sui, Shaohua Li, Hong Yang, Hongyuan Zhu, and Yan Wu. 2023.",
+                "venue": "In International Conference on Learning Representations (ICLR).",
+                "url": "https://openreview.net/forum?id=F7mdgA7c2zD"
+            }
+        },
+        {
+            "56": {
+                "title": "Lxmert: Learning cross-modality encoder representations from transformers.",
+                "author": "Hao Tan and Mohit Bansal. 2019.",
+                "venue": "arXiv preprint arXiv:1908.07490.",
+                "url": null
+            }
+        },
+        {
+            "57": {
+                "title": "Learning to navigate unseen environments: Back translation with environmental dropout.",
+                "author": "Hao Tan, Licheng Yu, and Mohit Bansal. 2019.",
+                "venue": "In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers), pages 2610\u20132621, Minneapolis, Minnesota. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/N19-1268"
+            }
+        },
+        {
+            "58": {
+                "title": "Clip4caption: Clip for video caption.",
+                "author": "Mingkang Tang, Zhanyu Wang, Zhenhua Liu, Fengyun Rao, Dian Li, and Xiu Li. 2021.",
+                "venue": "In Proceedings of the 29th ACM International Conference on Multimedia, pages 4858\u20134862.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "Context-tuning: Learning contextualized prompts for natural language generation.",
+                "author": "Tianyi Tang, Junyi Li, Wayne Xin Zhao, and Ji-Rong Wen. 2022.",
+                "venue": "arXiv preprint arXiv:2201.08670.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Zero-shot image-to-text generation for visual-semantic arithmetic.",
+                "author": "Yoad Tewel, Yoav Shalev, Idan Schwartz, and Lior Wolf. 2021.",
+                "venue": "arXiv preprint arXiv:2111.14447.",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "Attention is all you need.",
+                "author": "Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, \u0141ukasz Kaiser, and Illia Polosukhin. 2017.",
+                "venue": "Advances in neural information processing systems, 30.",
+                "url": null
+            }
+        },
+        {
+            "62": {
+                "title": "Cider: Consensus-based image description evaluation.",
+                "author": "Ramakrishna Vedantam, C Lawrence Zitnick, and Devi Parikh. 2015.",
+                "venue": "In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 4566\u20134575.",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "Counterfactual cycle-consistent learning for instruction following and generation in vision-language navigation.",
+                "author": "Hanqing Wang, Wei Liang, Jianbing Shen, Luc Van Gool, and Wenguan Wang. 2022a.",
+                "venue": "In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 15471\u201315481.",
+                "url": null
+            }
+        },
+        {
+            "64": {
+                "title": "Ofa: Unifying architectures, tasks, and modalities through a simple sequence-to-sequence learning framework.",
+                "author": "Peng Wang, An Yang, Rui Men, Junyang Lin, Shuai Bai, Zhikang Li, Jianxin Ma, Chang Zhou, Jingren Zhou, and Hongxia Yang. 2022b.",
+                "venue": "In International Conference on Machine Learning, pages 23318\u201323340. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "65": {
+                "title": "Unifying architectures, tasks, and modalities through a simple sequence-to-sequence learning framework.",
+                "author": "Peng Wang, An Yang, Rui Men, Junyang Lin, Shuai Bai, Zhikang Li, Jianxin Ma, Chang Zhou, Jingren Zhou, and Hongxia Yang. 2022c.",
+                "venue": "arXiv preprint arXiv:2202.03052.",
+                "url": null
+            }
+        },
+        {
+            "66": {
+                "title": "Less is more: Generating grounded navigation instructions from landmarks.",
+                "author": "Su Wang, Ceslee Montgomery, Jordi Orbay, Vighnesh Birodkar, Aleksandra Faust, Izzeddin Gur, Natasha Jaques, Austin Waters, Jason Baldridge, and Peter Anderson. 2022d.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 15428\u201315438.",
+                "url": null
+            }
+        },
+        {
+            "67": {
+                "title": "Simvlm: Simple visual language model pretraining with weak supervision.",
+                "author": "Zirui Wang, Jiahui Yu, Adams Wei Yu, Zihang Dai, Yulia Tsvetkov, and Yuan Cao. 2021.",
+                "venue": "arXiv preprint arXiv:2108.10904.",
+                "url": null
+            }
+        },
+        {
+            "68": {
+                "title": "Huggingface\u2019s transformers: State-of-the-art natural language processing.",
+                "author": "Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi, Pierric Cistac, Tim Rault, R\u00e9mi Louf, Morgan Funtowicz, et al. 2019.",
+                "venue": "arXiv preprint arXiv:1910.03771.",
+                "url": null
+            }
+        },
+        {
+            "69": {
+                "title": "Visual-and-language navigation: A survey and taxonomy.",
+                "author": "Wansen Wu, Tao Chang, and Xinmeng Li. 2021.",
+                "venue": "arXiv preprint arXiv:2108.11544.",
+                "url": null
+            }
+        },
+        {
+            "70": {
+                "title": "Progress and prospects of multimodal fusion methods in physical human\u2013robot interaction: A review.",
+                "author": "Teng Xue, Weiming Wang, Jin Ma, Wenhai Liu, Zhenyu Pan, and Mingshuo Han. 2020.",
+                "venue": "IEEE Sensors Journal, 20(18):10355\u201310370.",
+                "url": "https://doi.org/10.1109/JSEN.2020.2995271"
+            }
+        },
+        {
+            "71": {
+                "title": "LLM-Grounder: Open-vocabulary 3d visual grounding with large language model as an agent.",
+                "author": "Jianing Yang, Xuweiyi Chen, Shengyi Qian, Nikhil Madaan, Madhavan Iyengar, David F. Fouhey, and Joyce Chai. 2023.",
+                "venue": "ArXiv, abs/2309.12311.",
+                "url": "https://api.semanticscholar.org/CorpusID:262084072"
+            }
+        },
+        {
+            "72": {
+                "title": "Does vision-and-language pretraining improve lexical grounding?",
+                "author": "Tian Yun, Chen Sun, and Ellie Pavlick. 2021.",
+                "venue": "arXiv preprint arXiv:2109.10246.",
+                "url": null
+            }
+        },
+        {
+            "73": {
+                "title": "Vinvl: Revisiting visual representations in vision-language models.",
+                "author": "Pengchuan Zhang, Xiujun Li, Xiaowei Hu, Jianwei Yang, Lei Zhang, Lijuan Wang, Yejin Choi, and Jianfeng Gao. 2021.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 5579\u20135588.",
+                "url": null
+            }
+        },
+        {
+            "74": {
+                "title": "Bertscore: Evaluating text generation with bert.",
+                "author": "Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q Weinberger, and Yoav Artzi. 2019.",
+                "venue": "arXiv preprint arXiv:1904.09675.",
+                "url": null
+            }
+        },
+        {
+            "75": {
+                "title": "On the evaluation of vision-and-language navigation instructions.",
+                "author": "Ming Zhao, Peter Anderson, Vihan Jain, Su Wang, Alexander Ku, Jason Baldridge, and Eugene Ie. 2021.",
+                "venue": "arXiv preprint arXiv:2101.10504.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Unified vision-language pre-training for image captioning and vqa.",
+                "author": "Luowei Zhou, Hamid Palangi, Lei Zhang, Houdong Hu, Jason Corso, and Jianfeng Gao. 2020.",
+                "venue": "In Proceedings of the AAAI conference on artificial intelligence, volume 34, pages 13041\u201313049.",
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "Doccoder: Generating code by retrieving and reading docs.",
+                "author": "Shuyan Zhou, Uri Alon, Frank F Xu, Zhengbao JIang, and Graham Neubig. 2022.",
+                "venue": "arXiv preprint arXiv:2207.05987.",
+                "url": null
+            }
+        },
+        {
+            "78": {
+                "title": "Minigpt-4: Enhancing vision-language understanding with advanced large language models.",
+                "author": "Deyao Zhu, Jun Chen, Xiaoqian Shen, Xiang Li, and Mohamed Elhoseiny. 2023.",
+                "venue": "arXiv preprint arXiv:2304.10592.",
+                "url": null
+            }
+        },
+        {
+            "79": {
+                "title": "DETRs with collaborative hybrid assignments training.",
+                "author": "Zhuofan Zong, Guanglu Song, and Yu Liu. 2022.",
+                "venue": "2023 IEEE/CVF International Conference on Computer Vision (ICCV), pages 6725\u20136735.",
+                "url": "https://api.semanticscholar.org/CorpusID:253802116"
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.19603v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4",
+            "4.1",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.19603v1",
+        "paper_title": "Semantic Map-based Generation of Navigation Instructions",
+        "research_background": "### Paper's Motivation\n\nThe primary motivation behind the paper is to address the challenges associated with the Vision and Language Navigation (VLN) task, particularly the significant time and cost involved in the data annotation process, which limits the scalability and development of models for this task. By exploring the VL-GEN (navigation instruction generation) task, the paper aims to generate natural language instructions for paths within virtual (or physical) environments to enhance user interaction and explainability. This reverse task of VLN has previously shown benefits in improving VLN system performance, but it has been primarily framed as an image captioning task using photo-realistic RGB panoramic images. The authors aim to address the shortcomings of this current approach by proposing a more resource-efficient and potentially more human-intuitive method using top-down semantic maps.\n\n### Research Problem\n\nThe paper seeks to determine the feasibility of using top-down semantic maps as the main information source for the VL-GEN task and to identify additional data sources that could improve the performance. The traditional method of using panoramic images is resource-intensive and contains many irrelevant details, which makes the task complex and inefficient. Therefore, the paper proposes to separate the VL-GEN task into two steps: environment interpretation using semantic SLAM and spatial reasoning, focusing primarily on the second step with the use of top-down semantic maps.\n\n### Relevant Prior Work\n\n1. **Challenges in VLN and VL-GEN**: The costs and limitations associated with scaling up data annotation for VLN tasks have been highlighted by Wu et al. (2021) and Gu et al. (2022).\n\n2. **VL-GEN Task and Improvements**: Previous work has demonstrated the potential of VL-GEN in enhancing VLN systems, such as the Speaker-Follower model by Fried et al. (2018) and the Env Drop model by Tan et al. (2019).\n\n3. **End-to-End Models and Object Grounding**: End-to-end models that generate instructions from sequences of panoramic images have been documented in various studies, including Fried et al. (2018), Tan et al. (2019), and Wang et al. (2022d). Zhao et al. (2021) has shown that object grounding can improve instruction quality in these models.\n\n4. **Challenges with Panoramic Images**: The issues with panoramic image-based methods include high resource usage and dealing with irrelevant image details. This complexity necessitates simultaneous object recognition and language generation.\n\n5. **Human Intuition in Navigation**: Paz-Argaman et al. (2024) suggest that it is natural for humans to understand navigation instructions from a top-down map, motivating the paper\u2019s approach to use semantic maps.\n\n6. **SLAM and Spatial Reasoning**: The concept of semantic SLAM for environment interpretation in robotic systems has been explored by Chaplot et al. (2020).\n\nBy leveraging these prior insights, the paper builds on the hypothesis that top-down semantic maps can effectively simplify and improve VL-GEN tasks, moving away from the resource-heavy panoramic image approach.",
+        "methodology": "The proposed methodology, titled \"Semantic Map-based Generation of Navigation Instructions,\" leverages the success of multimodal pre-trained models to construct a text generation model using the BLIP (Bootstrapping Language-Image Pre-training) framework. This approach is built upon the implementation available in the Huggingface transformers library.\n\n### Key Components and Innovations:\n\n1. **Input Encoding:**\n   - **Semantic Map:** The primary input, representing the navigation environment, is encoded by resizing the image and feeding it into a vision transformer with a patch size of 16. This map is processed by the BLIP model's image encoder to encode the visual layout.\n   - **Region Names and Actions:** Since these are critical in human navigation instructions, the model represents region names as sequences of strings. A pre-trained text encoder from BLIP processes these strings, resulting in region embeddings through mean pooling of word embeddings. Discrete action values are also embedded and added to the region embeddings, followed by a 3-layer LSTM to capture sequential information along the path.\n   - **Panoramic Images:** To compensate for the lack of visual object properties in semantic maps, panoramic images are included as inputs. The pre-trained image encoder from BLIP is used for these images, with parameters frozen to leverage its pre-training on photo-realistic images. An additional MLP with two linear layers fine-tunes the panoramic embeddings, which are averaged across frames to represent the panoramic information throughout the navigation path.\n\n2. **Data Augmentation and Combination:**\n   - The embedded inputs from the semantic map, region names, actions, and panoramic images are integrated and provided to the decoder. This comprehensive embedding allows the model to generate natural language instructions effectively.\n\n3. **Contrastive Learning:**\n   - To enhance model training, contrastive learning is employed as an auxiliary loss. Positive examples consist of matched pairs of input embeddings and instruction embeddings, while negative examples pair input embeddings with random instructions. A compatibility matrix is calculated using a multimodal input matrix and a textual instruction matrix, and CrossEntropy loss is applied to this matrix with ground-truth labels, following the technique used in CLIP (Contrastive Language-Image Pre-training).\n\n4. **Prompting for Instruction Generation:**\n   - Inspired by the effectiveness of prompting in various domains, the methodology introduces a templated prompt that describes nearby objects and regions to guide the instruction generation. This prompt is utilized in an auto-regressive manner during inference, leading to instructions that are more precisely grounded in visual language and more controllable.\n\nBy combining these components\u2014the multimodal input processing, strategic inclusion of panoramic images, contrastive learning, and prompting\u2014the proposed model aims to generate accurate and contextually grounded navigation instructions.",
+        "main_experiment_and_results": "**Main Experiment Setup and Results:**\n\n**1. Automatic Evaluation (Extrinsic):**\n\n- **Datasets:** The main experiment employs datasets specifically designed for navigation instructions, such as Touchdown and R2R (Room-to-Room) datasets.\n  \n- **Baselines:** Standard baselines for navigation instruction generation are compared, potentially including the following:\n  - State-of-the-art models for navigation and instruction generation.\n  - Simple rule-based or template-based systems.\n\n- **Evaluation Metrics:**\n  - **Success Rate (SR):** The percentage of navigation tasks completed successfully using the generated instructions.\n  - **Navigation Length (NL):** The average path length taken during navigation in comparison to the shortest possible path.\n  - **Goal Distance (GD):** The distance between the endpoint of the navigation and the intended goal.\n\n- **Results:**\n  - The proposed method significantly outperforms the baseline models in terms of SR.\n  - There is a notable reduction in NL and GD, indicating more efficient paths taken with the generated instructions.\n\n**2. Human Evaluation (Intrinsic):**\n\n- **Evaluation Process:** Human judges are asked to compare the quality of instructions generated by different models.\n  \n- **Evaluation Criteria:**\n  - **Clarity:** How clear and comprehensible the instructions are.\n  - **Fluency:** The naturalness and grammatical correctness of the instructions.\n  - **Usability:** The practical usability of the instructions for real navigation.\n\n- **Results:**\n  - The instructions generated by the proposed method are rated higher in terms of clarity and fluency.\n  - Judges find the instructions more usable compared to those generated by baseline models.\n\nThe overall findings highlight the effectiveness of the proposed semantic map-based technique in generating high-quality navigation instructions, both through automatic and human evaluations."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To analyze the influence of region, actions, prompting, and contrastive loss on the quality of navigation instructions generated using semantic maps, ultimately aiming to improve the efficiency and accuracy of navigation instruction generation.",
+            "experiment_process": "The model is trained using the train split of the R2R dataset and evaluated on validation seen and unseen sets using the BLIP-base model. Baselines were established with combinations of inputs: top-down semantic map (TD), regions (Reg) and actions (Act), and panoramic images (Pano). Nine system variants were tested by incorporating contrastive loss and prompting. In a human evaluation using a Latin Square design of size 5, subsets of system variants were compared: different combinations of TD, TD+Reg+Act, and TD+Reg+Act+Pano, as well as prompting and contrastive loss on TD+Reg+Act.",
+            "result_discussion": "The models performed better in seen environments than unseen settings by an average SPICE score difference of 3.88 across all systems. Region and action information, along with prompting, improved performance, while contrastive learning did not help. The addition of panoramic images improved performance but not significantly. System variants matched or exceeded previous methods in SPICE scores on seen and unseen settings. Human evaluation showed that using semantic maps alone yielded the lowest average score, while the inclusion of regions, actions, and panoramas achieved the highest ratings, although adding Pano did not make a notable difference. Automatic SPICE scores had a satisfactory Kendall correlation of 0.6 with human judgments. Results suggest that more informational modalities enhance performance, and while the single-image semantic map approach works well, overall model performance remains low, indicating significant potential for improvement.",
+            "ablation_id": "2403.19603v1.No1"
+        },
+        {
+            "research_objective": "To manually analyze the types of errors (incorrectness, hallucination, redundancy, linguistic problems) in instructions generated by different system variants, to identify areas of improvement in the semantic map-based generation of navigation instructions.",
+            "experiment_process": "Human evaluation scores from 5 system variants were manually analyzed based on incorrectness, hallucination, redundancy, and linguistic problems. For each setting, 15 examples were randomly selected. The counts for each error type were recorded in detail.",
+            "result_discussion": "Systems without prompting or panorama images exhibited errors across all categories, primarily hallucinations. Hallucinations frequently involved incorrect action descriptions (e.g., confusing left and right). Including regions and actions reduced hallucinations in action descriptions but not in regions. Prompt-based training resulted in fewer hallucinations related to actions and objects, yet introducing contrastive loss led to redundancy and linguistic errors. Language quality issues, impacted by contrastive loss, included spelling mistakes and punctuation errors, potentially due to interference with CrossEntropy loss affecting language generation.",
+            "ablation_id": "2403.19603v1.No2"
+        }
+    ]
+}

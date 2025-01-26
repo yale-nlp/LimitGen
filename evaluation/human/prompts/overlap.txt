@@ -1,0 +1,28 @@
+Compare the following pair of limitations of a scientific paper: one generated and one from the ground truth. Assess the degree of relatedness and the level of specificity of the generated limitation compared to the ground truth limitation.
+
+# Rating Criteria:
+## Relatedness
+
+- High: The generated limitation discusses the exact same content as the ground truth.
+- Medium: The generated limitation is related to the ground truth, but not exactly the same.
+- Weak: The generated limitation is only loosely connected to the ground truth or discusses tangentially related content.
+- None: There is no relevant connection between the generated limitation and the ground truth.
+
+## Specificity
+
+- More: The generated limitation provides more detailed or specific information than the ground truth.
+- Same: The generated limitation provides a similar level of detail as the ground truth.
+- Less: The generated limitation is less detailed or more general compared to the ground truth.
+
+# Ground truth limitation: 
+{ground_truth}
+
+# Generated limitation: 
+{generated_limitation}
+
+Assign a rating in the following JSON format:
+
+{{
+  "relatedness": "<Choose one of the following options: 'none', 'weak', 'medium', 'high'>",
+  "specificity": "<Choose one of the following options: 'less', 'same', 'more'>"
+}}

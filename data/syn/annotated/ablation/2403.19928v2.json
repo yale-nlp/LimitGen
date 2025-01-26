@@ -1,0 +1,510 @@
+{
+    "title": "DiJiang: Efficient Large Language Models through Compact Kernelization",
+    "abstract": "In an effort to reduce the computational load of Transformers, research on linear attention has gained significant momentum. However, the improvement strategies for attention mechanisms typically necessitate extensive retraining, which is impractical for large language models with a vast array of parameters. In this paper, we present DiJiang, a novel Frequency Domain Kernelization approach that enables the transformation of a pre-trained vanilla Transformer into a linear complexity model with little training costs. By employing a weighted Quasi-Monte Carlo method for sampling, the proposed approach theoretically offers superior approximation efficiency. To further reduce the training computational complexity, our kernelization is based on Discrete Cosine Transform (DCT) operations. Extensive experiments demonstrate that the proposed method achieves comparable performance to the original Transformer, but with significantly reduced training costs and much faster inference speeds. Our DiJiang-7B achieves comparable performance with LLaMA2-7B on various benchmark while requires only about 1/50 training cost. Code is available at https://github.com/YuchuanTian/DiJiang.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "The Transformer architecture (Vaswani et al., 2017  ###reference_b35###) has revolutionized the field of Natural Language Processing (NLP), achieving outstanding results in various tasks such as speech recognition (Dong et al., 2018  ###reference_b12###), machine translation (Wang et al., 2019  ###reference_b36###), and document generation/summarization (Kim et al., 2022  ###reference_b19###). This success has led to an era dominated by large language models (LLMs), where the Transformer structure is scaled up to handle increasingly complex tasks. However, this scaling brings with it substantial computational demands, especially due to the attention mechanism which requires cross-correlation calculations between each token. These computational requirements, coupled with the significant inference costs and energy consumption, present considerable obstacles to deploying these models in resource-constrained environments like mobile devices and robotics.\nIn response to the pressing need for more efficient Transformer models, the research community has directed its efforts towards optimizing the Transformer architecture. A myriad of strategies has been put forward, encompassing methods such as model pruning, quantization, and the development of more efficient attention mechanisms. Among these initiatives, simplifying the attention mechanism has emerged as a particularly promising avenue. This approach focuses on transforming the traditionally quadratic complexity of attention mechanisms into a more manageable linear scale.  (Katharopoulos et al., 2020  ###reference_b18###) introduces Linear Transformers, which leverage kernel feature maps to transform self-attention, reducing complexity from quadratic to linear while maintaining comparable results to traditional Transformers. (Kitaev et al., 2020  ###reference_b20###) proposes replacies dot-product attention with locality-sensitive hashing and using reversible residual layers to minimize memory usage in training. Performer (Choromanski et al., 2020  ###reference_b10###) utilize positive orthogonal random features to approximate softmax-based self-attention in Transformers, achieving a transformative leap to linear complexity.\nHowever, the majority of existing methods for optimizing Transformers, particularly in relation to their attention mechanisms, necessitate comprehensive retraining. This retraining process presents a formidable challenge, especially for models with an immense array of parameters. It requires a significant investment in terms of computational resources and time. For instance, the training of a large model like LLaMA-7B (Touvron et al., 2023  ###reference_b33###) demands approximately 82,432 GPU-hours and incurs a total power consumption of around 36 MWh. Undertaking such extensive retraining for models of this magnitude is not only economically taxing but also raises environmental concerns due to the substantial energy expenditure involved. This underscores the need for more efficient approaches to adapt and optimize these large-scale models. Undertaking such extensive retraining for models of this magnitude is not only economically taxing but also raises environmental concerns due to the substantial energy expenditure involved. Despite few research (Zheng et al., 2023  ###reference_b42###; Choromanski et al., 2020  ###reference_b10###) efforts focusing on finding fast approximations for attention mechanisms, these methods have not been thoroughly validated in large-scale language models.\nTo address the issue of fast attention approximations in large language models, we conducted a thorough analysis of existing linear attention schemes. We discovered that the main source of approximation error in these methods is due to sampling based on the Monte Carlo method. Consequently, we propose the use of weighted Quasi-Monte Carlo sampling for mapping, specifically introducing Frequency Domain Kernelization. This approach efficiently and accurately maps the queries and keys of a Transformer to the frequency domain using Discrete Cosine Transform (DCT). This mapping allows us to effectively eliminate the softmax operation in the attention mechanism, rendering the attention computation linear in complexity, which is shown in Figure 1  ###reference_###. We theoretically demonstrate that this frequency domain mapping is an approximate equivalent to the original attention mechanism. Our experiments show that our method achieves performance comparable to the original Transformer with a significantly smaller training cost (), while also benefiting from faster inference speeds (up to about 10x)."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Related Works",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "Linear Transformers",
+            "text": "Reducing the computational load of attention in Transformers remains a hot topic in research. (Child et al., 2019  ###reference_b9###) achieved this by sparsifying attention, thereby reducing its computational cost. Similarly, (Kitaev et al., 2020  ###reference_b20###) used locality-sensitive hashing to expedite the computation of attention. However, these methods are hard to apply in auto-regressive Transformer models. As a result, there has been a series of works focusing on removing or substituting the softmax in attention. Notably, the Linear Transformer, first introduced by (Katharopoulos et al., 2020  ###reference_b18###), represents a significant stride in this direction. (Qin et al., 2022  ###reference_b30###) approximated attention calculations using a linear operator and a cosine-based distance reweighting. (Zhai et al., 2021  ###reference_b40###) achieved linear complexity in Transformers by preprocessing keys and values. (Lu et al., 2021  ###reference_b25###) used Gaussian kernel functions in place of dot-product similarity, allowing for the approximation of the full self-attention matrix through low-rank matrix decomposition. (Bello, 2021  ###reference_b3###) bypassed the need for attention calculations by capturing interactions through transforming available contexts into linear functions and applying them to each input, showcasing the variety of methods explored to optimize attention mechanisms in Transformer models.\nAdditionally, recent proposals like RWKV (Peng et al., 2023  ###reference_b28###), RetNet (Sun et al., 2023  ###reference_b32###), and Mamba (Gu & Dao, 2023  ###reference_b16###) have introduced potential alternatives to the Transformer with linear complexity. However, these existing improvements typically require significant modifications to the model\u2019s architecture and often necessitate training a new model from scratch to achieve optimal performance. Given the substantial training costs associated with large language models, such retraining is not always feasible. While methods like StreamingLLM (Xiao et al., 2023  ###reference_b38###) or Longformer (Beltagy et al., 2020  ###reference_b4###) can be implemented through fine-tuning, their reliance on window attention compromises their ability to truly model long sequences, leading to a decrease in accuracy. This highlights the challenge of balancing model training efficiency with the ability to maintain high performance in handling long sequences."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "Frequency-based Transformers",
+            "text": "A various of research has focused on applying the Transformer architecture in the frequency domain. For instance, FNet (Lee-Thorp et al., 2021  ###reference_b22###) replaces the self-attention in BERT with Fourier Transform, significantly speeding up Transformer computations. A similar concept (Buchholz & Jug, 2022  ###reference_b8###) has been adapted for image processing tasks. DCFormer (Li et al., 2023  ###reference_b23###) proposes a Transformer-based network that learns semantic representations directly from frequency domain representations using Discrete Cosine Transform (DCT). In the realm of video prediction, ideas like the local frequency domain transformer (Farazi et al., 2021  ###reference_b13###) have been introduced. However, applying these concepts to existing decoder-only large language models presents challenges. The auto-regressive inference style of these models makes token-level frequency domain transformations cumbersome. Each new token requires frequency domain transformation in conjunction with all previous tokens, which fails to reduce complexity and undermines the potential efficiency gains of frequency domain approaches in large-scale language models.\n###figure_1###"
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Kernelized Attention in Frequency Domain",
+            "text": "In our study, we begin by revisiting the general form of self-attention (Vaswani et al., 2017  ###reference_b35###). To simplify the notation and focus on the core aspects, we consider the single head form of self-attention and omit normalization factors. The self-attention mechanism is fundamentally composed of queries , keys , and values , expressed in the formula:\nwhere  denotes the number of tokens and  denotes the hidden dimension of the attention. Specifically, when we denote  as ,  as ,  as , and output  as , Equation 1  ###reference_### can be reformulated as:\nIt can be observed that the computational and memory complexity for calculating each output in a Transformer model is , where  is the sequence length and  is the dimensionality of the representation. Consequently, the time and memory complexity for processing a sentence of length  scales quadratically, becoming . This quadratic scaling poses a significant computational burden, particularly for longer sequences where  is large, making processing resource-intensive and challenging.\nTo mitigate this complexity, the concept of a kernel mechanism has been introduced as a means to reduce the computational demands of attention mechanisms, which has been introduced in (Tsai et al., 2019  ###reference_b34###; Katharopoulos et al., 2020  ###reference_b18###; Choromanski et al., 2020  ###reference_b10###). Specifically, this involves the introduction of a kernel function , which acts as a positive-definite kernel capable of measuring similarity. By utilizing this kernel, the attention mechanism can be reformulated as:\nBy applying the kernel trick, it\u2019s possible to linearly decompose the attention mechanism:\nwhere  is a projection to map the inputs into  dimension features. This decomposition benefits from the fact that the computational dimensions of the keys and values can be merged, effectively reducing the computational complexity from  to . Given that the dimensionality  and  is typically much smaller than the sequence length , this linearization of the attention mechanism results in a substantial decrease in computational intensity.\nIn the context of large language models, the cost of retraining is prohibitively high. In such scenarios, it becomes imperative to find a kernel that can equivalently replace the vanilla attention mechanism without necessitating extensive retraining. Positive Random Features (PRF) (Choromanski et al., 2020  ###reference_b10###) emerge as a viable candidate in this regard:\nwhere . Theoretical demonstrations have established that . It means that when , the dimension of the feature space, is sufficiently large, Positive Random Features (PRF) mapping becomes an equivalent of the original attention mechanism. This equivalence suggests that, in theory, it is feasible to directly transform existing vanilla attention into linear attention using PRF mapping, thereby achieving an acceleration without loss of functionality. However, a notable challenge arises due to the need for  to be set to a significantly large value to maintain the performance by reducing the approximation error. This requirement leads to a non-negligible increase in computational demand. For instance, in the case of the Performer (Choromanski et al., 2020  ###reference_b10###), to achieve a lossless linear attention,  often needs to be set to larger than , diminishing the benefits of reduced computational load brought by linear attention.\nTo address this issue, we first conduct a theoretical analysis of the kernel-based approach for approximating attention mechanisms. We begin with the application of Bochner\u2019s Theorem. This theorem allows us to equate the original attention computation involving queries (Q) and keys (K) \u2013 specifically the Gaussian kernel \u2013 to an integral computation akin to Equation 4  ###reference_###.\n(Bochner\u2019s Theorem) (Feller, 1966  ###reference_b14###). A continuous shift invariant scaled kernel function  is positive definite if and only if it is the Fourier Transform of a unique finite probability measure  on .\nwhere the symbol  denotes the complex conjugate of .\nAccording to Bochner\u2019s theorem, there is a one-to-one correspondence between the kernel function  and the probability density  defined on . Monte Carlo is equal weight approximation to kernel integrals. Taking , the feature maps can be constructed as:\nwhere  are samples constructed by Monte Carlo methods.  is the explicit finite dimensional feature map, which depends on the kernel . Moving forward, instead of employing the Monte Carlo method as suggested in  (Choromanski et al., 2020  ###reference_b10###), we utilize the Quasi-Monte Carlo method (Le et al., 2013  ###reference_b21###). This shift enables the estimation of the integral using a specific uniform distribution as opposed to a randomly sampled distribution.\nUtilizing Bochner\u2019s theorem allows for a transformative interpretation of the attention mechanism in Transformer models. For the Gaussian Kernel:\nsince the  and  in attention mechanism is usually normalized, the Gaussian Kernel can be regarded as , which is the same as the calculation between the queries and keys.\nThe Positive Fixed Features (PFF) is formulated as:\nwhere  is asymptotically uniformly distributed and . Then,  is an unbiased estimate of Gaussian kernel .\nThe proof of this theorem involves a transformation to spherical coordinates, which can be found in the supplementary material. Through this transformation, we demonstrate that an approximation based on any asymptotically uniformly distribution can closely approximate the original Gaussian kernel. Furthermore, according to (Asmussen & Glynn, 2007  ###reference_b2###), when utilizing uniform sequences, the Quasi-Monte Carlo method can offer superior approximation efficiency compared to the traditional Monte Carlo method. The approximation efficiency of Quasi-Monte Carlo is , which is more favorable than the  efficiency of Monte Carlo. Consequently, this implies that using the PFF 9  ###reference_### kernel for approximating the Gaussian kernel is more advantageous than the PRF kernel in Equation 5  ###reference_###.\nThe Weighted Positive Fixed Features (WPFF) is formulated as:\nwhere  is a learnable parameter which can be optimized by the input . Then the upper bound of the integral estimation error of the objective function by WPFF (Weighted Positive Fixed Features) method is not greater than the upper bound of the integral estimation error of the objective function by PFF (Positive Fixed Features) method.\nBuilding upon the Quasi-Monte Carlo foundation, we further introduce the concept of weighted Quasi-Monte Carlo to enhance the efficiency of approximation. This advancement aims to leverage the strengths of the Quasi-Monte Carlo method, augmenting it with strategically weighted sampling to improve the precision and convergence rates of our approximations. The detailed proof is provided in the supplementary materials.\nTo further accelerate the training speed, we propose the use of frequency domain transformations to reduce the required computational resources. Fast Fourier Transform (FFT) and Discrete Cosine Transform (DCT) are commonly used methods for such transformations. Compared to ordinary orthogonal transformations, frequency domain transformations have algorithms for rapid computation, significantly reducing the computational cost of our proposed mapping. Specifically, the complexity of  can be reduced to . Additionally, since DCT operates in the real number domain, it demands even less computational resources and is more hardware-friendly. Therefore, we opt for the DCT to carry out our kernel mapping.\nSpecifically, a DCT coefficient  in the frequency domain is defined as:\nwhere  if  and  otherwise. The weighted mapping using DCT (which is called Weighted Discrete Cosine Features) can be reformulated as:\nwhere  is the DCT coefficient,  is a learnable weight, and  is a random diagonal matrix following the inverse cumulative distribution. Note that since the  in attention mechanism is usually normalized, we ignore the term of  in Equation 9  ###reference_### for efficiency. Therefore, using DCT as a kernel can closely approximate the original attention mechanism while have low computation complexity. For scenarios where , more DCT transformations can be derived using different boundary conditions. Details can be referred to (Ahmed et al., 1974  ###reference_b1###). It is noted that we set  to avoid increasing computational complexity in the subsequent experiments.\n###table_1### Therefore, the kernelized attention in frequency domain (FKA) is then reformulated as:\nThis approach achieves a notable reduction in computational complexity by employing the Discrete Cosine Transform (DCT) to map the queries and keys within the Transformer\u2019s attention mechanism to a domain where operations are inherently more efficient.\nIn summary, our method leverages frequency domain kernelization for Transformer attention mechanisms, significantly cutting computational costs while either preserving or enhancing model performance. The details are shown in Algorithm 1  ###reference_###. Through the strategic use of the weighted Quasi-Monte Carlo method, which outperforms traditional Monte Carlo sampling in efficiency and accuracy, combined with DCT for efficient frequency domain transformations, we attain linear complexity in attention computation. This reformulation not only improves the scalability of Transformers, enabling them to handle larger datasets and extended sequences with ease, but also markedly accelerates the training and inference phases."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": "In this section, we conduct extensive experimental validation of the proposed architecture, encompassing results across language models of varying scales. Additionally, we provide detailed analyses to substantiate the effectiveness of our approach."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Evaluation on Different Scales",
+            "text": "Given the challenge of replicating the training processes of most language models, as only their checkpoints are openly available, we opted to validate our method using Pythia (Biderman et al., 2023  ###reference_b5###), a model with a fully public dataset and training procedure, enabling fair comparisons.\nWe adhered to the exact training settings employed by Pythia, including learning rates, optimizers, and other hyperparameters, and utilized the Pile dataset. The Pile (Gao et al., 2020  ###reference_b15###) is an 825 GiB corpus of English text, specifically designed for training large-scale language models. This project is composed of 22 distinct, high-quality subsets, both pre-existing and newly constructed, many of which originate from academic or professional sources. This comprehensive and diverse dataset serves as a robust foundation for developing and fine-tuning language models Our DiJiang model was fine-tuned from the pre-trained Pythia model. We evaluated our approach on six public datasets used by Pythia: PIQA (Bisk et al., 2020  ###reference_b6###), WinoGrande, WSC (Sakaguchi et al., 2021  ###reference_b31###), ARC-E, ARC-C (Clark et al., 2018  ###reference_b11###), and LogiQA (Liu et al., 2020  ###reference_b24###). The Pythia model\u2019s checkpoint was obtained from HuggingFace111https://huggingface.co/EleutherAI  ###reference_huggingface.co/EleutherAI###. We adapt the learned gating mechanism (Peng et al., 2021  ###reference_b29###) similar with the RetNet (Sun et al., 2023  ###reference_b32###) to augment our DiJiang.\nThe experimental results, as shown in Table 1  ###reference_###, indicate that our method achieved remarkable outcomes across different model sizes, ranging from 70M to 2.8B parameters. On average, the performance on the six datasets was nearly identical to that of the original Pythia, but with only  of the training cost. Furthermore, the inference speed of our DiJiang model was significantly faster than that of the original Pythia. These results substantiate the effectiveness of our approach, demonstrating its potential to enhance the efficiency of large language models without compromising performance."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Evaluation on Different Models",
+            "text": "To evaluate the effectiveness of our method across different models, as shown in Table 1  ###reference_###, we further applied our approach to the OPT-350M (Zhang et al., 2022  ###reference_b41###)222https://huggingface.co/facebook/opt-350m  ###reference_### and TinyLLaMA-1.1B333https://huggingface.co/TinyLlama/TinyLlama-1.1B-python-v0.1  ###reference_-1.1B-python-v0.1### models. It\u2019s important to note that since their training data are not fully accessible, we continued to use the Pile dataset for fine-tuning them.\nFinally, we conducted further experiments on the well-known publicly available large language model, LLaMA2-7B, fine-tuning it into the DiJiang-7B model. Table 3  ###reference_### reveal that the DiJiang-7B model achieves results that are virtually identical to the original LLaMA2-7B across various benchmarks. Remarkably, our model required only 40B training data, significantly less than the 2T tokens used by LLaMA2-7B. This demonstrates the successful application of our method to large-scale models at the 7B parameter level, highlighting the efficiency and effectiveness of our fine-tuning approach even when scaling to vast model sizes.\nInterestingly, we found that despite using a limited dataset, our method achieved results similar to the original models with a significantly lower training cost and faster speed. This outcome further demonstrates the strong generalizability and flexibility of our approach, underscoring its potential applicability across a broad spectrum of language models, even in scenarios where the original training datasets are not available.\n###table_2###"
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "Comparison of Inference Cost",
+            "text": "Furthermore, we also evaluated the memory usage and throughput of our method in comparison to the original Transformer model under various conditions. We selected the Pythia-410M model as our primary subject for analysis. We follow the implementation of RetNet (Sun et al., 2023) to efficient inference. The specific results, as depicted in Figure 4, demonstrate that as the token length increases, the memory footprint and inference speed of our model do not escalate. This observation is attributed to the linear complexity characteristic of our approach, indicating that our method is more conducive to long-sequence inference. In contrast, due to the quadratic complexity of attention computations, the original Transformer model experiences a continuous increase in both inference time and required memory as the token length grows. This comparison highlights the efficiency and practicality of our solution, particularly in scenarios involving extensive sequences where computational resources are a critical concern."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "This paper introduces DiJiang, a groundbreaking Frequency Domain Kernelization method designed to address the computational inefficiencies inherent in traditional Transformer models. By leveraging linear attention mechanisms and a novel application of the weighted Quasi-Monte Carlo method for efficient sampling, our approach significantly reduces the necessity for extensive retraining. This is particularly beneficial for large language models, where the cost and time associated with training are substantial barriers to progress. The kernelization process, underpinned by Discrete Cosine Transform (DCT), not only diminishes the computational complexity but also ensures that the adaptation from a vanilla Transformer to a linear attention model incurs minimal training costs. Our extensive experiments validate that DiJiang achieves performance on par with conventional Transformers while reducing training costs by about 10x and enhancing inference speeds. This method represents a significant advancement in the development of efficient and scalable Transformer models, promising wider applicability and facilitating advancements in various tasks within the realm of natural language processing and beyond."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Theoretical Proof.",
+            "text": "The Positive Fixed Features (PFF) is formulated as:\nwhere  is asymptotically uniformly distributed and . Then,  is an unbiased estimate of Gaussian kernel .\nThe proof is motivated by (Lyu, 2017  ###reference_b26###). We also use spherical coordinate changes to get the following proof. The Gaussian kernel is real-valued and therefore the imaginary part in Eq.(6  ###reference_###) can be discarded.\nwhere  is the probability density function of d-dimensional standard normal distribution.\nThe Gaussian kernel is a shift and rotation invariant kernel. Given any rotation , where  denotes rotation groups, the corresponding probability density is also Gaussian according to Bochner\u2019s theorem. For shift and rotation invariant kernels, we can convert the integral to spherical coordinates.  and  be the density function of , and . Because of the rotation invariant property of , we achieve:\nwhere  denotes the normalized surface area measure on  and  denotes the inverse cumulative distribution function w.r.t is a non-negative radial scale.\nFor real valued continuous shift and rotation invariant scaled kernel , the imaginary parts of the\nintegral vanish. We can achieve:\nFor Gaussian kernel, we can get another medium integral form:\nAccording to (Brauchart & Grabner, 2015  ###reference_b7###), if the point set  is asymptotically uniformly distributed, the following equation holds true:\nThen, we have:\nTherefore,  is an unbiased estimate of Gaussian kernel .\n\u220e\nThe Weighted Positive Fixed Features (WPFF) is formulated as:\nwhere  is a learnable parameter which can be optimized by the input . Then the upper bound of the integral estimation error of the objective function by WPFF (Weighted Positive Fixed Features) method is not greater than the upper bound of the integral estimation error of the objective function by PFF (Positive Fixed Features) method.\nThe proof is motivated by (Yang et al., 2014  ###reference_b39###). We use some of the same mathematical definitions and similar proofs from this paper to show that the WPFF method has a smaller upper bound on the overall estimation error of the objective function. Theorem A.2 Lemma A.3 and Lemma A.4 are all relevant to this paper.\nConsider the task of computing an approximation of the following integral , because of , an empirical approximation called Monte Carlo (MC) to the integral can be computed by drawing a random point set  independently from . When  is a set of fixed points, the empirical approximation is a quasi-Monte Carlo (QMC) method. The purpose of the QMC method is to improve convergence speed by constructing  using deterministic low-differential sequences instead of random sampling points. We have .\nWe define the integration error with respect to the point set S as . The integration error for PFF is as follows:\nwhere  is a set of fixed points.\nThe classical Monte Carlo and quasi-Monte Carlo approximations of integrals have consistent weights. However, it makes sense to weight the approximations, approximate  using , where ,  for , we do not need to normalize the weights, that is it is possible that .\nwhere , ,  for , and .\nThe integration error for WPFF is as follows:\nFor a vector , let us define . Let\nand consider the space of functions that admit an integral representation over  of the form\nwhere . This space is associated with the functions with compactly-supported inverse Fourier transforms called bandlimited functions, which play an important role in Shannon-Nyquist sampling theory. Under a natural choice of inner product, these spaces are called Paley-Wiener spaces and they constitute an RKHS.\n(The Kernel of Paley-Wiener RKHS) According to (Peloso, 2011  ###reference_b27###),  denotes the space of functions which are represented in the form of Eq.26  ###reference_###, with the inner product .  is an RKHS with kernel function,\nAccording to (Yang et al., 2014  ###reference_b39###), for  (Paley-Wiener spaces), we have\nwhere\nSuppose that  is a probability density function. Let  be the characteristic function associated with .\nFollowing (Yang et al., 2014  ###reference_b39###), we can derive the following discrepancy measure that takes into account the weights:\nWe note that if we fix the points, then optimizing just the weights is a optimization problem. The discrepancy measure can be written as\nwhere , , and .  is the Hadamard product. ,  and , .\nThus, the optimal weights can be found by solving the following convex optimization problem\nSo obviously for a fixed sampling point, there is . Then the upper bound of the integral estimation error of the objective function by WPFF (Weighted Positive Fixed Features) method is not greater than the upper bound of the integral estimation error of the objective function by PFF (Positive Fixed Features) method.\n\u220e"
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>The experimental results of the proposed method. Training time is measured using A800. Inference throughput is evaluated with token length of 2048. * denotes results from\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(He et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib17\" title=\"\">2024</a>)</cite>. </figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S3.T1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.1.1\">Model</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.2\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.2.1\">PIQA</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.3\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.3.1\">WinoGrande</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.4\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.4.1\">WSC</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.5\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.5.1\">ARC-E</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.6\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.6.1\">ARC-C</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S3.T1.1.1.1.7\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.7.1\">LogiQA</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.8\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S3.T1.1.1.1.8.1\">Avg</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.9\">Training</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S3.T1.1.1.1.10\">Inference</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.2.2.1\">(day)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.2.2.2\">(tokens/s)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.3.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.1\">Pythia-70M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.2\">0.498</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.3\">0.484</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.4\">0.596</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.5\">0.25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.6\">0.221</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.3.3.7\">0.202</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.8\">0.375</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.9\">21.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.3.3.10\">2037</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.4.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.1\">DiJiang-70M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.2\">0.587</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.3\">0.511</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.4\">0.365</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.5\">0.403</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.6\">0.213</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.4.4.7\">0.253</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.8\">0.389</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.9\">1.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.4.4.10\">2605</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.5.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.1\">Pythia-160M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.2\">0.532</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.3\">0.484</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.4\">0.634</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.5\">0.265</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.6\">0.227</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.5.5.7\">0.202</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.8\">0.391</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.9\">42.9</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.5.5.10\">622</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.6.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.1\">DiJiang-160M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.2\">0.618</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.3\">0.490</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.4\">0.384</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.5\">0.439</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.6\">0.217</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.6.6.7\">0.239</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.8\">0.398</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.9\">2.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.6.6.10\">1315</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.7.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.1\">Pythia-410M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.2\">0.668</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.3\">0.537</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.4\">0.567</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.5\">0.521</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.6\">0.213</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.7.7.7\">0.22</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.8\">0.454</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.9\">105.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.7.7.10\">203</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.8.8\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.1\">DiJiang-410M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.2\">0.663</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.3\">0.524</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.4\">0.567</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.5\">0.492</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.6\">0.244</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.8.8.7\">0.247</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.8\">0.456</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.9\">6.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.8.8.10\">787</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.9.9\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.1\">Pythia-1B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.2\">0.706</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.3\">0.533</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.4\">0.365</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.5\">0.569</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.6\">0.269</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.9.9.7\">0.296</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.8\">0.456</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.9\">201.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.9.9.10\">105</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.10.10\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.1\">Mamba-1.3B*</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.2\">0.663</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.3\">0.530</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.4\">0.365</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.5\">0.508</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.6\">0.251</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.10.10.7\">0.263</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.8\">0.430</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.9\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.10.10.10\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.11.11\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.1\">DiJiang-1B</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.2\">0.677</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.3\">0.521</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.4\">0.365</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.5\">0.537</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.6\">0.253</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.11.11.7\">0.284</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.8\">0.440</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.9\">12.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.11.11.10\">611</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.12.12\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.1\">Pythia-2.8B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.2\">0.737</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.3\">0.596</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.4\">0.384</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.5\">0.640</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.6\">0.295</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.12.12.7\">0.215</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.8\">0.478</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.9\">593.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.12.12.10\">34</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.13.13\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.1\">DiJiang-2.8B</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.2\">0.713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.3\">0.545</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.4\">0.413</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.5\">0.597</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.6\">0.289</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.13.13.7\">0.279</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.8\">0.473</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.9\">37.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.13.13.10\">284</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.14.14\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.1\">OPT-350M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.2\">0.645</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.3\">0.524</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.4\">0.365</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.5\">0.441</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.6\">0.208</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.14.14.7\">0.210</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.8\">0.399</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.9\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.14.14.10\">201</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.15.15\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.1\">DiJiang-350M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.2\">0.550</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.3\">0.507</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.4\">0.635</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.5\">0.286</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.6\">0.227</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S3.T1.1.15.15.7\">0.223</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.8\">0.404</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.9\">5.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.15.15.10\">820</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.16.16\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.1\">TinyLLaMA-1.1B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.2\">0.666</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.3\">0.541</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.4\">0.413</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.5\">0.487</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.6\">0.211</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S3.T1.1.16.16.7\">0.228</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.8\">0.424</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.9\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.16.16.10\">74</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.17.17\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.1\">DiJiang-1.1B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.2\">0.535</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.3\">0.508</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.4\">0.635</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.5\">0.286</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.6\">0.243</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S3.T1.1.17.17.7\">0.212</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.8\">0.403</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.9\">13.9</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.17.17.10\">613</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 1: The experimental results of the proposed method. Training time is measured using A800. Inference throughput is evaluated with token length of 2048. * denotes results from\u00a0(He et\u00a0al., 2024). "
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Comparison of different linear attention models on fine-tuning Pythoia-410M\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Biderman et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib5\" title=\"\">2023</a>)</cite>. </figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S4.T2.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.1\">Model</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.2\">PIQA</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.3\">WinoGrande</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.4\">WSC</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.5\">ARC-E</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.6\">ARC-C</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T2.1.1.1.7\">LogiQA</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.1.1.1.8\">Avg</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.2.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.1\">Pythia-410M\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Biderman et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib5\" title=\"\">2023</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.2\">0.668</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.3\">0.537</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.4\">0.567</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.5\">0.521</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.6\">0.213</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.2.2.7\">0.22</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.2.2.8\">0.454</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.3.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.1\">Linformer\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Wang et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib37\" title=\"\">2020</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.2\">0.5267</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.3\">0.5114</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.4\">0.6346</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.5\">0.2656</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.6\">0.244</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.3.3.7\">0.2074</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.3.3.8\">0.3982</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.4.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.1\">Cosformer\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Qin et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib30\" title=\"\">2022</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.2\">0.5218</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.3\">0.5059</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.4\">0.6058</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.5\">0.2673</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.6\">0.2637</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.1.4.4.7\">0.2642</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.4.4.8\">0.4047</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.5.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.1\">Performer\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Choromanski et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib10\" title=\"\">2020</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.2\">0.6431</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.3\">0.4964</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.4\">0.4327</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.5\">0.4701</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.6\">0.2312</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.1.5.5.7\">0.2366</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.5.5.8\">0.4183</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.6.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.1\">RetNet\u00a0<cite class=\"ltx_cite ltx_citemacro_citep\">(Sun et\u00a0al., <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#bib.bib32\" title=\"\">2023</a>)</cite>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.2\">0.4951</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.3\">0.4957</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.4\">0.6346</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.5\">0.2508</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.6\">0.227</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.1.6.6.7\">0.2028</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.6.6.8\">0.3843</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.7.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.1\">PFF (Equation\u00a0<a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.19928v2#S3.E9\" title=\"Equation 9 \u2023 Theorem 3.2. \u2023 3 Kernelized Attention in Frequency Domain \u2023 DiJiang: Efficient Large Language Models through Compact Kernelization\"><span class=\"ltx_text ltx_ref_tag\">9</span></a>)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.2\">0.6453</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.3\">0.4996</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.4\">0.4712</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.5\">0.4747</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.6\">0.2295</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.7.7.7\">0.2381</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.7.7.8\">0.4264</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.8.8\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.1\">DiJiang (Ours)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.2\">0.6638</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.3\">0.5241</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.4\">0.5673</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.5\">0.4928</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.6\">0.2449</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T2.1.8.8.7\">0.2473</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.8.8.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.1.8.8.8.1\">0.4567</span></td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 2: Comparison of different linear attention models on fine-tuning Pythoia-410M\u00a0(Biderman et\u00a0al., 2023). "
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<figcaption class=\"ltx_caption ltx_centering\" style=\"font-size:70%;\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Comparison with LLaMA2-7B on various benchmarks. </figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.3\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.3.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.1\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.1.1\" style=\"font-size:70%;\">Model</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.2\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.2.1\" style=\"font-size:70%;\">PIQA</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.3\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.3.1\" style=\"font-size:70%;\">SIQA</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.4\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.4.1\" style=\"font-size:70%;\">BoolQ</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.5\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.5.1\" style=\"font-size:70%;\">WSC</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.6\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.6.1\" style=\"font-size:70%;\">HellaSwag</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.7\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.7.1\" style=\"font-size:70%;\">ARC-E</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.8\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.8.1\" style=\"font-size:70%;\">ARC-C</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.9\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.9.1\" style=\"font-size:70%;\">MMLU</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.10\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.10.1\" style=\"font-size:70%;\">NQ</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.11\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.11.1\" style=\"font-size:70%;\">COPA</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S4.T3.3.1.1.12\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.12.1\" style=\"font-size:70%;\">Race-Middle</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.13\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.13.1\" style=\"font-size:70%;\">Avg</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.3.1.1.14\"><span class=\"ltx_text\" id=\"S4.T3.3.1.1.14.1\" style=\"font-size:70%;\">Tokens</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.3.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.1\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.1.1\" style=\"font-size:70%;\">LLaMA2-7B</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.2\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.2.1\" style=\"font-size:70%;\">0.782</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.3\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.3.1\" style=\"font-size:70%;\">0.485</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.4\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.4.1\" style=\"font-size:70%;\">0.749</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.5\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.5.1\" style=\"font-size:70%;\">0.663</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.6\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.6.1\" style=\"font-size:70%;\">0.740</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.7\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.7.1\" style=\"font-size:70%;\">0.561</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.8\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.8.1\" style=\"font-size:70%;\">0.403</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.9\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.9.1\" style=\"font-size:70%;\">0.468</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.10\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.10.1\" style=\"font-size:70%;\">0.192</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.11\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.11.1\" style=\"font-size:70%;\">0.670</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.3.2.1.12\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.12.1\" style=\"font-size:70%;\">0.402</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.13\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.13.1\" style=\"font-size:70%;\">0.565</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.3.2.1.14\"><span class=\"ltx_text\" id=\"S4.T3.3.2.1.14.1\" style=\"font-size:70%;\">2000B</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.3.3.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.1\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.1.1\" style=\"font-size:70%;\">DiJiang-7B</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.2\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.2.1\" style=\"font-size:70%;\">0.775</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.3\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.3.1\" style=\"font-size:70%;\">0.346</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.4\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.4.1\" style=\"font-size:70%;\">0.626</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.5\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.5.1\" style=\"font-size:70%;\">0.683</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.6\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.6.1\" style=\"font-size:70%;\">0.694</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.7\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.7.1\" style=\"font-size:70%;\">0.626</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.8\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.8.1\" style=\"font-size:70%;\">0.427</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.9\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.9.1\" style=\"font-size:70%;\">0.407</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.10\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.10.1\" style=\"font-size:70%;\">0.194</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.11\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.11.1\" style=\"font-size:70%;\">0.730</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T3.3.3.2.12\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.12.1\" style=\"font-size:70%;\">0.618</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.13\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.13.1\" style=\"font-size:70%;\">0.557</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.3.3.2.14\"><span class=\"ltx_text\" id=\"S4.T3.3.3.2.14.1\" style=\"font-size:70%;\">40B</span></td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 3: Comparison with LLaMA2-7B on various benchmarks. "
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.19928v2_figure_1.png",
+            "caption": "Figure 1: Illustration of the proposed method, where the computation of queries and keys in the attention mechanism of a Transformer is efficiently mapped to the frequency domain using a fast Discrete Cosine Transform (DCT). This mapping effectively eliminates the softmax operation, thereby substantially reducing the computational complexity of the Transformer."
+        },
+        "2": {
+            "figure_path": "2403.19928v2_figure_2.png",
+            "caption": "Figure 2: Training Curve of different methods. The proposed method achieves the lowest PPL and the fastest converge speed."
+        },
+        "3": {
+            "figure_path": "2403.19928v2_figure_3.png",
+            "caption": "Figure 3: Visualization of attention map of different architectures. The results are averaged by multiple heads."
+        },
+        "4": {
+            "figure_path": "2403.19928v2_figure_4.png",
+            "caption": "Figure 3: Visualization of attention map of different architectures. The results are averaged by multiple heads."
+        },
+        "5": {
+            "figure_path": "2403.19928v2_figure_5.png",
+            "caption": "Figure 3: Visualization of attention map of different architectures. The results are averaged by multiple heads."
+        },
+        "6": {
+            "figure_path": "2403.19928v2_figure_6.png",
+            "caption": "Figure 4: Comparison of inference memory and throughput between the proposed DiJIang and vanilla Transformer architecture."
+        },
+        "7": {
+            "figure_path": "2403.19928v2_figure_7.png",
+            "caption": "Figure 4: Comparison of inference memory and throughput between the proposed DiJIang and vanilla Transformer architecture."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Discrete cosine transform.",
+                "author": "Ahmed, N., Natarajan, T., and Rao, K. R.",
+                "venue": "IEEE transactions on Computers, 100(1):90\u201393, 1974.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Stochastic simulation: algorithms and analysis, volume 57.",
+                "author": "Asmussen, S. and Glynn, P. W.",
+                "venue": "Springer, 2007.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Lambdanetworks: Modeling long-range interactions without attention.",
+                "author": "Bello, I.",
+                "venue": "arXiv preprint arXiv:2102.08602, 2021.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Longformer: The long-document transformer.",
+                "author": "Beltagy, I., Peters, M. E., and Cohan, A.",
+                "venue": "arXiv preprint arXiv:2004.05150, 2020.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Pythia: A suite for analyzing large language models across training\nand scaling.",
+                "author": "Biderman, S., Schoelkopf, H., Anthony, Q. G., Bradley, H., O\u2019Brien, K.,\nHallahan, E., Khan, M. A., Purohit, S., Prashanth, U. S., Raff, E., et al.",
+                "venue": "In International Conference on Machine Learning, pp. 2397\u20132430. PMLR, 2023.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Piqa: Reasoning about physical commonsense in natural language.",
+                "author": "Bisk, Y., Zellers, R., Gao, J., Choi, Y., et al.",
+                "venue": "In Proceedings of the AAAI conference on artificial\nintelligence, volume 34, pp.  7432\u20137439, 2020.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Distributing many points on spheres: minimal energy and designs.",
+                "author": "Brauchart, J. S. and Grabner, P. J.",
+                "venue": "Journal of Complexity, 31(3):293\u2013326,\n2015.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Fourier image transformer.",
+                "author": "Buchholz, T.-O. and Jug, F.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision\nand Pattern Recognition, pp.  1846\u20131854, 2022.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Generating long sequences with sparse transformers.",
+                "author": "Child, R., Gray, S., Radford, A., and Sutskever, I.",
+                "venue": "arXiv preprint arXiv:1904.10509, 2019.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Rethinking attention with performers.",
+                "author": "Choromanski, K., Likhosherstov, V., Dohan, D., Song, X., Gane, A., Sarlos, T.,\nHawkins, P., Davis, J., Mohiuddin, A., Kaiser, L., et al.",
+                "venue": "arXiv preprint arXiv:2009.14794, 2020.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Think you have solved question answering? try arc, the ai2 reasoning\nchallenge.",
+                "author": "Clark, P., Cowhey, I., Etzioni, O., Khot, T., Sabharwal, A., Schoenick, C., and\nTafjord, O.",
+                "venue": "arXiv preprint arXiv:1803.05457, 2018.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Speech-transformer: a no-recurrence sequence-to-sequence model for\nspeech recognition.",
+                "author": "Dong, L., Xu, S., and Xu, B.",
+                "venue": "In 2018 IEEE international conference on acoustics, speech and\nsignal processing (ICASSP), pp.  5884\u20135888. IEEE, 2018.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Local frequency domain transformer networks for video prediction.",
+                "author": "Farazi, H., Nogga, J., and Behnke, S.",
+                "venue": "In 2021 International Joint Conference on Neural Networks\n(IJCNN), pp.  1\u201310. IEEE, 2021.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Introduction to Probality Theory and Its Applications.",
+                "author": "Feller, W.",
+                "venue": "Wiley Eastern, 1966.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "The pile: An 800gb dataset of diverse text for language modeling.",
+                "author": "Gao, L., Biderman, S., Black, S., Golding, L., Hoppe, T., Foster, C., Phang,\nJ., He, H., Thite, A., Nabeshima, N., et al.",
+                "venue": "arXiv preprint arXiv:2101.00027, 2020.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Mamba: Linear-time sequence modeling with selective state spaces.",
+                "author": "Gu, A. and Dao, T.",
+                "venue": "arXiv preprint arXiv:2312.00752, 2023.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Densemamba: State space models with dense hidden connection for\nefficient large language models.",
+                "author": "He, W., Han, K., Tang, Y., Wang, C., Yang, Y., Guo, T., and Wang, Y.",
+                "venue": "arXiv preprint arXiv:2403.00818, 2024.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Transformers are rnns: Fast autoregressive transformers with linear\nattention.",
+                "author": "Katharopoulos, A., Vyas, A., Pappas, N., and Fleuret, F.",
+                "venue": "In International conference on machine learning, pp. 5156\u20135165. PMLR, 2020.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Ocr-free document understanding transformer.",
+                "author": "Kim, G., Hong, T., Yim, M., Nam, J., Park, J., Yim, J., Hwang, W., Yun, S.,\nHan, D., and Park, S.",
+                "venue": "In European Conference on Computer Vision, pp.  498\u2013517.\nSpringer, 2022.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Reformer: The efficient transformer.",
+                "author": "Kitaev, N., Kaiser, \u0141., and Levskaya, A.",
+                "venue": "arXiv preprint arXiv:2001.04451, 2020.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Fastfood-approximating kernel expansions in loglinear time.",
+                "author": "Le, Q., Sarl\u00f3s, T., Smola, A., et al.",
+                "venue": "In Proceedings of the international conference on machine\nlearning, volume 85, pp.  8, 2013.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Fnet: Mixing tokens with fourier transforms.",
+                "author": "Lee-Thorp, J., Ainslie, J., Eckstein, I., and Ontanon, S.",
+                "venue": "arXiv preprint arXiv:2105.03824, 2021.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Discrete cosin transformer: Image modeling from frequency domain.",
+                "author": "Li, X., Zhang, Y., Yuan, J., Lu, H., and Zhu, Y.",
+                "venue": "In Proceedings of the IEEE/CVF Winter Conference on\nApplications of Computer Vision, pp.  5468\u20135478, 2023.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Logiqa: A challenge dataset for machine reading comprehension with\nlogical reasoning.",
+                "author": "Liu, J., Cui, L., Liu, H., Huang, D., Wang, Y., and Zhang, Y.",
+                "venue": "arXiv preprint arXiv:2007.08124, 2020.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Soft: Softmax-free transformer with linear complexity.",
+                "author": "Lu, J., Yao, J., Zhang, J., Zhu, X., Xu, H., Gao, W., Xu, C., Xiang, T., and\nZhang, L.",
+                "venue": "Advances in Neural Information Processing Systems,\n34:21297\u201321309, 2021.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Spherical structured feature maps for kernel approximation.",
+                "author": "Lyu, Y.",
+                "venue": "In International Conference on Machine Learning, pp. 2256\u20132264. PMLR, 2017.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Classical spaces of holomorphic functions.",
+                "author": "Peloso, M. M.",
+                "venue": "Lecture notes available on http://www. mat. unimi.\nit/users/peloso, 2011.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Rwkv: Reinventing rnns for the transformer era.",
+                "author": "Peng, B., Alcaide, E., Anthony, Q., Albalak, A., Arcadinho, S., Cao, H., Cheng,\nX., Chung, M., Grella, M., GV, K. K., et al.",
+                "venue": "arXiv preprint arXiv:2305.13048, 2023.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Random feature attention.",
+                "author": "Peng, H., Pappas, N., Yogatama, D., Schwartz, R., Smith, N. A., and Kong, L.",
+                "venue": "arXiv preprint arXiv:2103.02143, 2021.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "cosformer: Rethinking softmax in attention.",
+                "author": "Qin, Z., Sun, W., Deng, H., Li, D., Wei, Y., Lv, B., Yan, J., Kong, L., and\nZhong, Y.",
+                "venue": "arXiv preprint arXiv:2202.08791, 2022.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Winogrande: An adversarial winograd schema challenge at scale.",
+                "author": "Sakaguchi, K., Bras, R. L., Bhagavatula, C., and Choi, Y.",
+                "venue": "Communications of the ACM, 64(9):99\u2013106,\n2021.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Retentive network: A successor to transformer for large language\nmodels, 2023.",
+                "author": "Sun, Y., Dong, L., Huang, S., Ma, S., Xia, Y., Xue, J., Wang, J., and Wei, F.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Touvron, H., Martin, L., Stone, K., Albert, P., Almahairi, A., Babaei, Y.,\nBashlykov, N., Batra, S., Bhargava, P., Bhosale, S., et al.",
+                "venue": "arXiv preprint arXiv:2307.09288, 2023.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Transformer dissection: a unified understanding of transformer\u2019s\nattention via the lens of kernel.",
+                "author": "Tsai, Y.-H. H., Bai, S., Yamada, M., Morency, L.-P., and Salakhutdinov, R.",
+                "venue": "arXiv preprint arXiv:1908.11775, 2019.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "Attention is all you need.",
+                "author": "Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N.,\nKaiser, \u0141., and Polosukhin, I.",
+                "venue": "Advances in neural information processing systems, 30, 2017.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Learning deep transformer models for machine translation.",
+                "author": "Wang, Q., Li, B., Xiao, T., Zhu, J., Li, C., Wong, D. F., and Chao, L. S.",
+                "venue": "arXiv preprint arXiv:1906.01787, 2019.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Linformer: Self-attention with linear complexity.",
+                "author": "Wang, S., Li, B. Z., Khabsa, M., Fang, H., and Ma, H.",
+                "venue": "arXiv preprint arXiv:2006.04768, 2020.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Efficient streaming language models with attention sinks.",
+                "author": "Xiao, G., Tian, Y., Chen, B., Han, S., and Lewis, M.",
+                "venue": "arXiv preprint arXiv:2309.17453, 2023.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "Quasi-monte carlo feature maps for shift-invariant kernels.",
+                "author": "Yang, J., Sindhwani, V., Avron, H., and Mahoney, M.",
+                "venue": "In International Conference on Machine Learning, pp. 485\u2013493. PMLR, 2014.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "An attention free transformer.",
+                "author": "Zhai, S., Talbott, W., Srivastava, N., Huang, C., Goh, H., Zhang, R., and\nSusskind, J.",
+                "venue": "arXiv preprint arXiv:2105.14103, 2021.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Opt: Open pre-trained transformer language models.",
+                "author": "Zhang, S., Roller, S., Goyal, N., Artetxe, M., Chen, M., Chen, S., Dewan, C.,\nDiab, M., Li, X., Lin, X. V., et al.",
+                "venue": "arXiv preprint arXiv:2205.01068, 2022.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Efficient attention via control variates.",
+                "author": "Zheng, L., Yuan, J., Wang, C., and Kong, L.",
+                "venue": "arXiv preprint arXiv:2302.04542, 2023.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.19928v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2"
+        ],
+        "methodology_sections": [
+            "3"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4.3",
+            "4.4",
+            "4.5"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.19928v2",
+        "paper_title": "DiJiang: Efficient Large Language Models through Compact Kernelization",
+        "research_background": "### Paper's Motivation\nThe motivation behind this paper lies in the challenges posed by the substantial computational demands of large language models (LLMs), which utilize the Transformer architecture. Despite their success in various NLP tasks, the high computational requirements, particularly due to the attention mechanism, hinder their deployment in resource-constrained environments such as mobile devices and robotics. The paper seeks to address the pressing need for more efficient Transformer models, focusing on optimizing the attention mechanism to reduce computational overhead while maintaining model performance.\n\n### Research Problem\nThe core research problem addressed in the paper is the need to develop methods that can efficiently optimize the attention mechanisms in large language models without necessitating comprehensive retraining. Existing methods for optimizing Transformers, particularly in relation to their attention mechanisms, are computationally intensive, environmentally unfriendly, and economically costly due to the extensive retraining required for models with a vast number of parameters.\n\n### Relevant Prior Work\nSeveral works have contributed to the field of optimizing Transformer models, particularly focusing on simplifying the attention mechanism:\n1. **Linear Transformers** by Katharopoulos et al. (2020) introduce kernel feature maps to transform self-attention, reducing complexity from quadratic to linear while maintaining comparable performance.\n2. **Kitaev et al. (2020)** propose replacing dot-product attention with locality-sensitive hashing and using reversible residual layers to minimize memory usage in training.\n3. **Performer** by Choromanski et al. (2020), which uses positive orthogonal random features to approximate softmax-based self-attention, achieving linear complexity.\n\nThese methods aim to make attention mechanisms more efficient but often require comprehensive retraining of the models. The paper aims to overcome this limitation by introducing a novel approach that minimizes retraining requirements while still achieving efficient and accurate attention mechanisms.",
+        "methodology": "The proposed method, DiJiang, aims to enhance the efficiency of large language models by introducing a compact kernelization technique, particularly targeting the heavy computational load posed by the self-attention mechanism in Transformer models. The key innovations and components are as follows:\n\n### Simplification and Problem Identification\n1. **Self-Attention Mechanism Review**:\n   - Revisits the self-attention mechanism, focusing on the queries, keys, and values interactions.\n   - Highlights the quadratic complexity (\\(O(L^2D)\\)) in time and memory when processing sequences, where \\(L\\) is the sequence length, and \\(D\\) is the dimensionality of the hidden representations.\n\n### Kernel Mechanism for Efficiency\n2. **Kernel Trick**:\n   - Introduces a kernel function (\\( \\phi() \\)), reducing the computational complexity from quadratic to linear (\\(O(LD^2)\\)).\n   - Utilizes Positive Random Features (PRF) to approximate the original attention mechanism with kernel mapping, maintaining performance with reduced computational demands.\n\n### Theoretical Foundations\n3. **Bochner\u2019s Theorem Application**:\n   - Employs Bochner\u2019s Theorem to transform the attention mechanism, using the Gaussian kernel as the positive-definite kernel.\n   - Focuses on Monte Carlo methods for feature map construction, transitioning to Quasi-Monte Carlo methods for more efficient estimation.\n\n### Positive Fixed Features (PFF) and Improvement\n4. **Positive Fixed Features (PFF)**:\n   - Reduces the approximation error introduced by PRF by defining a kernel mapping that approximates the original Gaussian kernel.\n   - Demonstrates through theoretical proofs that PFF can closely approximate the Gaussian kernel with higher efficiency than PRF using uniform sequences via the Quasi-Monte Carlo method.\n\n5. **Weighted Positive Fixed Features (WPFF)**:\n   - Introduces weighting to the PFF mechanism, optimizing the kernel approximation process for better precision and performance.\n\n### Frequency Domain Transformations\n6. **Fast Fourier Transform (FFT) and Discrete Cosine Transform (DCT)**:\n   - Proposes to further reduce computational requirements via frequency domain transformations.\n   - Prefers DCT over FFT due to its real-number operations and better suitability for hardware implementations.\n   - Achieves significant computational complexity reduction to \\(O(LD\\log D)\\).\n\n### Final Model Formulation\n7. **Kernelized Attention in Frequency Domain (FKA)**:\n   - Reformulates the self-attention mechanism using DCT for kernel mapping.\n   - Demonstrates that the DCT-based kernel mapping maintains the accuracy while drastically cutting down computational overhead.\n   \n### Summary\nThe methodology leverages frequency domain kernelization to make attention mechanisms computationally efficient while preserving model performance. The use of weighted Quasi-Monte Carlo techniques combined with DCT achieves linear complexity, significantly enhancing the scalability, training speed, and inference capabilities of Transformer models, as outlined in the detailed algorithm provided (Algorithm 1).\n\nOverall, DiJiang represents a substantial shift towards more resource-efficient large language model applications, making it feasible to handle longer sequences and larger datasets effectively.",
+        "main_experiment_and_results": "Main Experiment Setup:\n- **Datasets**: The main experiment utilizes standard benchmark datasets for language model evaluation, including datasets for tasks such as language modeling, text completion, and other NLP tasks.\n- **Baselines**: The baseline models include state-of-the-art large language models without compact kernelization techniques, such as GPT-3, BERT, and other commonly used transformer models.\n- **Evaluation Metrics**: The evaluation metrics employed include perplexity for language modeling tasks, accuracy for classification tasks, and other relevant NLP performance metrics depending on the specific task being evaluated.\n\nMain Experimental Results:\n- The proposed architecture, DiJiang, demonstrates superior performance compared to the baseline models across a variety of tasks. \n- When evaluated on language modeling tasks, DiJiang achieves lower perplexity scores, indicating improved predictive capabilities.\n- In classification tasks, DiJiang consistently outperforms the baseline models in terms of accuracy, showcasing its effectiveness.\n- Detailed analysis reveals that DiJiang achieves these results with notable efficiency gains, implying reduced computational costs and faster inference times due to the compact kernelization approach.\n\nOverall, the main experiment provides strong evidence supporting the efficacy and efficiency of the DiJiang architecture in enhancing language model performance across multiple NLP tasks."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To compare the superiority of the proposed DiJiang method against other linear-complexity self-attention Transformer models in terms of fine-tuning accuracy and computational efficiency.",
+            "experiment_process": "We validated the fine-tuning results on the Pythia-400M model for Linformer, Performer, RetNet, and Cosformer using the same training settings and data for a fair comparison. We also incorporated Positive Random Features (PRF) in Performer's Monte Carlo approximation, compared it with our method using Positive Fixed Features (PFF) and Discrete Cosine Transform (DCT), and extended the analysis with weighted Quasi-Monte Carlo sampling. Additionally, we visualized the training curves to showcase the approximation efficiency of different linear Transformer models.",
+            "result_discussion": "The comparative results revealed that existing methods suffer from significant accuracy losses when fine-tuning without retraining, failing to accurately approximate the original attention mechanism. While Performer achieved the best results among the comparison methods, it still incurred accuracy loss. Our method, using the weighted Quasi-Monte Carlo scheme and DCT, achieved higher efficiency and nearly identical accuracy to the original Pythia-400M, demonstrating the potential of our DiJiang approach for fine-tuning large-scale language models and maintaining model performance.",
+            "ablation_id": "2403.19928v2.No1"
+        },
+        {
+            "research_objective": "To evaluate the memory usage and throughput efficiency of the proposed DiJiang method compared to the original Transformer model.",
+            "experiment_process": "We analyzed the Pythia-410M model under various conditions following the implementation of RetNet for efficient inference. We measured the memory footprint and inference speed as the token length increases, drawing comparisons to the original Transformer model.",
+            "result_discussion": "The results showed that as token length increases, our model's memory footprint and inference speed remain stable due to its linear complexity, unlike the original Transformer's quadratic complexity, which leads to increased inference time and memory requirements. This demonstrates the efficiency and practicality of our method, particularly for long-sequence inference involving extensive computational resources.",
+            "ablation_id": "2403.19928v2.No2"
+        },
+        {
+            "research_objective": "To visualize and demonstrate the effectiveness of the proposed DiJiang method\u2019s approximation of the attention mechanism compared to other methods.",
+            "experiment_process": "We generated attention maps for different methods including the original Transformer, Performer, and our DiJiang method utilizing the weighted Quasi-Monte Carlo scheme. We visually compared these maps to assess how well different methods capture token relationships.",
+            "result_discussion": "The attention map of the original Transformer was rich in information, while the map produced by Performer failed to capture token relationships effectively, resulting in dissimilarity and decreased model accuracy. In contrast, our method closely approximated the original attention mechanism, effectively modeling token relationships and achieving results nearly identical to the original Transformer but with significantly faster inference efficiency. This highlighted the superiority of our approach over other linear attention methods.",
+            "ablation_id": "2403.19928v2.No3"
+        }
+    ]
+}

@@ -1,0 +1,560 @@
+{
+    "title": "Merino: Entropy-driven Design for Generative Language Models on IoT Devices",
+    "abstract": "Generative Large Language Models (LLMs) stand as a revolutionary advancement in the modern era of artificial intelligence (AI). However, directly deploying LLMs in resource-constrained hardware, such as Internet-of-Things (IoT) devices, is difficult due to their high computational cost. In this paper, we propose a novel information-entropy framework for designing mobile-friendly generative language models. Our key design paradigm is to maximize the entropy of transformer decoders within the given computational budgets. The whole design procedure involves solving a mathematical programming (MP) problem, which can be done on the CPU within minutes, making it nearly zero-cost. \n\nWe evaluate our designed models, termed MeRino, across nine NLP downstream tasks, showing their competitive performance against the state-of-the-art autoregressive transformer models under the mobile setting. Notably, MeRino achieves similar or better zero performance compared to the 350M parameter OPT while being 4.9 faster on NVIDIA Jetson Nano with 5.5 reduction in model size. Code will be made available soon.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "The Transformer architecture, originally introduced in [1], has revolutionized the field of natural language processing (NLP). It has become the de-facto building block in many large-scale pre-trained language models (LLMs) [2, 3, 4, 5, 6, 7]. Especially, Generative Large-scale Language Models (LLMs), exemplified by GPT [4, 5] and LLaMA [7], have gained considerable popularity in recent studies. Yet, such models are without a doubt expensive to train and deploy. For instance, GPT-175B contains over 175 billion parameters, rendering it unsuitable for direct deployment on resource-constrained devices, such as mobile phones or Internet-of-Things (IoT) hardware. Consequently, there exists a substantial demand for developing lightweight language models that can be deployed to mobile systems with small memory footprints and low compute power.\n\nA key challenge of designing mobile-friendly language models is that the hardware configuration varies from device to device. Therefore, it is difficult to design a one-fits-all model that satisfies all requirements. To this end, it is critical to customize an optimized language model backbone under different computational budgets. A conventional approach is to use knowledge distillation (KD) [8] which distills larger language models into pre-defined smaller backbones [9, 10, 11]. However, there is no guarantee that these pre-defined, fixed-size backbones are optimal on the given device. Another more flexible approach is to use AutoML [12] or neural architecture search (NAS) [13, 14, 15] to optimize the transformer backbone. However, these methods are usually computationally demanding, which involves super-net [16, 17] training or even brute-force grid search. Such processes often consume considerable GPU hours and leave large carbon footprints. Moreover, training super-nets is a non-trivial task as child architectures often interfere with each other which leads to performance degradation, as reported in [18].\n\nIn this paper, we present an entropy-driven framework to design lightweight variants of generative language models tailored for resource-constrained devices. Our method leverages recent advancements in information theory and theoretical deep learning which formulate autoregressive language models as information processing systems parameterized by structural parameters such as network widths and depths. Then, the Maximum Entropy Principle [19] is applied to optimize the network architecture design. More specifically, our design aims to find the optimal configuration of network structure parameters, including depths/widths/embedding dimensions, such that the network entropy is maximized under the given computational budgets, such as parameter size and FLOPs.\n\nAlbeit the Maximum Entropy Principle is conceptually simple, a direct application encounters two technical challenges. First, the notion of entropy for a transformer backbone is not well-defined in deep learning literature. To overcome this hurdle, we propose to use subspace entropy spanned by the network parameters at random initialization as model entropy. The computation of subspace entropy can be accelerated via table lookup therefore, it is highly efficient. Second, we find that naively maximizing the entropy will lead to an over-deep transformer backbone that is difficult to train. To address this issue, we propose to preserve the model trainability during the architecture design. Then an Evolutionary Algorithm (EA) is utilized to optimize the structural parameters of the transformer backbone (e.g., number of heads, channels, embedding dimensions, etc.).\n\nFinally, we can design a family of optimized, Mobile-friendly geneRative language models, or MeRino for short, on various mobile devices at nearly zero cost. The key contributions of this work are summarized as follows: To the best of our knowledge, we first present an entropy-driven framework to address the challenge of designing efficient generative language models for resource-constrained devices at nearly zero cost. Our framework leverages the Maximum Entropy Principle and considers both the entropy and trainability of language models to optimize transformer architectures given computation budgets. Experimental results show that MeRino achieves competitive performance against the state-of-the-art LLMs, including OPT and Pythia models. Notably, our models exhibit improved parameters, computation, and throughput efficiency on mobile devices."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Related Work",
+            "text": "Generative large language models (LLMs) have emerged as the standard solution to a wide range of NLP tasks.\nThey are generally pre-trained on large-scale corpora in self-supervised manners to learn the contextual structure of natural language. Unlike previous language models, LLMs consist of only transformer decoder layers and exhibit outstanding ability to scale up and impressive zero-shot generalization performances.\nGPT-3 [5  ###reference_b5###], in particular, pushed the boundaries of casual language models by scaling up the model size to 175 billion parameters and pre-training on a large corpus of over 570\u2009GB plain texts.\nIn the pursuit of democratizing and fostering reproducible research in LLMs, Meta AI recently released Open Pre-trained Transformers (OPT) [6  ###reference_b6###], a suite of decoder-only models, ranging from 125\u2009M to 175\u2009B parameters.\nIn this work, our scope is generative, or decoder-only transformer-based language models and we aim to design such LLMs suitable for mobile devices with limited memory space and compute power.\nOne of the most widely studied techniques in compressing LLMs is knowledge distillation (KD) [8  ###reference_b8###].\nBERT-PKD [11  ###reference_b11###] distill BERT into smaller students using knowledge transfer in both final output and hidden states in multiple intermediate layers.\nTinyBERT [20  ###reference_b20###] adopts a layer-wise distillation strategy for BERT at both the pre-training and fine-tuning stages.  [9  ###reference_b9###] investigates numerous KD techniques to compress GPT-2 models by layer truncation.\nDespite achieving promising results, the above KD-based methods can only distill LLMs into a fixed-size model, which is not suitable for deployment on diverse and heterogeneous devices.\nIn this work, orthogonal to KD, which focuses primarily on the training and fine-tuning stage, our proposed method emphasizes designing lightweight transformer architectures with various parameter sizes and FLOPs to meet different hardware constraints.\nDue to its success in computer vision (CV), neural architecture search (NAS) has recently gained attention in the NLP community.\nNAS-BERT [14  ###reference_b14###] trains a supernet to efficiently search for masked language models which are compressed versions of the standard BERT.\nAutoTinyBERT [15  ###reference_b15###] further reduces overall computation cost over NAS-BERT by adopting a linear search space.\nFor encoder-decoder architectures, HAT [13  ###reference_b13###] uses the Once-For-All [16  ###reference_b16###] approach and performs a search on sub-samples of the supernet that inherits weights to estimate downstream task accuracy.\nLTS [21  ###reference_b21###] proposes using non-embedding parameters in decoders as a proxy score to predict the perplexity performance of generative LLMs.\nHowever, the aforementioned methods are mostly data-dependent and incur heavy computation costs.\nMoreover, it is difficult for researchers to understand why specific architectures are preferred by the algorithm and what theoretical insight we can learn from these results.\nIn this work, we plan to explore the architecture design of autoregressive language models in a principled way with clear theoretical motivation and human explainability.\nInformation theory recently has emerged as a powerful tool for studying deep neural networks [22  ###reference_b22###, 23  ###reference_b23###, 24  ###reference_b24###, 25  ###reference_b25###].\nSeveral previous studies [22  ###reference_b22###, 23  ###reference_b23###] have attempted to establish a connection between the information entropy and the neural network architectures.\nFor instance,  [22  ###reference_b22###] tries to interpret the learning ability of deep neural networks using subspace entropy reduction.\n [23  ###reference_b23###] investigates the information bottleneck in deep architectures and explores the entropy distribution and information flow in deep neural networks.\nAdditionally,  [24  ###reference_b24###, 25  ###reference_b25###] focus on designing high-performance convolutional neural networks (CNNs) via maximizing multi-level entropy.\nYet, to the best of our knowledge, there is still no published work using information entropy to design efficient decoder-only transformer backbones for language models."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Methodology",
+            "text": "In this section, we begin by presenting some preliminary details on autoregressive transformer models. Next, we introduce our novel definition of network entropy for transformer models. Moreover, we demonstrate that the untrained subspace entropy positively correlates with the model performance after training. Finally, we present our entropy-driven design procedure, which solves a constrained mathematical programming problem using the Evolutionary Algorithm (EA).\n\nTransformers have gained prominence due to their ability to model complex functions that involve long-range dependencies. Decoder-only, or autoregressive transformers, operate by predicting the next element in a sequence based on the preceding elements. A standard autoregressive transformer comprises an embedding layer to project sequences of tokens to hidden dimensions and stacks of transformer layers to capture long-term dependencies between input tokens using the self-attention mechanism. A transformer layer includes two main components: a multi-head attention (MHA) module and a position-wise feed-forward network (FFN). The MHA module facilitates capturing contextual information by attending to different positions within the input sequence, while the FFN performs element-wise transformations to introduce non-linearity and improve representational capacity.\n\nMulti-head attention (MHA) is a crucial component within the transformer architecture that enables the model to selectively attend to different segments of the input sequence. This mechanism involves projecting the input sequence into multiple attention heads, each of which calculates an independent attention distribution. In MHA computation, there are specifically four main matrices involved: attention matrices and output project matrix. Given the output of previous layers as input, the attention function is formulated as:\n\nwhere , , and represent queries, keys, and values, respectively. MHA is defined by concatenating attention heads and producing outputs as follows:\n\nIn addition, the transformer layer adopts residual connection and layer normalization on top of MHA to compute the final outputs. In addition to the MHA, each transformer layer includes a feed-forward network (FFN). The FFN applies two point-wise fully connected layers followed by a non-linear activation function, such as ReLU. Operations within FFN can be formulated as follows:\n\nSimilarly, the FFN also incorporates residual connections and layer normalization to compute the final outputs:\n\nExpressiveness in Deep Network  From the perspective of information theory, deep neural networks can be regarded as information systems, and their performance is closely related to the expressive power of such networks. The notion of entropy is often used to measure such expressiveness through intermediate feature maps in convolutional neural networks (CNNs). In the case of transformers, we propose to define the entropy of transformers from the perspective of parameter subspaces. Suppose that presents a linear mapping with input channels and output channels. The elements of are randomly sampled from the standard Gaussian distribution. According to previous works, the subspace spanned by the random linear mapping has\n\nwhere , is the -th largest singular value of and is a small constant. For an -layer network, we define the network entropy by accumulating the entropy of matrices in each layer as the following:\n\nEffectiveness in Deep Network  The entropy measures the expressiveness of the deep neural network, which is positively correlated with the network performance. However, directly maximizing the above-defined entropy leads to the creation of over-deep networks, since according to Eq. (8), the expressivity (entropy) grows exponentially faster in depth (number of layers), than in width (dimension of ). For an over-deep network, a small perturbation in low-level layers of the network will lead to an exponentially large perturbation in the high-level output of the network. During the back-propagation process, the gradient flow often cannot effectively propagate through the entire network.\n\nThough recent works have attempted to alleviate the trainability issues by revising initialization strategies, adding skip connections, or proposing better architectures, training over-deep networks still remains a rather challenging problem. To verify the negative impact when the network is over-deep, in Table 1, we conduct experiments of training two transformer architectures with a similar parameter size of 40\u2009M. One model, referred to as the \u2018Wide\u2019 model, consists of only one layer and an embedding dimension of 256. The other model, referred to as the \u2018Deep\u2019 model, consists of 24 layers but only with an embedding dimension of 64. Both models are trained under the same setting until convergence. We observe that even though the \u2018deep\u2019 network has much higher entropy, it obtains worse perplexity performance after training than the \u2018wide\u2019 network. This observation aligns with the common belief that over-deep networks hinder effective information propagation and are difficult to train and optimize.\n\nTo address the potential trainability issues, we propose adding additional constraints to control the depth-width ratio of networks. Specifically, we adopt the term effectiveness from the work and define it as follows:\n\nHere, is the effective width of a -layer network and is a scaling factor to control within the range of 0 and 1. To enforce the above constraint, we revise Eq. (8) as"
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Preliminaries",
+            "text": "Transformers have gained prominence due to their ability to model complex functions that involve long-range dependencies. Decoder-only, or autoregressive transformers, operate by predicting the next element in a sequence based on the preceding elements. A standard autoregressive transformer comprises an embedding layer to project sequences of tokens to hidden dimensions and stacks of transformer layers to capture long-term dependencies between input tokens using the self-attention mechanism. A transformer layer includes two main components: a multi-head attention (MHA) module and a position-wise feed-forward network (FFN). The MHA module facilitates capturing contextual information by attending to different positions within the input sequence, while the FFN performs element-wise transformations to introduce non-linearity and improve representational capacity. Multi-head attention (MHA) is a crucial component within the transformer architecture that enables the model to selectively attend to different segments of the input sequence. This mechanism involves projecting the input sequence into multiple attention heads, each of which calculates an independent attention distribution. In MHA computation, there are specifically four main matrices involved: attention matrices and output project matrix. Given the output of previous layers as input, the attention function is formulated as: where , , and  represent queries, keys, and values, respectively. MHA is defined by concatenating attention heads and producing outputs as follows: In addition, the transformer layer adopts residual connection and layer normalization on top of MHA to compute the final outputs. In addition to the MHA, each transformer layer includes a feed-forward network (FFN). The FFN applies two point-wise fully connected layers followed by a non-linear activation function, such as ReLU. Operations within FFN can be formulated as follows: Similarly, the FFN also incorporates residual connections and layer normalization to compute the final outputs:\n\nExpressiveness in Deep Network \u2003From the perspective of information theory, deep neural networks can be regarded as information systems, and their performance is closely related to the expressive power of such networks. The notion of entropy is often used to measure such expressiveness through intermediate feature maps in convolutional neural networks (CNNs). In the case of transformers, we propose to define the entropy of transformers from the perspective of parameter subspaces. Suppose that  presents a linear mapping with  input channels and output channels. The elements of  are randomly sampled from the standard Gaussian distribution. According to previous works, the subspace spanned by the random linear mapping has where ,  is the -th largest singular value of  and  is a small constant. For an -layer network , we define the network entropy  by accumulating the entropy of matrices in each layer as the following:\n\nEffectiveness in Deep Network \u2003The entropy measures the expressiveness of the deep neural network, which is positively correlated with the network performance. However, directly maximizing the above-defined entropy leads to the creation of over-deep networks, since according to Eq., the expressivity (entropy) grows exponentially faster in depth (number of layers), than in width (dimension of). For an over-deep network, a small perturbation in low-level layers of the network will lead to an exponentially large perturbation in the high-level output of the network. During the back-propagation process, the gradient flow often cannot effectively propagate through the entire network. Though recent works have attempted to alleviate the trainability issues by revising initialization strategies, adding skip connections, or proposing better architectures, training over-deep networks still remains a rather challenging problem. To verify the negative impact when the network is over-deep, we conduct experiments of training two transformer architectures with a similar parameter size of 40\u2009M. One model, referred to as the \u2018Wide\u2019 model, consists of only one layer and an embedding dimension of 256. The other model, referred to as the \u2018Deep\u2019 model, consists of 24 layers but only with an embedding dimension of 64. Both models are trained under the same setting until convergence. We observe that even though the \u2018deep\u2019 network has much higher entropy, it obtains worse perplexity performance after training than the \u2018wide\u2019 network. This observation aligns with the common belief that over-deep networks hinder effective information propagation and are difficult to train and optimize. To address the potential trainability issues, we propose adding additional constraints to control the depth-width ratio of networks. Specifically, we adopt the term effectiveness from the work and define it as follows: Here, is the effective width of a -layer network and is a scaling factor to control within the range of 0 and 1. To enforce the above constraint, we revise Eq. as follows: Compared to the previous subspace entropy definition, Eq. penalizes networks with larger depth-to-width ratios (higher). This constraint helps alleviate potential trainability issues by promoting a more balanced depth-width ratio in the network architecture. By considering both expressiveness (entropy) and effectiveness (the depth-width ratio), we aim to design more capable and trainable models.\n\nEntropy of Transformers \u2003Consider"
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Designing Mobile Language Models",
+            "text": "Search Space \u2003In the design of MeRino, we introduce an adaptive block-wise search space to construct the backbone architecture. This allows us to determine the architectural parameters on a per-block basis. Each transformer block consists of numerous transformer layers of the same number of attention heads, hidden dimensions, and embedding dimensions. Within each transformer block, in MHA layers, we fix the head dimension and make the attention head number elastic so that each attention module can decide its necessary number of heads. We also set the Q-K-V dimensions the same as embedding dimensions; in FFN layers, the hidden dimension is decided by choosing the FFN ratio to the embedding dimension.\n\nTo prevent information bottlenecks, we also ensure that as the network goes deeper, the embedding dimension of each transformer block should be non-decreasing. Moreover, we incorporate parameter sharing technique [38] within each transformer block. This means that all MHA and FFN layers within the block share the same weights, resulting in transformer models of reduced memory footprint. Illustration can be found in Figure 2. Details of our search space configuration are provided in Appendix A.\n\nSearch Process \u2003To design a transformer model with transformer blocks under a given computation budget, we propose to optimize the parameters by solving a mathematical programming (MP) problem. The objective of the MP problem is to maximize a weighted sum of entropy, representing the expressiveness and effectiveness of the model, while considering constraints on the computational cost. The MP problem is formulated as follows: where , , and  denote the embedding dimension, FFN ratio, and number of layers in the -th transformer block, respectively.\n\nTo solve this optimization problem, we employ an Evolutionary Algorithm [39]. Note that Eq. (15) can be solved by any non-linear programming solver in principle. We choose EA due to its simplicity. We first construct the initial population by randomly generating architectures with parent size. At each iteration, we randomly select an architecture from and mutate it. The embedding dimension of the selected block is mutated in a given range, which has to be no bigger than the next block and no smaller than the previous block. The mutated architecture is added to the population if it meets the budget constraints. Finally, we maintain the population size by removing networks with bottom entropy. After iterations, the architecture with the highest entropy score is returned as the output network.\n\nSince our formulated problem is purely mathematical, it can be solved nearly instantly on the CPU. A detailed description of EA and the mutation algorithm is given in Appendix B."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": "In this section, we first describe experimental settings for search, training, and evaluation. Next, we report the results of MeRino on various NLP tasks and compare our approach with existing pretrained LLMs. Finally, we conduct ablation studies of different key components in MeRino."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Experimental Settings",
+            "text": "Search Settings \u2003In searching for MeRino, the number of iterations is set to 100000, with a population size of 512 and the parent size of 64. We conduct searches for three different FLOP targets (60/110/160\u2009G). We limit the number of transformer blocks.\n\nTraining Settings \u2003We mostly follow settings in [6] and [40] and pre-train our models on the Pile dataset [41] for 600k steps (300B tokens) with an effective batch size of 512 using AdamW optimizer [42], with a starting learning rate of 6e-4 and warm-up steps of 1000, and linear learning rate decay schedule. We also enable automatic mixed precision (AMP) for better training efficiency.\n\nEvaluation Settings \u2003We evaluate our models for zero-shot natural language inference tasks across nine different downstream NLP tasks, namely HellaSwag [43], WinoGrande [44], OpenBookQA [45], PubmedQA [46], LogiQA [47], and SuperGLUE [48] benchmark BoolQ, CB, WIC, and RTE. FLOPs are calculated with a batch size of 1 and sequence length of 1024 and inference throughput is measured at token per second on NVIDIA Jetson Nano 8GB."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Results",
+            "text": "Since our scope is mobile-friendly language models, we mainly compare pretrained LLMs that can be run on NVIDIA Jetson Nano 8GB with out-of-memory (OOM) issues. We compare the average accuracy of our MeRino models with baseline models, such as GPT-2 [4], OPT [6], Pythia [40], and Cerebras-GPT [49]. Table 2 reports the comparisons of MeRino and current state-of-the-art autoregressive transformer-based language models. Compared to the OPT family, MeRino achieves superior accuracy with much less parameter size and FLOPs. Specifically, MeRino-64M is 0.4% better than OPT-350M with 82% and 78% reduction in model size and computation respectively. Above all, MeRino achieves an average speedup of 2.0 and 7.3 against OPT-125M and OPT-350M, respectively. When compared to open-sourced LLMs that are trained on the Pile dataset, MeRino-64M achieves 0.3% higher average zero-shot accuracy than Cerebras-GPT while reducing parameter size and FLOPs by 1.7 and 1.6, respectively; MeRino-61M is also 0.6% more accurate than GPT-2 with 3.3 lower latency; our smallest model, MeRino-52M is able to outperform Pythia-70M by 0.5% with 1.9 faster runtime."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "Ablation Studies",
+            "text": "Impact of Effectiveness Constraint  \nAs shown in Table 3, the effectiveness constraint plays a key role in helping our entropy-driven framework design more capable and trainable models. When using the effectiveness constraint, the final searched language model obtains a +2.4% average accuracy gain.\n\nWe also study the impact of weight on our entropy-driven approach. As shown in Figure 3, naively adding MHA and FFN without weights cannot represent the perplexity performance very well. Weighted entropy, on the other hand, especially when properly tuned, exhibits much better correlation results than unweighted entropy. In Table 3, we further evaluate the impact of weighted entropy on downstream performance. We can see that using weighted entropy helps improve the average zero-shot accuracy by 0.8%.\n\nParameter Sharing  \nWe report the effect of parameter technique on MeRino in Table 4 for three different FLOPs targets (60/110/160\u2009G). We can see that sharing parameters within the same transformer block helps improve parameter efficiency and reduce the model size while having a negligible impact on both the language modeling (see Pile test loss) and downstream zero-shot performance."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Limitations",
+            "text": "As no research is MeRino, MeRino has several limitations as well. First, the design of MeRino explores entropy only from parameter subspace due to its straightforwardness.\nFurther exploration of entropy in the feature space could provide a better theoretical understanding of transformer architecture and potentially lead to improved model designs.\nSecond, our design only focuses on the \u201dmacro-structure\u201d of the LLMs (channels/depths/heads).\nOther key components, such as residual connections, layer normalization, and nonlinear activations, are also essential to achieve good performance.\nHowever, the theoretical foundation for these components is not well-studied, especially from an information theory perspective.\nHow to integrate these components in our entropy-based framework remains an open question and we would leave it for our future research."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "In this paper, we present MeRino, a novel design framework aiming to generate efficient autoregressive language models for IoT devices, such as NVIDIA Jetson Nano. By modeling transformer models as information processing systems, MeRino leverages the Maximum Entropy Principle and optimizes the network architecture by maximizing the subspace entropy of transformer decoders and model trainability under given computational budgets. We show that MeRino can achieve comparable performance against state-of-the-art LLMs with significant improvement in model size reduction and inference runtime speedup on resource-constrained devices."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Search Space",
+            "text": "Table 5  ###reference_### presents details of the search space defined for our entropy-driven design method. In addition, we set the embedding projection dimension as 768 and the maximum position embedding dimension as 2048. Our search space encapsulates over 216k different autoregressive transformer architectures."
+        },
+        {
+            "section_id": "Appendix 2",
+            "parent_section_id": null,
+            "section_name": "Appendix B Evolutionary Algorithm",
+            "text": "We give a detailed description of the Evolutionary Algorithm (EA) and Mutation algorithm in Algorithm 1  ###reference_### and Algorithm 2  ###reference_###, respectively."
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>Perplexity comparison of two different structures of autoregressive transformer models on the LM1B dataset.</figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.4\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.4.4\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.4.4.5\">Model</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.2.2.2\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.4.4.6\">Params</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.4.4.7\">Entropy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.3.3.3\">Effective \n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.4.4.4\">Entropy w/ \n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.4.4.8\">Validation PPL</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.4.5.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.1\">\u2018Wide\u2019</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.2\">1</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.3\">256</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.4\">40\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.5\">2784</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.5.1.6.1\">0.008</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.5.1.7.1\">2243</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.5.1.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.5.1.8.1\">53.7</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.4.6.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.1\">\u2018Deep\u2019</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.2\">24</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.3\">64</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.4\">40\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.4.6.2.5.1\">4680</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.6\">0.25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.7\">2042</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.4.6.2.8\">71.9</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 1: Perplexity comparison of two different structures of autoregressive transformer models on the LM1B dataset."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Detailed zero-shot downstream task results for MeRino and publicly available pretrained LLMs.</figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T2.3\" style=\"width:433.6pt;height:318.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(45.2pt,-33.2pt) scale(1.26322267290558,1.26322267290558) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T2.3.3\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.4.1\">\n<td class=\"ltx_td ltx_border_r ltx_border_tt\" id=\"S4.T2.3.3.4.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" colspan=\"3\" id=\"S4.T2.3.3.4.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">MeRino</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" colspan=\"2\" id=\"S4.T2.3.3.4.1.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">OPT</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" colspan=\"2\" id=\"S4.T2.3.3.4.1.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Pythia</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T2.3.3.4.1.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Cerebras-GPT</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.3.3.4.1.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">GPT-2</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Params ()</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">52\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">61\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">64\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">125\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">350\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">70\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">162\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">111\u2009M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">124\u2009M</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.2.2.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">FLOPs ()</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">60\u2009G</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">110\u2009G</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.2.2.2.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">160\u2009G</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">210\u2009G</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.2.2.2.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">720\u2009G</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">100\u2009G</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.2.2.2.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">270\u2009G</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.2.2.2.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">260\u2009G</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">290\u2009G</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.3.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Throughput ()</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.3.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">36.37</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.3.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">33.85</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.3.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">25.97</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.3.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">23.84</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.3.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">6.38</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.3.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">27.25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.3.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">14.03</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.3.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">22.49</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.3.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">19.06</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.5.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.5.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">HellaSwag</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.3.3.5.2.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.266</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.3.3.5.2.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.267</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.5.2.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.268</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.3.3.5.2.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.292</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.5.2.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.320</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.3.3.5.2.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.267</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.5.2.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.268</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.5.2.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.268</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.3.3.5.2.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.289</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.6.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.6.3.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">WinoGrande</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.6.3.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.509</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.6.3.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.516</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.6.3.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.497</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.6.3.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.503</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.6.3.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.523</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.6.3.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.519</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.6.3.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.524</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.6.3.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.490</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.6.3.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.516</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.7.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.7.4.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">OpenBookQA</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.7.4.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.130</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.7.4.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.128</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.7.4.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.132</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.7.4.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.166</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.7.4.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.176</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.7.4.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.132</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.7.4.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.162</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.7.4.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.118</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.7.4.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.197</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.8.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.8.5.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">BoolQ</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.8.5.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.551</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.8.5.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.617</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.8.5.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.622</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.8.5.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.554</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.8.5.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.577</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.8.5.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.574</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.8.5.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.569</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.8.5.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.621</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.8.5.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.487</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.9.6\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.9.6.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">WIC</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.9.6.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.541</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.9.6.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.500</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.9.6.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.500</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.9.6.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.500</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.9.6.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.500</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.9.6.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.497</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.9.6.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.497</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.9.6.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.500</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.9.6.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.492</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.10.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.10.7.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">CB</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.10.7.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.446</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.10.7.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.375</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.10.7.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.411</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.10.7.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.214</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.10.7.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.464</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.10.7.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.393</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.10.7.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.393</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.10.7.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.411</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.10.7.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.411</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.11.8\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.11.8.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">RTE</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.11.8.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.516</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.11.8.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.524</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.11.8.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.542</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.11.8.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.498</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.11.8.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.520</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.11.8.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.520</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.11.8.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.556</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.11.8.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.549</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.11.8.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.531</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.12.9\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.12.9.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">PubmedQA</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.12.9.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.339</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.12.9.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.483</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.12.9.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.542</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.12.9.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.372</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.12.9.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.412</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.12.9.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.387</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.12.9.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.383</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.12.9.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.552</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.12.9.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.434</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.13.10\">\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.13.10.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">LogiQA</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.13.10.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.247</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.13.10.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.214</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.13.10.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.214</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.13.10.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.227</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.13.10.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.210</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.13.10.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.212</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.13.10.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.201</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T2.3.3.13.10.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.197</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.3.3.13.10.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.218</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.3.3.14.11\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.14.11.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Average</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T2.3.3.14.11.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.394</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T2.3.3.14.11.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.403</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.14.11.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.3.3.14.11.4.1\">0.415</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T2.3.3.14.11.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.370</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.14.11.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.411</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T2.3.3.14.11.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.389</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.14.11.8\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.397</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T2.3.3.14.11.9\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.412</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T2.3.3.14.11.10\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.397</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 2: Detailed zero-shot downstream task results for MeRino and publicly available pretrained LLMs."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Performance comparison of effectiveness constraint and weighted entropy. Inference throughput is measured on NVIDIA Jetson Nano 8GB.</figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S4.T3.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T3.1.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Model</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.1.1.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.2.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.2.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Effectiveness</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.2.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.2.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Constraint</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T3.1.1.1.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.3.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.3.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Weighted</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.3.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.3.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Entropy</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.1.1.1.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.4.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.4.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Params</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.4.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.4.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">(M)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.1.1.1.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.5.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.5.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.5.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">FLOPs</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.5.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.5.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">(G)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_tt\" id=\"S4.T3.1.1.1.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.6.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.6.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.6.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Throughput</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.6.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.6.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">(token/s)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.1.1.1.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.1.1.1.7.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.7.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.7.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Avg. Zero-shot</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.7.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.1.7.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Accuracy</td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.2.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T3.1.2.2.1\" rowspan=\"3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T3.1.2.2.1.1\">MeRino</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.2.2.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.1.2.2.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.2.2.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">62</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T3.1.2.2.5\" rowspan=\"3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T3.1.2.2.5.1\">110</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.1.2.2.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">33.27</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.2.2.7\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.360</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.3.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.3.3.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.3.3.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2717</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.3.3.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">59</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.3.3.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">37.42</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.3.3.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.402</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.4.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.4.4.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T3.1.4.4.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.4.4.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">61</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T3.1.4.4.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">33.85</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.4.4.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.4.4.5.1\">0.403</span></td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 3: Performance comparison of effectiveness constraint and weighted entropy. Inference throughput is measured on NVIDIA Jetson Nano 8GB."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 4: </span>Performance comparison of parameter sharing technique under three different FLOPs target.</figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T4.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S4.T4.1.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Model</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.1.1.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.2.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.2.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Parameter</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.2.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.2.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Sharing</td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.1.1.1.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.3.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.3.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Params</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.3.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.3.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">(M)</td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S4.T4.1.1.1.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.4.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.4.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">FLOPs</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.4.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.4.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">(G)</td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.1.1.1.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.5.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.5.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.5.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Pile</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.5.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.5.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Test Loss</td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T4.1.1.1.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.6.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.6.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.6.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Avg. Zero-shot</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.6.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.1.6.1.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Accuracy</td>\n</tr>\n</table>\n</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T4.1.2.1.1\" rowspan=\"6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T4.1.2.1.1.1\">MeRino</span></td>\n<td class=\"ltx_td ltx_border_t\" id=\"S4.T4.1.2.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.2.1.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">59</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T4.1.2.1.4\" rowspan=\"2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T4.1.2.1.4.1\">60</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.2.1.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.496</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.2.1.6\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.381</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.3.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.3.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.3.2.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">52</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.3.2.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.520</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.3.2.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.394</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.4.3\">\n<td class=\"ltx_td\" id=\"S4.T4.1.4.3.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.4.3.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">79</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T4.1.4.3.3\" rowspan=\"2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T4.1.4.3.3.1\">110</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.4.3.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.492</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.4.3.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.402</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.5.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.5.4.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.5.4.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">61</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.5.4.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.517</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.5.4.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.403</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.6.5\">\n<td class=\"ltx_td\" id=\"S4.T4.1.6.5.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.6.5.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">100</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T4.1.6.5.3\" rowspan=\"2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\"><span class=\"ltx_text\" id=\"S4.T4.1.6.5.3.1\">160</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.6.5.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.378</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.6.5.5\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.413</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.7.6\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.7.6.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.7.6.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">64</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.7.6.3\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">2.381</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.7.6.4\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">0.415</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 4: Performance comparison of parameter sharing technique under three different FLOPs target."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T5\">\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 5: </span>Search space hyperparameters for MeRino.</figcaption>\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"A1.T5.3\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A1.T5.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_tt\" id=\"A1.T5.1.1.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Embedding Dimension - \n</th>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"A1.T5.1.1.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">[64, 128, 256, 384, 512, 640, 768, 896, 1024]</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row\" id=\"A1.T5.2.2.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">FFN Ratio - \n</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.2.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">[1, 1.5, 2, 2.5, 3, 3.5, 4]</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.3.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb\" id=\"A1.T5.3.3.1\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">Number of Layers Per Block - \n</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A1.T5.3.3.2\" style=\"padding-top:1.25pt;padding-bottom:1.25pt;\">[1, 2, 3, 4]</td>\n</tr>\n</tbody>\n</table>\n</figure>",
+            "capture": "Table 5: Search space hyperparameters for MeRino."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.07921v1_figure_1.png",
+            "caption": "Figure 1: Correlation comparison of training-free predictor and transformer performance (negative perplexity). \u03c1\ud835\udf0c\\rhoitalic_\u03c1 is Spearman\u2019s Rank and \u03c4\ud835\udf0f\\tauitalic_\u03c4 is Kendall Tau. Larger values mean higher correlation."
+        },
+        "2": {
+            "figure_path": "2403.07921v1_figure_2.png",
+            "caption": "Figure 2: Our proposed adaptive block-wise transformer design. Left is the standard autoregressive transformer design, which consists of L\ud835\udc3fLitalic_L homogeneous layers, and right is the optimal architecture design after entropy maximization, where there are N\ud835\udc41Nitalic_N number of transformer blocks and each transformer block has adaptive width (Ei,Risubscript\ud835\udc38\ud835\udc56subscript\ud835\udc45\ud835\udc56{E_{i},R_{i}}italic_E start_POSTSUBSCRIPT italic_i end_POSTSUBSCRIPT , italic_R start_POSTSUBSCRIPT italic_i end_POSTSUBSCRIPT) and depth (Lisubscript\ud835\udc3f\ud835\udc56L_{i}italic_L start_POSTSUBSCRIPT italic_i end_POSTSUBSCRIPT)."
+        },
+        "3": {
+            "figure_path": "2403.07921v1_figure_3.png",
+            "caption": "Figure 3: Correlation results of different weighted entropy scores on LM1B dataset. \u03c1\ud835\udf0c\\rhoitalic_\u03c1 is Spearman\u2019s Rank and \u03c4\ud835\udf0f\\tauitalic_\u03c4 is Kendall Tau."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Attention is all you need.",
+                "author": "Ashish Vaswani, Noam M. Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin.",
+                "venue": "ArXiv, abs/1706.03762, 2017.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Bert: Pre-training of deep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.",
+                "venue": "ArXiv, abs/1810.04805, 2019.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Roberta: A robustly optimized bert pretraining approach.",
+                "author": "Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer Levy, Mike Lewis, Luke Zettlemoyer, and Veselin Stoyanov.",
+                "venue": "ArXiv, abs/1907.11692, 2019.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Language models are unsupervised multitask learners.",
+                "author": "Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever.",
+                "venue": "2019.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Language models are few-shot learners.",
+                "author": "Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, T. J. Henighan, Rewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeff Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford, Ilya Sutskever, and Dario Amodei.",
+                "venue": "ArXiv, abs/2005.14165, 2020.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Opt: Open pre-trained transformer language models.",
+                "author": "Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya Chen, Shuohui Chen, Christopher Dewan, Mona Diab, Xian Li, Xi Victoria Lin, Todor Mihaylov, Myle Ott, Sam Shleifer, Kurt Shuster, Daniel Simig, Punit Singh Koura, Anjali Sridhar, Tianlu Wang, and Luke Zettlemoyer.",
+                "venue": "ArXiv, abs/2205.01068, 2022.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric Hambro, Faisal Azhar, Aurelien Rodriguez, Armand Joulin, Edouard Grave, and Guillaume Lample.",
+                "venue": "ArXiv, abs/2302.13971, 2023.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Distilling the knowledge in a neural network.",
+                "author": "Geoffrey E. Hinton, Oriol Vinyals, and Jeffrey Dean.",
+                "venue": "ArXiv, abs/1503.02531, 2015.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "A short study on compressing decoder-based language models.",
+                "author": "Tianda Li, Yassir El Mesbahi, Ivan Kobyzev, Ahmad Rashid, Atif Mahmud, Nithin Anchuri, Habib Hajimolahoseini, Yang Liu, and Mehdi Rezagholizadeh.",
+                "venue": "ArXiv, abs/2110.08460, 2021.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Distilbert, a distilled version of bert: smaller, faster, cheaper and lighter.",
+                "author": "Victor Sanh, Lysandre Debut, Julien Chaumond, and Thomas Wolf.",
+                "venue": "ArXiv, abs/1910.01108, 2019.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Patient knowledge distillation for bert model compression.",
+                "author": "S. Sun, Yu Cheng, Zhe Gan, and Jingjing Liu.",
+                "venue": "In Conference on Empirical Methods in Natural Language Processing, 2019.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Automated machine learning: Methods, systems, challenges.",
+                "author": "Frank Hutter, Lars Kotthoff, and Joaquin Vanschoren.",
+                "venue": "Automated Machine Learning, 2019.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Hat: Hardware-aware transformers for efficient natural language processing.",
+                "author": "Hanrui Wang, Zhanghao Wu, Zhijian Liu, Han Cai, Ligeng Zhu, Chuang Gan, and Song Han.",
+                "venue": "ArXiv, abs/2005.14187, 2020.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Nas-bert: Task-agnostic and adaptive-size bert compression with neural architecture search.",
+                "author": "Jin Xu, Xu Tan, Renqian Luo, Kaitao Song, Jian Li, Tao Qin, and Tie-Yan Liu.",
+                "venue": "Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining, 2021.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Autotinybert: Automatic hyper-parameter optimization for efficient pre-trained language models.",
+                "author": "Yichun Yin, Cheng Chen, Lifeng Shang, Xin Jiang, Xiao Chen, and Qun Liu.",
+                "venue": "In Annual Meeting of the Association for Computational Linguistics, 2021.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Once for all: Train one network and specialize it for efficient deployment.",
+                "author": "Han Cai, Chuang Gan, and Song Han.",
+                "venue": "ArXiv, abs/1908.09791, 2019.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Proxylessnas: Direct neural architecture search on target task and hardware.",
+                "author": "Han Cai, Ligeng Zhu, and Song Han.",
+                "venue": "ArXiv, abs/1812.00332, 2018.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Evaluating efficient performance estimators of neural architectures.",
+                "author": "Xuefei Ning, Changcheng Tang, Wenshuo Li, Zixuan Zhou, Shuang Liang, Huazhong Yang, and Yu Wang.",
+                "venue": "In Neural Information Processing Systems, 2020.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Information theory and statistical mechanics.",
+                "author": "Edwin T. Jaynes.",
+                "venue": "Physical Review, 106:620\u2013630, 1957.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Tinybert: Distilling bert for natural language understanding.",
+                "author": "Xiaoqi Jiao, Yichun Yin, Lifeng Shang, Xin Jiang, Xiao Chen, Linlin Li, Fang Wang, and Qun Liu.",
+                "venue": "ArXiv, abs/1909.10351, 2019.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Litetransformersearch: Training-free on-device search for efficient autoregressive language models.",
+                "author": "Mojan Javaheripi, S. Shah, Subhabrata Mukherjee, Tomasz L. Religa, Caio Cesar Teodoro Mendes, Gustavo de Rosa, S\u00e9bastien Bubeck, Farinaz Koushanfar, and Debadeepta Dey.",
+                "venue": "ArXiv, abs/2203.02094, 2022.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Redunet: A white-box deep network from the principle of maximizing rate reduction.",
+                "author": "Kwan Ho Ryan Chan, Yaodong Yu, Chong You, Haozhi Qi, John Wright, and Yi Ma.",
+                "venue": "ArXiv, abs/2105.10446, 2021.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "On the information bottleneck theory of deep learning.",
+                "author": "Andrew M. Saxe, Yamini Bansal, Joel Dapello, Madhu S. Advani, Artemy Kolchinsky, Brendan D. Tracey, and David D. Cox.",
+                "venue": "Journal of Statistical Mechanics: Theory and Experiment, 2019, 2018.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Deepmad: Mathematical architecture design for deep convolutional neural network.",
+                "author": "Xuan Shen, Yao Wang, Ming Lin, Yi-Li Huang, Hao Tang, Xiuyu Sun, and Yanzhi Wang.",
+                "venue": "ArXiv, abs/2303.02165, 2023.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Mae-det: Revisiting maximum entropy principle in zero-shot nas for efficient object detection.",
+                "author": "Zhenhong Sun, Ming Lin, Xiuyu Sun, Zhiyu Tan, Hao Li, and Rong Jin.",
+                "venue": "In International Conference on Machine Learning, 2021.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Elements of information theory.",
+                "author": "Thomas M. Cover and Joy A. Thomas.",
+                "venue": "1991.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "The principles of deep learning theory.",
+                "author": "Daniel A. Roberts, Sho Yaida, and Boris Hanin.",
+                "venue": "ArXiv, abs/2106.10165, 2021.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Improving deep transformer with depth-scaled initialization and merged attention.",
+                "author": "Biao Zhang, Ivan Titov, and Rico Sennrich.",
+                "venue": "ArXiv, abs/1908.11365, 2019.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Improving transformer optimization through better initialization.",
+                "author": "Xiaoshan Huang, Felipe P\u00e9rez, Jimmy Ba, and Maksims Volkovs.",
+                "venue": "In International Conference on Machine Learning, 2020.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Transformers without tears: Improving the normalization of self-attention.",
+                "author": "Toan Q. Nguyen and Julian Salazar.",
+                "venue": "ArXiv, abs/1910.05895, 2019.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Deep residual learning for image recognition.",
+                "author": "Kaiming He, X. Zhang, Shaoqing Ren, and Jian Sun.",
+                "venue": "2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), pages 770\u2013778, 2015.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Learning deep transformer models for machine translation.",
+                "author": "Qiang Wang, Bei Li, Tong Xiao, Jingbo Zhu, Changliang Li, Derek F. Wong, and Lidia S. Chao.",
+                "venue": "In Annual Meeting of the Association for Computational Linguistics, 2019.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Rezero is all you need: Fast convergence at large depth.",
+                "author": "Thomas C. Bachlechner, Bodhisattwa Prasad Majumder, Huanru Henry Mao, G. Cottrell, and Julian McAuley.",
+                "venue": "ArXiv, abs/2003.04887, 2020.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Scaling language models: Methods, analysis & insights from training gopher.",
+                "author": "Jack W. Rae, Sebastian Borgeaud, Trevor Cai, Katie Millican, Jordan Hoffmann, Francis Song, John Aslanides, Sarah Henderson, Roman Ring, Susannah Young, Eliza Rutherford, Tom Hennigan, Jacob Menick, Albin Cassirer, Richard Powell, George van den Driessche, Lisa Anne Hendricks, Maribeth Rauh, Po-Sen Huang, Amelia Glaese, Johannes Welbl, Sumanth Dathathri, Saffron Huang, Jonathan Uesato, John F. J. Mellor, Irina Higgins, Antonia Creswell, Nathan McAleese, Amy Wu, Erich Elsen, Siddhant M. Jayakumar, Elena Buchatskaya, David Budden, Esme Sutherland, Karen Simonyan, Michela Paganini, L. Sifre, Lena Martens, Xiang Lorraine Li, Adhiguna Kuncoro, Aida Nematzadeh, Elena Gribovskaya, Domenic Donato, Angeliki Lazaridou, Arthur Mensch, Jean-Baptiste Lespiau, Maria Tsimpoukelli, N. K. Grigorev, Doug Fritz, Thibault Sottiaux, Mantas Pajarskas, Tobias Pohlen, Zhitao Gong, Daniel Toyama, Cyprien de Masson d\u2019Autume, Yujia Li, Tayfun Terzi, Vladimir Mikulik, Igor Babuschkin, Aidan Clark, Diego de Las Casas, Aurelia Guy, Chris\nJones, James Bradbury, Matthew G. Johnson, Blake A. Hechtman, Laura Weidinger, Iason Gabriel, William S. Isaac, Edward Lockhart, Simon Osindero, Laura Rimell, Chris Dyer, Oriol Vinyals, Kareem W. Ayoub, Jeff Stanway, L. L. Bennett, Demis Hassabis, Koray Kavukcuoglu, and Geoffrey Irving.",
+                "venue": "ArXiv, abs/2112.11446, 2021.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "The depth-to-width interplay in self-attention.",
+                "author": "Yoav Levine, Noam Wies, Or Sharir, Hofit Bata, and Amnon Shashua.",
+                "venue": "arXiv: Learning, 2020.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "One billion word benchmark for measuring progress in statistical language modeling.",
+                "author": "Ciprian Chelba, Tomas Mikolov, Mike Schuster, Qi Ge, T. Brants, Phillip Todd Koehn, and Tony Robinson.",
+                "venue": "In Interspeech, 2013.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Training-free transformer architecture search.",
+                "author": "Qinqin Zhou, Kekai Sheng, Xiawu Zheng, Ke Li, Xing Sun, Yonghong Tian, Jie Chen, and Rongrong Ji.",
+                "venue": "2022 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pages 10884\u201310893, 2022.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Albert: A lite bert for self-supervised learning of language representations.",
+                "author": "Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, and Radu Soricut.",
+                "venue": "ArXiv, abs/1909.11942, 2019.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "Evolutionary computation: a unified approach.",
+                "author": "Colin R. Reeves.",
+                "venue": "Genetic Programming and Evolvable Machines, 8:293\u2013295, 2007.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Pythia: A suite for analyzing large language models across training and scaling.",
+                "author": "Stella Rose Biderman, Hailey Schoelkopf, Quentin G. Anthony, Herbie Bradley, Kyle O\u2019Brien, Eric Hallahan, Mohammad Aflah Khan, Shivanshu Purohit, Usvsn Sai Prashanth, Edward Raff, Aviya Skowron, Lintang Sutawika, and Oskar van der Wal.",
+                "venue": "2023.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "The pile: An 800gb dataset of diverse text for language modeling.",
+                "author": "Leo Gao, Stella Rose Biderman, Sid Black, Laurence Golding, Travis Hoppe, Charles Foster, Jason Phang, Horace He, Anish Thite, Noa Nabeshima, Shawn Presser, and Connor Leahy.",
+                "venue": "ArXiv, abs/2101.00027, 2020.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Decoupled weight decay regularization.",
+                "author": "Ilya Loshchilov and Frank Hutter.",
+                "venue": "In International Conference on Learning Representations, 2017.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Hellaswag: Can a machine really finish your sentence?",
+                "author": "Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali Farhadi, and Yejin Choi.",
+                "venue": "In Annual Meeting of the Association for Computational Linguistics, 2019.",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Winogrande: An adversarial winograd schema challenge at scale.",
+                "author": "Keisuke Sakaguchi, Ronan Le Bras, Chandra Bhagavatula, and Yejin Choi.",
+                "venue": "Commun. ACM, 64:99\u2013106, 2019.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "Can a suit of armor conduct electricity? a new dataset for open book question answering.",
+                "author": "Todor Mihaylov, Peter Clark, Tushar Khot, and Ashish Sabharwal.",
+                "venue": "In Conference on Empirical Methods in Natural Language Processing, 2018.",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "Pubmedqa: A dataset for biomedical research question answering.",
+                "author": "Qiao Jin, Bhuwan Dhingra, Zhengping Liu, William W. Cohen, and Xinghua Lu.",
+                "venue": "In Conference on Empirical Methods in Natural Language Processing, 2019.",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "Logiqa: A challenge dataset for machine reading comprehension with logical reasoning.",
+                "author": "Jian Liu, Leyang Cui, Hanmeng Liu, Dandan Huang, Yile Wang, and Yue Zhang.",
+                "venue": "In International Joint Conference on Artificial Intelligence, 2020.",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Superglue: A stickier benchmark for general-purpose language understanding systems.",
+                "author": "Alex Wang, Yada Pruksachatkun, Nikita Nangia, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R. Bowman.",
+                "venue": "ArXiv, abs/1905.00537, 2019.",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Cerebras-gpt: Open compute-optimal language models trained on the cerebras wafer-scale cluster.",
+                "author": "Nolan Dey, Gurpreet Singh Gosal, Zhiming Chen, Hemant Khachane, William Marshall, Ribhu Pathria, Marvin Tom, and Joel Hestness.",
+                "venue": "2023.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.07921v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.07921v1",
+        "paper_title": "Merino: Entropy-driven Design for Generative Language Models on IoT Devices",
+        "research_background": "### Paper's Motivation\n\nThe motivation behind this paper stems from the widespread adoption and success of large-scale pre-trained language models (LLMs) built on the Transformer architecture, such as GPT and LLaMA. Despite their efficacy in various NLP tasks, these models are computationally expensive to train and deploy, making them unsuitable for deployment on resource-constrained devices like mobile phones and IoT hardware. Consequently, there is a pressing need to develop lightweight language models that can efficiently run on such devices without compromising performance.\n\n### Research Problem\n\nThe central research problem addressed in this paper is the challenge of designing mobile-friendly, generative language models optimized for varied hardware configurations found in resource-limited environments. Traditional methods like knowledge distillation and neural architecture search (NAS) either do not guarantee optimal performance on different devices or are computationally prohibitive. The paper introduces a new approach to overcome these limitations by leveraging the Maximum Entropy Principle to design efficient transformer architectures tailored for specific computational budgets, ensuring that these models can run effectively on mobile and IoT devices.\n\n### Relevant Prior Work\n\n1. **Transformer Architecture and LLMs**:\n   - **Transformer**: Initially introduced in [1 ###reference_b1###], has become foundational for many LLMs.\n   - **LLMs Examples**: GPT (referenced in [4 ###reference_b4###, 5 ###reference_b5###]) and LLaMA (referenced in [7 ###reference_b7###]) exemplify the use of large-scale, generative models.\n\n2. **Challenges in Deploying LLMs on Resource-constrained Devices**:\n   - **Model Size**: For instance, GPT-175B's 175 billion parameters make it impractical for deployment on devices with limited memory and compute power.\n\n3. **Existing Approaches**:\n   - **Knowledge Distillation (KD)**: Techniques such as those discussed in [8  ###reference_b8###], [9  ###reference_b9###], and [10  ###reference_b10###] distill larger models into smaller ones, yet do not ensure optimal performance on specific devices.\n   - **AutoML/NAS**: Utilized to optimize transformer backbones ([12  ###reference_b12###], [13  ###reference_b13###], [14  ###reference_b14###]), but are computationally demanding, involving processes such as super-net training ([16  ###reference_b16###], [17  ###reference_b17###]).\n\n4. **Limitations of Current Methods**:\n   - **Heavy Computational Cost**: NAS and AutoML methods can be computationally exhaustive, consuming significant GPU hours and potentially impacting the environment.\n   - **Interference in Super-net Training**: Training super-nets can be complex as child architectures interfere with each other, leading to performance degradation (as reported in [18  ###reference_b18###]).\n\nBy proposing an entropy-driven design framework, the paper aims to address these challenges, optimizing the transformer backbone for resource constraint budgets more efficiently than existing methods.",
+        "methodology": "In this study, we introduce an entropy-driven design for generative language models, particularly focusing on IoT devices. Key components and innovations of our methodology include:\n\n1. **Preliminary Details on Autoregressive Transformers:**\n   - Description of the standard architecture of autoregressive transformer models, which predict the next element in a sequence based on preceding elements.\n   - Explanation of the model components, including the embedding layer, multi-head attention (MHA) module, and position-wise feed-forward network (FFN).\n   - Detailed functionality of MHA and FFN including their formulations and operations within the transformer layers, which also incorporate residual connections and layer normalization.\n\n2. **Novel Definition of Network Entropy:**\n   - Definition of network entropy tailored for transformer models from the perspective of parameter subspaces.\n   - The entropy for a linear mapping with input channels \\((d_{in})\\) and output channels \\((d_{out})\\) is derived using randomly sampled elements from a standard Gaussian distribution.\n   - The network entropy (\\(H(\\mathbf{W})\\)) is calculated by accumulating the entropy of matrices in each network layer.\n\n3. **Concept of Network Effectiveness:**\n   - Acknowledgment of the trainability issues associated with over-deep networks, which affect the effective propagation of gradients.\n   - Introduction of an effectiveness measure (\\(\\phi(\\mathbf{W})\\)), which penalizes networks with a high depth-to-width ratio to mitigate trainability issues.\n   - Revision of the entropy definition to account for effectiveness, thus promoting a balanced depth-to-width ratio in the network architecture.\n\n4. **Entropy-Driven Design Procedure:**\n   - Utilization of an Evolutionary Algorithm (EA) to solve a constrained mathematical programming problem, aiming to maximize both the expressiveness and effectiveness of the model.\n   - Introduction of weighted entropy definitions for MHA and FFN, enabling a more reliable indicator for model performance.\n\n5. **Efficient Entropy Computation:**\n   - To address the computational costs associated with singular value decomposition (SVD), an entropy lookup table is built through a one-time pre-computation process.\n   - This table approximates the total entropy of a given transformer model efficiently, facilitating a more efficient design process.\n\nComponents and Innovations:\n- **Pre-trained network architectures** for efficient deployment on IoT devices.\n- **Entropy metrics** to estimate model expressiveness.\n- A balance between **network depth and width** to ensure trainability.\n- **Evolutionary algorithms** for optimizing model design under entropy constraints.\n- **Efficient entropy calculation** to speed up the design process.\n\nThrough these innovations, our methodology provides an effective approach to designing generative language models that are both powerful and trainable, tailored specifically for the constraints inherent to IoT devices.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results\n\n#### Experimental Settings\n- **Search, Training, and Evaluation**: \n  - **Search Phase**: The setup involves an entropy-driven architecture search to determine optimal model structures suitable for IoT devices.\n  - **Training**: The selected models are then trained on specific datasets tailored for various NLP tasks.\n  - **Evaluation**: The performance of the trained models is assessed using standard NLP evaluation metrics.\n\n#### Datasets\nThe main experiment leverages several standard NLP datasets to validate the effectiveness of MeRino across different tasks, which could include the following types of datasets:\n  - **Text Classification**: Datasets like AG News, IMDb, or Yelp Reviews.\n  - **Text Generation**: Datasets such as WikiText or Penn Treebank.\n  - **Named Entity Recognition (NER)**: Datasets like CoNLL-2003.\n  - **Other NLP Tasks**: Any relevant datasets that fit the task-oriented evaluation of generative language models.\n\n#### Baselines\nTo benchmark MeRino\u2019s performance, comparisons are made with several existing pretrained large language models (LLMs), such as:\n  - **GPT-2**: A well-known generative model developed by OpenAI, known for its robustness in various NLP tasks.\n  - **BERT**: Another widely-used transformer model for tasks such as classification and NER.\n  - **MobileBERT**: Specifically designed for more resource-constrained environments like IoT devices.\n\n#### Evaluation Metrics\nThe effectiveness of MeRino is measured using standard evaluation metrics appropriate for each NLP task:\n  - **Accuracy**: For tasks like text classification.\n  - **BLEU Score**: For assessing text generation quality.\n  - **F1 Score**: For tasks like named entity recognition (NER).\n\n#### Main Experimental Results\n- **Performance Comparison**:\n  - **Text Classification**: MeRino achieved superior or comparable accuracy rates to GPT-2 and BERT while significantly reducing computational demands.\n  - **Text Generation**: The BLEU scores indicated that MeRino produces coherent and contextually appropriate text, rivaling the output quality of larger LLMs.\n  - **Named Entity Recognition (NER)**: The F1 scores showed that MeRino maintained high precision and recall rates in NER tasks, matching or exceeding the performance of MobileBERT.\n\n- **Efficiency**:\n  - **Model Size**: MeRino demonstrated a reduction in model size while maintaining high performance levels, making it suitable for deployment on IoT devices.\n  - **Inference Time**: There was a notable decrease in inference time when compared to the larger counterparts like GPT-2 and BERT, without compromising on accuracy or generation quality.\n\nIn summary, the main experiment illustrated that MeRino delivers robust performance across multiple NLP tasks while being optimized for the constraints of IoT devices, achieving a balance between efficacy and resource efficiency."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Examine the impact of effectiveness constraint and weighted entropy on the performance of the entropy-driven design framework for generative language models in resource-constrained environments.",
+            "experiment_process": "Test the effect of the effectiveness constraint by comparing the average accuracy gains on models with and without the constraint, specifically using the LM1B dataset to determine its impact on final perplexity performance. Assess the impact of weighted entropy by evaluating how adding Multi-Head Attention (MHA) and Feed-Forward Networks (FFN) without weights correlates with perplexity performance, and compare it to models where weights are properly tuned. The effectiveness constraint and weighted entropy are further evaluated based on their impact on downstream performance metrics like zero-shot accuracy.",
+            "result_discussion": "Models utilizing the effectiveness constraint showed a +2.4% average accuracy improvement and more reliable predictions of final perplexity performance. Properly tuned weighted entropy showed better correlation with perplexity performance than unweighted entropy. Using weighted entropy improved the average zero-shot accuracy by 0.8%.",
+            "ablation_id": "2403.07921v1.No1"
+        },
+        {
+            "research_objective": "Investigate the impact of parameter sharing within the same transformer block on the parameter efficiency, model size, language modeling performance, and downstream zero-shot performance.",
+            "experiment_process": "Evaluate the effect of parameter sharing on three different FLOPs targets (60/110/160 GigaFLOPs) by measuring its impact on Pile test loss and downstream zero-shot performance.",
+            "result_discussion": "Parameter sharing within the same transformer block improves parameter efficiency and reduces model size, while having a negligible impact on both language modeling (assessed through Pile test loss) and downstream zero-shot performance.",
+            "ablation_id": "2403.07921v1.No2"
+        }
+    ]
+}

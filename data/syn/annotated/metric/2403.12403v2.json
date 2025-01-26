@@ -1,0 +1,557 @@
+{
+    "title": "Towards Interpretable Hate Speech Detection using Large Language Model-extracted Rationales",
+    "abstract": "Although social media platforms are a prominent arena for users to engage in interpersonal discussions and express opinions, the facade and anonymity offered by social media may allow users to spew hate speech and offensive content. Given the massive scale of such platforms, there arises a need to automatically identify and flag instances of hate speech. Although several hate speech detection methods exist, most of these black-box methods are not interpretable or explainable by design. To address the lack of interpretability, in this paper, we propose to use state-of-the-art Large Language Models (LLMs) to extract features in the form of rationales from the input text, to train a base hate speech classifier, thereby enabling faithful interpretability by design. Our framework effectively combines the textual understanding capabilities of LLMs and the discriminative power of state-of-the-art hate speech classifiers to make these classifiers faithfully interpretable. Our comprehensive evaluation on a variety of English language social media hate speech datasets demonstrate: (1) the goodness of the LLM-extracted rationales. All code and data will be made available at https://github.com/AmritaBh/shield.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "Social media has become a platform of content sharing and discussions for a varied range of individuals with differing cultural and continental backgrounds. People use social media platforms to exchange information, and they frequently engage in dialectal conversations. These discussions are not always peaceful, they can degenerate into unpleasant altercations and bigoted arguments. Thus, social media platforms often become a host for hate speech.\n\nHate speech is described as any deliberate and purposeful public communication meant to disparage a person or a group by expressing hatred, disdain, or contempt based on their social attributes (e.g., gender, race). In extreme cases, hate speech may often lead to real world harms such as hate crimes, for example the anti-Asian hate crimes during the COVID-19 pandemic. Therefore, it is essential to have automatic hate speech detection and moderation in place to maintain the integrity of social media platforms as well as to mitigate negative impacts in real-world scenarios such as increased violence towards minorities.\n\nGiven that the issue of hate speech on social media is a well-established problem, there have been several works to detect such online hate-speech. While state of the art hate speech detection models have been able to achieve good performance on benchmark evaluation datasets, most of these models are built using transformer-based pre-trained language models or other deep neural network type models that are not interpretable or explainable. However, the task of hate speech detection is a very sensitive task, and explainability of automated detectors is an essential and desirable feature. Model interpretability is essential not only for end-user understanding but also for understanding biased predictions, domain shifts, other errors in the prediction, etc.\n\nWhile incorporating qualities of interpretability directly into deep neural network models such as pre-trained language model based detectors is challenging, one way to potentially perform this is by using an auxiliary model to provide explanations or rationales, that are subsequently used in training the detection model. This type of a method has been proposed and used in the FRESH framework, where the authors use two disjoint networks, one for extracting the task-specific rationales, and then another that leverages those rationales to learn the classification task, thereby enabling faithful interpretability by construction.\n\nInspired by this work, we propose a framework, where we use LLMs as the extractor model: we leverage the textual understanding and instruction-following capabilities of state-of-the-art LLMs to extract features from the input text, that is used to augment the training of a separate base hate speech detector, thereby facilitating faithful interpretability. Overall, our contributions in this paper are:\n\nWe propose SHIELD, a framework that leverages LLM-extracted rationales to augment a base hate speech detection model to facilitate faithful interpretability.\n\nWe evaluate the goodness of LLM-extracted features and rationales, and measure the alignment of such with human annotated rationales.\n\nThrough comprehensive experiments on both implicit and explicit hate speech datasets, we show how SHIELD retains detection performance even after training with rationales for increased interpretability."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Our SHIELD Framework",
+            "text": "We show our proposed SHIELD framework in Figure 1. In this section, we describe our framework in detail, elaborating on each of the components.\nOur framework uses the state-of-the-art instruction-tuned large language models (LLMs) in an off-the-shelf manner as textual feature extractors. Although recent work has shown that LLMs struggle to perform the hate speech detection task, we hypothesize that we can leverage the textual understanding capabilities of these LLMs to simply extract textual features in the form of rationales. Restricting the use of the LLM to a simple text-level task would ensure that such models are not directly being used for sensitive application tasks such as hate speech detection.\n\nFor a given input text, we use our carefully designed task prompt to prompt the LLM to extract features from the text that promotes a hateful sentiment. In the context of explicit hate speech detection, such features could include categories such as derogatory words, cuss words, etc. We also ask the LLM for rationales as to why the label is hateful or non-hateful. To perform this feature extraction, for each input text we prompt the LLM using the following prompt:\n\n\u201cYou are a content moderation bot. Identify the list of rationales, list of derogatory language, list of cuss words that promote a hateful sentiment and respond with non-hateful if there are none. Note: The output should be in a json format.\u201d\n\nText: [input_text]\n\nAfter post-processing the outputs, we have a list of textual features for the given input text.\n\nThe next component in our framework is the base hate speech detector which we are trying to augment, such as HateBERT. HateBERT is a BERT model that is specifically fine-tuned on hate speech data. For each input text, instead of obtaining the labels or class probabilities, we take the last layer embedding of the [CLS] token, essentially containing all the information of the input text, that is relevant for the hate-speech detection task.\n\nFor the textual features and rationales, we extracted via the LLM, we use a pre-trained transformer-based language model (PLM), such as BERT to embed these features. PLMs, even without any task-specific fine-tuning, provide rich, expressive latent representations for text. Therefore, we feed in the LLM-extracted textual features into a BERT model and obtain the last hidden layer embedding of the [CLS] token.\n\nFrom the previous two components, for each input text, we have two embeddings: text embedding from the base hate speech detector, and feature embedding from the feature embedding BERT model. To combine these two, we simply concatenate these embeddings:\n\nWe use a concatenated view in order to incorporate additional contextual features that may be very relevant to determining the hate or non-hate label. We then feed this combined embedding into a feed-forward multi-layer perceptron with two fully connected layers and a ReLU activation in between, to project it onto a smaller dimension space. We do this in order to retain important features and avoid overfitting of the model during training. Finally, we compute the batch-wise binary cross entropy loss using the ground truth label for each input text.\n\nSince we are using the BERT feature embedding model just to encode the textual features, we keep this model frozen and train the remainder of the framework with this simple loss."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Methodology and Experimental Settings",
+            "text": "In this section, we discuss our methodology in detail, including the datasets we included, the baseline models for hate speech detection, along with the experimental settings."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Datasets",
+            "text": "In order to evaluate SHIELD, we use both explicit and implicit hate speech datasets. For explicit hate, we include publicly available benchmark datasets from the following social media platforms: {GAB, Twitter, YouTube, and Reddit}. All these datasets are in the English language. GAB is a collection of annotated posts from the GAB website. It consists of binary labels indicating whether a post is hateful or not. Reddit is a collection of posts indicating whether it is hateful or not. Twitter contains instances of hate speech gathered from tweets on the Twitter platform. Finally, YouTube is a collection of hateful expressions and comments posted on the YouTube platform.\n\nWe further pre-process these according to the method followed in order to get cleaned binary labels. A summary of the datasets and the distribution of hateful posts and non-hateful posts can be found in Table 1.\n\nWe also include implicit hate speech in our evaluation: while subtle forms of abuse may not be perceived as overtly harmful initially, they nonetheless perpetuate similar degrees of damage over time owing to their covert nature. Therefore, the detection of implicit hate speech becomes even more important. For this reason, we evaluate our proposed model on the Implicit Hate Speech Corpus. This dataset encompasses posts compiled from Twitter, annotated as either explicit hate, implicit hate, or non-hate speech. We exclusively utilize implicit hate and non-hate for our binary classification task."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Baselines",
+            "text": "We compare our proposed SHIELD framework to a variety of different baselines in order to understand the impact of the augmentation with rationales. We use the following well-known baseline hate speech detection models:\n\nHateBERT: This is also the base model used in our framework. HateBERT Caselli et al. (2020 ###reference_b8###) uses over 1.5 million Reddit messages from suspended communities known for encouraging hate speech to fine-tune the BERT-base model. \n\nHateXplain: Similarly, we fine-tune the HateXplain Mathew et al. (2021 ###reference_b33###) model on each of our datasets. HateXplain model is trained on hateful posts along with the target community, the rationales, and the portion of the post on which human annotators\u2019 labelling decision is based.\n\nPEACE: We further extend our comparison on PEACE Sheth et al. (2023b ###reference_b41###) framework which uses Sentiment and Aggression Cues to detect the overall sentiment of the text.\n\nCATCH: Furthermore, we compare our model with CATCH Sheth et al. (2023a ###reference_b40###) framework which disentangles the input representations into invariant and platform-dependent features.\n\nChatGPT-1shot: Apart from these hate speech specific detection models, we also compare our framework with an off-the-shelf GPT-3.5 model, to understand how well the LLM performs on the same datasets. We do this in a one-shot manner, i.e., by proving the task instruction along with an example input and ground truth label."
+        },
+        {
+            "section_id": "3.3",
+            "parent_section_id": "3",
+            "section_name": "Experimental Settings",
+            "text": "To implement our proposed SHIELD framework, we use PyTorch and the Huggingface Transformers library. As shown in Figure 1 ###reference_###, our first component uses an off-the-shelf LLM to extract the features and rationales. Here, we use OpenAI\u2019s GPT-3.5 (specifically, GPT-3.5-turbo-0613) or otherwise commonly referred to as \u2018ChatGPT\u2019, since it has been experimented on a variety of NLP tasks with huge success Guo et al. (2024 ###reference_b17###). We access this model via the OpenAI API. For feature/rationale extraction and generation, we set the temperature to 0.1 and top_p to 1. For the Feature Embedding Model, we use a pre-trained, frozen BERT (bert-base-uncased) and for the Hate Speech Detector, we use a pre-trained HateBERT model. We use AdamW optimizer Kingma and Ba (2014 ###reference_b26###) with a learning rate of . Model training was performed on two machines: one with an NVIDIA GP102 [TITAN Xp] GPU with 12 GB VRAM, and another with an NVIDIA A100 GPU with 40GB RAM."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Results and Discussion",
+            "text": "In this section we describe our experiments and elaborate on the experimental results. To explore the feasibility and effectiveness of our proposed SHIELD framework, we aim to answer the following research questions:\nRQ2: Can we leverage recent state-of-the-art LLMs to extract features in the form of rationales, and do these rationales align with human judgement?\nRQ3: Can SHIELD effectively facilitate faithful interpretability?"
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Performance of ChatGPT on the hate speech detection task",
+            "text": "Several recent works test whether Large Language Models have the potential to reproduce human annotated ground truth labels in social computing tasks Zhu et al. (2023  ###reference_b44###). However, even after extensive pre-training on a large corpus of datasets, where LLMs are expected to perform well in this task, this is not the case.\n\nTo further evaluate this beyond what other recent works have shown, we carefully craft a one-shot prompt and prompt ChatGPT to classify the input text, given a labeled example in the prompt. The outcome of this prompt is a single label representing hateful text as label \u201c1\" and non-hateful text as label \u201c0\" as shown in Table 2  ###reference_###.\n\nChatGPT struggles with the other 4 datasets with ~58-65%. Similar observations have been reported in other recent work that has investigated the off-the-shelf performance of LLMs in hate speech detection Li et al. (2023 XXXreference_b30###); Zhu et al. (2023  ###reference_b44###).\n\nWhile this shows ChatGPT and possibly other LLMs struggle at hate speech detection when used as a detector directly, these models have also been shown to have impressive textual understanding capabilities. Perhaps, simply using these models to extract features or rationales, instead of performing the entire detection task, might be beneficial. We evaluate this in the following subsection."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Goodness of ChatGPT extracted features or rationales",
+            "text": "We are interested in evaluating the textual and contextual understanding capabilities of ChatGPT to extract features in the form of rationales from the input text, which are meaningful for the task of hate speech detection. We use the LLM (i.e., GPT-3.5) as the extractor model, which, unlike previous models, does not require any additional task-specific fine-tuning. This is possible due to the instruction-following capabilities of recent LLMs. We carefully craft a prompt to extract cuss words, derogatory language, and rationales from the input text that serve as interpretable features for the subsequent predictor model (HateBERT) to create a faithfully interpretable hate speech detector. We compare ChatGPT-extracted rationales with human-annotated ground truth rationales using the annotated rationale spans in the HateXplain dataset. After some standard pre-processing, such as removing stop words, we compute similarity metrics in both the token space and latent space, finding significant overlap and high semantic similarity between the LLM and human rationales.\n\nWe present examples from all five datasets: the input text labeled as 'hateful' and the ChatGPT-extracted features. The features fall into three categories: rationales, derogatory language, and cuss words. The LLM is able to identify the words and spans effectively. \n\nWe also present examples to qualitatively assess the overlap between the human-annotated rationales and the LLM-extracted ones. Text in red represents rationales annotated by human annotators, text in blue represents rationales or words identified by the LLM, and text in purple shows the spans where both annotations overlap. From these examples, there is an overall high degree of overlap, with the LLM capturing semantically relevant portions of the text. Interestingly, while human annotators often include words or spans with lesser relevance to the task, the LLM-extracted rationales tend to exclude these spans. Using LLM-extracted rationales for training might be more beneficial as it helps avoid some of the noisy signals in the data."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "Hate speech detector performance after training with extracted rationales",
+            "text": "In this experiment, we try to train a hate speech detector with the extracted rationales additionally incorporated into the input text to facilitate faithfully interpretable classifications. For this, we use a HateBERT model as the base hate speech detector model and report results in Table 3, along with results from other baselines. Interestingly, in the Twitter dataset, we also see a significant performance jump by our SHIELD model compared to the fine-tuned HateBERT model. This potentially might be due to noise in the Twitter dataset: the extracted rationales may provide more discriminative training signals, thus allowing the detector to train on robust features instead of noisy ones, although more analysis is required to verify this claim.\n\nFor some additional analysis on the effect of the framework components, we modify the choice of the base pre-trained language models in the two model components: the hate speech detector and the feature extractor. The specific variations we experiment with are: (1) the original SHIELD framework, which has HateBERT as the hate speech detector (HSD) and bert-base-uncased as the feature embedding model (FE), (2) SHIELD with a pre-trained roberta-base as the HSD instead of HateBERT, and (3) SHIELD with a pre-trained roberta-base as the FE instead of bert-base-uncased. We choose to perform this analysis with roberta instead of the two bert-based models since RoBERTa has been shown to sometimes have better performance than BERT on a variety of natural language understanding tasks. We report the results of this analysis in Table 6. Overall, we see some variation in performance on the model choice for the HSD and FE components. While roberta-base as the FE component marginally helps to improve performance for only one dataset, i.e., GAB, roberta-base as the HSD instead of HateBERT achieves higher performance for three datasets. This is particularly interesting since, unlike HateBERT, the pre-trained roberta-base is not specifically trained on the hate speech task.\n\nOverall, SHIELD shows promising results in leveraging LLM-extracted rationales into augmenting a base hate speech detector to facilitate faithful interpretability."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "Hate Speech Detection",
+            "text": "There are two primary methods for approaching the detection of hate speech. Leveraging new or supplementary data is the first strategy. This involves making advantage of user attributes del Valle-Cano et al. (2023  ###reference_b10###), dataset annotator features Yin et al. (2022  ###reference_b43###), or comprehending the ramifications of hateful posts Kim et al. (2022  ###reference_b25###). One study, for instance, used the consequences of hateful posts to train a model on contrastive pairs that represent hate content in order to detect implicit hate speech Kim et al. (2022  ###reference_b25###). An additional study Yin et al. (2022  ###reference_b43###) brought to light the challenge of reaching agreement among annotators on subjective issues such as recognizing hate speech, and it recommended that definitive labels and annotator traits be included in training to improve the efficacy of detection. In a different study del Valle-Cano et al. (2023  ###reference_b10###), data from users\u2019 social situations and characteristics were analyzed to predict user satisfaction. But the problem with these strategies is that they could be challenging as access to auxiliary information across different platforms is seldom available.\nThe second tactic makes use of language models like BERT, which have been trained on large text datasets and are renowned for their capacity for generalization. The efficacy of these algorithms can be increased by fine-tuning them using particular hate speech datasets Caselli et al. (2020  ###reference_b8###); Mathew et al. (2021  ###reference_b33###). One such example is HateBERT Caselli et al. (2020  ###reference_b8###), a model that was refined using over 1.6 million hostile remarks from Reddit and based on a BERT model. In a similar vein, HateXplain Mathew et al. (2021  ###reference_b33###) is another model created to recognize and interpret hate speech. Other strategies include concentrating on lexical indications Schmidt and Wiegand (2017  ###reference_b39###) such as POS tags used Markov et al. (2021  ###reference_b32###), facial expressions, content-related portions of speech, or important phrases that communicate hate ElSherief et al. (2018  ###reference_b15###). In order to improve language model representations, one study manually determined that sentiment and hostility are causal cues Sheth et al. (2023b  ###reference_b41###). Another study leveraged a causal graph to disentangle the input representations into platform specific (hate-target related features) and platform invariant features to enhance generalization capabilities for hate speech detection Sheth et al. (2023a  ###reference_b40###). Although effective, this method also requires auxiliary data (such as hate target labels) which are seldom available across various platforms."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "LLMs as Experts or Feature Extractors",
+            "text": "Recent advancements in LLM research have demonstrated improved performance across not only many natural language tasks Min et al. (2023  ###reference_b34###), but also more challenging domains such as writing and debugging code, performing mathematical reasoning Bubeck et al. (2023  ###reference_b7###), etc. This has motivated a line of research where the community has been trying to evaluate how well these LLMs can perform different tasks. LLMs have shown promise in the task of data annotation He et al. (2023  ###reference_b21###); Bansal and Sharma (2023  ###reference_b2###), information extraction  Dunn et al. (2022  ###reference_b13###), text classification Koco\u0144 et al. (2023  ###reference_b27###); Bhattacharjee and Liu (2024  ###reference_b5###), and even reasoning  Ho et al. (2022  ###reference_b22###). Given the ease with which these LLMs can be queried, these models often serve as faulty experts or pseudo oracles in many tasks. Past exploration has investigated whether language models can be used as factual knowledge bases Petroni et al. (2019  ###reference_b37###). A recent work has explored the possibility of using LLMs in the hate speech detection task Kumarage et al. (2024  ###reference_b28###). Similar to our approach, authors in  Hasanain et al. (2023  ###reference_b20###) have tried to perform propaganda span annotation using language models. However, our approach focuses on leveraging the extracted spans, words and rationales to augment a detector model to enable interpretability in an otherwise black-box model."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Conclusion and Future Work",
+            "text": "In this work, we explore the problem of hate speech detection on social media and propose a method to train interpretable classifiers using rationales extracted by large language models. We intend to leverage the textual understanding and instruction-following capabilities of LLMs such as ChatGPT to extract words and rationales from the text that are associated with the hate speech label. We propose a framework SHIELD, that uses these LLM-extracted rationales to augment the training of a base hate speech detector to facilitate it to be faithfully interpretable. We verify that the LLM-extracted rationales align with human judgment. We train and evaluate our framework on multiple benchmark datasets comprising both implicit and explicit hate speech from a variety of online social media platforms. Therefore, we have a faithfully interpretable hate speech detector that simply relies on LLM-extracted rationales instead of human-annotated.\n\nWhile our work follows that of Jain et al. and we establish faithfulness by construction, future work could explore better ways to evaluate the faithfulness of the resulting detector. In this work, we verified the goodness of the extracted rationales by comparing it with the ground truth for one dataset. Future work can investigate better automated ways to evaluate and verify the quality of the LLM-extracted rationales. Furthermore, an interesting and responsible direction forward would be the development of hybrid approaches that leverage LLMs for extracting rationales at scale and then employing human experts to verify the validity and quality of these rationales. This would also alleviate some of the concerns surrounding LLM hallucinations and biases in the LLM being propagated into the rationale extraction step."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "Limitations",
+            "text": "While our SHIELD framework shows promise in leveraging large language models to create interpretable hate speech detectors, several limitations need to be addressed. A inherent trade-off exists between the interpretability gained through LLM-extracted rationales and the accuracy of the resulting model, requiring further work to optimize this balance. In certain cases, the LLM may fail to identify coherent rationales, leading to incomplete or inaccurate explanations for the model\u2019s predictions. The choice of the LLM itself is also crucial, as powerful proprietary models like ChatGPT may not be accessible to all researchers, while open-source alternatives could potentially yield suboptimal performance. Our work currently uses ChatGPT for rationale extraction, but exploring the capabilities of different LLMs, including multilingual and domain-specific models, could provide valuable insights. Additionally, our framework may need adaptation to handle instances where the LLM cannot provide clear rationales, either through ensemble methods or by incorporating human feedback mechanisms to refine the extracted rationales."
+        },
+        {
+            "section_id": "8",
+            "parent_section_id": null,
+            "section_name": "Ethical Considerations",
+            "text": ""
+        },
+        {
+            "section_id": "8.1",
+            "parent_section_id": "8",
+            "section_name": "Acknowledgment of the sensitivity and potential harm of hate speech",
+            "text": "We acknowledge that hate speech is a sensitive and potentially harmful topic that can perpetuate discrimination, marginalization, and violence against individuals or groups based on their race, ethnicity, religion, gender, sexual orientation, or other protected characteristics. We recognize the importance of addressing hate speech responsibly and with great care, as it can have severe psychological, emotional, and social consequences for those targeted. However, our work strives to better interpret and mitigate the use of hateful speech promptly by employing LLMs in an out-of-the-box manner leveraging their context-understanding capabilities in hate speech detection task."
+        },
+        {
+            "section_id": "8.2",
+            "parent_section_id": "8",
+            "section_name": "Commitment to responsible use and mitigation of potential misuse",
+            "text": "Our research focuses on leveraging the contextual understanding capabilities of large language models (LLMs) to automate the detection of hateful content, such as derogatory language, cuss words, and profanities, in the form of rationales across social media platforms. This aims to enable early-stage identification and mitigation of hate speech. We acknowledge the severity of the hateful examples used, which may potentially promote racial superiority, incite racial discrimination, or encourage violence against certain racial or ethnic groups \u2013 actions that are considered punishable offenses by law. After a thorough evaluation, we have concluded that the benefits of using real-world practical examples to enhance the clarity and understanding of our research outweigh any potential risks or drawbacks associated with their inclusion."
+        },
+        {
+            "section_id": "8.3",
+            "parent_section_id": "8",
+            "section_name": "Ethical guidelines and principles followed",
+            "text": "In conducting our research, we adhere to established ethical guidelines and principles, such as those outlined by professional organizations and academic institutions. We have utilized publicly available datasets that are appropriately cited in our paper. We also strive to maintain transparency by clearly documenting our methods, data sources, and limitations."
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S3.T1.1\" style=\"width:433.6pt;height:244.9pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(100.5pt,-56.7pt) scale(1.86347073499818,1.86347073499818) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.1.1.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.1.1.1.1.1.1\">Dataset</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.1.1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.1.1.1.1.2.1\"># of Posts</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.1.1.1.1.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S3.T1.1.1.1.1.3.1\">\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.1.1.3.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S3.T1.1.1.1.1.3.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.1.1.1.1.3.1.1.1.1\"># of Hateful</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.1.1.3.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S3.T1.1.1.1.1.3.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.1.1.1.1.3.1.2.1.1\">Posts</span></td>\n</tr>\n</table>\n</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.1.1.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.1.1.1.1.4.1\">Hate %</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.1.2.1.1\">GAB</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.1.2.1.2\">14,240</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.1.1.2.1.3\">11,920</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S3.T1.1.1.2.1.4\">83.7</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.3.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.3.2.1\">Reddit</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.3.2.2\">37,164</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.3.2.3\">10,562</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S3.T1.1.1.3.2.4\">28.4</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.4.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.4.3.1\">Twitter</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.4.3.2\">10,457</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.4.3.3\">3,933</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S3.T1.1.1.4.3.4\">37.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.5.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.5.4.1\">YouTube</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.5.4.2\">5,052</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.1.1.5.4.3\">1,699</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S3.T1.1.1.5.4.4\">33.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.1.1.6.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.1.6.5.1\">Implicit HS</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.1.6.5.2\">20,391</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.1.1.6.5.3\">7,100</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_bb\" id=\"S3.T1.1.1.6.5.4\">34.8</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>Dataset statistics for explicit and implicit hate speech datasets comprising data from different social media platforms. </figcaption>\n</figure>",
+            "capture": "Table 1: Dataset statistics for explicit and implicit hate speech datasets comprising data from different social media platforms. "
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.1\">\n<th class=\"ltx_td ltx_align_justify ltx_align_top ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.1.1.1.1\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.1.1.1.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.1.1.1.1.1\" style=\"width:130.1pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.1.1.1.1.1.1.1\">Text</span></span>\n</span>\n</th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_justify ltx_align_top ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.1.1.1.2\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.1.1.2.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.1.1.2.1.1\" style=\"width:260.2pt;\">\"always thought it astounding no policing agency dares do this to the armed muslim compounds all over the country\"</span>\n</span>\n</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.1.2.1\">\n<td class=\"ltx_td ltx_align_justify ltx_align_top ltx_border_t\" id=\"S4.T2.1.2.1.1\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.2.1.1.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.2.1.1.1.1\" style=\"width:130.1pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.1.2.1.1.1.1.1\">Prompt</span></span>\n</span>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_justify ltx_align_top ltx_border_t\" id=\"S4.T2.1.2.1.2\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.2.1.2.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.2.1.2.1.1\" style=\"width:260.2pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"S4.T2.1.2.1.2.1.1.1\">You are a hate speech detection bot. Given a text, respond with the classification label towards given text with either hateful labeled as 1 or non-hateful labeled as 0. Note: It is essential to give classification for all the texts.</span></span>\n</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.3.2\">\n<td class=\"ltx_td ltx_align_top\" id=\"S4.T2.1.3.2.1\"></td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_justify ltx_align_top\" id=\"S4.T2.1.3.2.2\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.3.2.2.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.3.2.2.1.1\" style=\"width:260.2pt;\"><span class=\"ltx_text ltx_font_italic\" id=\"S4.T2.1.3.2.2.1.1.1\">Text:</span> \"always thought it astounding no policing agency dares do this to the armed muslim compounds all over the country\"</span>\n</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.4.3\">\n<td class=\"ltx_td ltx_align_justify ltx_align_top ltx_border_t\" id=\"S4.T2.1.4.3.1\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.4.3.1.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.4.3.1.1.1\" style=\"width:130.1pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.1.4.3.1.1.1.1\">ChatGPT</span></span>\n</span>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_top ltx_border_t\" id=\"S4.T2.1.4.3.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.5.4\">\n<td class=\"ltx_td ltx_align_justify ltx_align_top ltx_border_bb\" id=\"S4.T2.1.5.4.1\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.5.4.1.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.5.4.1.1.1\" style=\"width:130.1pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.1.5.4.1.1.1.1\">response</span></span>\n</span>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_justify ltx_align_top ltx_border_bb\" id=\"S4.T2.1.5.4.2\">\n<span class=\"ltx_inline-block ltx_align_top\" id=\"S4.T2.1.5.4.2.1\">\n<span class=\"ltx_p\" id=\"S4.T2.1.5.4.2.1.1\" style=\"width:260.2pt;\">1</span>\n</span>\n</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Examples of input text, prompt and ChatGPT\u2019s response for a data sample from the Twitter dataset.</figcaption>\n</figure>",
+            "capture": "Table 2: Examples of input text, prompt and ChatGPT\u2019s response for a data sample from the Twitter dataset."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T3.1\" style=\"width:433.6pt;height:107.7pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-0.6pt,0.2pt) scale(0.997112527632882,0.997112527632882) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S4.T3.1.1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.2.1\">HateBERT</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.3.1\">HateXplain</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.4.1\">PEACE</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.5.1\">CATCH</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_r ltx_border_tt\" id=\"S4.T3.1.1.1.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.6.1\">ChatGPT-1shot</span></th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T3.1.1.1.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.1.1.7.1\">SHIELD (ours)</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.1.1.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.2.1.1.1\">GAB</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.1.1.2.1.2\">96</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.2.1.3.1\">97</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.4\">91</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.5\">82</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T3.1.1.2.1.6\">85.39</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.2.1.7\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.2.1.7.1\">96.3</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.3.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.3.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.3.2.1.1\">YouTube</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.3.2.2\">71</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.3\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.3.2.3.1\">72</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.4\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.3.2.4.1\">72</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.3.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.3.2.5.1\">79</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.3.2.6\">58.34</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T3.1.1.3.2.7\">70</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.4.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.4.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.4.3.1.1\">REDDIT</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.4.3.2\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.4.3.2.1\">94</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.3\">93</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.4\">93</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.4.3.5\">86</td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.4.3.6\">65.05</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T3.1.1.4.3.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.4.3.7.1\">94.5</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.5.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.1.1.5.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.5.4.1.1\">Twitter</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.5.4.2\">56</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.3\">60</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.4\">31</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.1.1.5.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.5.4.5.1\">78</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_r\" id=\"S4.T3.1.1.5.4.6\">60.09</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T3.1.1.5.4.7\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.5.4.7.1\">64</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.6.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T3.1.1.6.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.6.5.1.1\">Implicit HS</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T3.1.1.6.5.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.6.5.2.1\">78</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.1.6.5.3\"><span class=\"ltx_text ltx_ulem_uline\" id=\"S4.T3.1.1.6.5.3.1\">76</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.1.6.5.4\">64</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.1.1.6.5.5\">\u2013</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_r\" id=\"S4.T3.1.1.6.5.6\">65.68</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_bb\" id=\"S4.T3.1.1.6.5.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.1.1.6.5.7.1\">78</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Evaluation results (test set accuracy) for our <span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.1\">SHIELD</span> framework vs. the baseline models. Implicit HS refers to the Implicit Hate Speech Corpus. Values in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.6.2\">bold</span> denote the best performance, and <span class=\"ltx_text ltx_framed ltx_framed_underline\" id=\"S4.T3.7.3\">underlined</span> values denotes the second-best performance.</figcaption>\n</figure>",
+            "capture": "Table 3: Evaluation results (test set accuracy) for our SHIELD framework vs. the baseline models. Implicit HS refers to the Implicit Hate Speech Corpus. Values in bold denote the best performance, and underlined values denotes the second-best performance."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T4.1\" style=\"width:433.6pt;height:197.7pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-121.9pt,55.6pt) scale(0.640185923826811,0.640185923826811) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" colspan=\"3\" id=\"S4.T4.1.1.1.1.1\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.1.1.1.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.1.1.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.1.1.1.1.1.1\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.1.1.1.1.1.1.1\">Prompt:</span> <span class=\"ltx_text ltx_font_italic\" id=\"S4.T4.1.1.1.1.1.1.1.1.2\">You are a content moderation bot. Identify the list of rationales, list of derogatory language, list of cuss words that promote a</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.1.1.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.1.1.1.1.2.1\"><span class=\"ltx_text ltx_font_italic\" id=\"S4.T4.1.1.1.1.1.1.2.1.1\">hateful sentiment and respond with non-hateful if there are none. Note: The output should be in a json format. \"Text\"</span></td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.2.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.2.2.1.1\">Dataset</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.2.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.2.2.2.1\">Text</span></td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.2.2.3.1\">ChatGPT-extracted features and rationales</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.3.1\">GAB</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.3.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.3.3.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3.2.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.3.3.2.1.1.1\">does this mean they arrested the mayor of london</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3.2.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.3.3.2.1.2.1\">have cordoned off every muzrat ghetto in the uk</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3.2.1.3\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.3.3.2.1.3.1\">every mosque closed down if not its business as usual</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.3.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.3.3.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3.3.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.3.3.3.1.1.1\"><span class=\"ltx_text\" id=\"S4.T4.1.1.3.3.3.1.1.1.1\" style=\"color:#0000FF;\">arrested the mayor of london, cordoned off every muzrat</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.3.3.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.3.3.3.1.2.1\">\n<span class=\"ltx_text\" id=\"S4.T4.1.1.3.3.3.1.2.1.1\" style=\"color:#0000FF;\">ghetto in the uk, every mosque closed down</span>; <span class=\"ltx_text\" id=\"S4.T4.1.1.3.3.3.1.2.1.2\" style=\"color:#FF0000;\">muzrat, ghetto</span>\n</td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.4.4.1\">REDDIT</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.4.4.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.4.4.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4.2.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.4.4.2.1.1.1\">\"Shut up! 50 years ago we\u2019d have you upside down with a</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4.2.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.4.4.2.1.2.1\">f**king fork up your a**! You can talk, you can talk, you can talk!</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4.2.1.3\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.4.4.2.1.3.1\">You\u2019re brave now motherf**ker! Throw his a** out, he\u2019s a n**ger!</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4.2.1.4\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.4.4.2.1.4.1\">HE\u2019S A N**GER! HE\u2019S A N**GER! A N**GER!</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.4.2.1.5\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.4.4.2.1.5.1\">LOOK, THERE\u2019S A N**GER!\"</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.4.4.3\">\n<span class=\"ltx_text\" id=\"S4.T4.1.1.4.4.3.1\" style=\"color:#FF0000;\">n**ger</span>; <span class=\"ltx_text\" id=\"S4.T4.1.1.4.4.3.2\" style=\"color:#008080;\">f**king, motherf**ker</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.5.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.5.5.1\">Twitter</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.5.5.2\">\"show me the black muslims bc im calling bs on this and you should too\"</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.5.5.3\">\n<span class=\"ltx_text\" id=\"S4.T4.1.1.5.5.3.1\" style=\"color:#0000FF;\">black muslims</span>; <span class=\"ltx_text\" id=\"S4.T4.1.1.5.5.3.2\" style=\"color:#FF0000;\">black, muslims</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.6.6\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.6.6.1\">YouTube</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.6.6.2\">\"Dirty f**king israeli zionist jews\"</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.6.6.3\">\n<span class=\"ltx_text\" id=\"S4.T4.1.1.6.6.3.1\" style=\"color:#FF0000;\">israeli, zionist, jews</span>; <span class=\"ltx_text\" id=\"S4.T4.1.1.6.6.3.2\" style=\"color:#008080;\">f**king</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.7.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T4.1.1.7.7.1\">Implicit HS</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T4.1.1.7.7.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.7.7.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.7.7.2.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.7.7.2.1.1.1\">\"i\u2019m so glad #ferguson happened . you woke the world up</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.7.7.2.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.7.7.2.1.2.1\">to how much black people hate white people .\"</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_bb ltx_border_t\" id=\"S4.T4.1.1.7.7.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.1.1.7.7.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.7.7.3.1.1\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.7.7.3.1.1.1\">\n<span class=\"ltx_text\" id=\"S4.T4.1.1.7.7.3.1.1.1.1\" style=\"color:#0000FF;\">ferguson, black people hate white people</span>;</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.7.7.3.1.2\">\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T4.1.1.7.7.3.1.2.1\"><span class=\"ltx_text\" id=\"S4.T4.1.1.7.7.3.1.2.1.1\" style=\"color:#FF0000;\">black people, white people</span></td>\n</tr>\n</table>\n</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 4: </span>Examples from different datasets along with the LLM-extracted features and rationales. Rationales are in <span class=\"ltx_text\" id=\"S4.T4.5.1\" style=\"color:#0000FF;\">blue</span>, derogatory language is in <span class=\"ltx_text\" id=\"S4.T4.6.2\" style=\"color:#FF0000;\">red</span>, cuss words are in <span class=\"ltx_text\" id=\"S4.T4.7.3\" style=\"color:#008080;\">teal</span>.</figcaption>\n</figure>",
+            "capture": "Table 4: Examples from different datasets along with the LLM-extracted features and rationales. Rationales are in blue, derogatory language is in red, cuss words are in teal."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T5\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T5.1\" style=\"width:433.6pt;height:145.9pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(83.1pt,-28.0pt) scale(1.62151101803,1.62151101803) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T5.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T5.1.1.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.1.1.1.1.1.1\">Similarity Metric</span></th>\n<th class=\"ltx_td ltx_nopad_r ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T5.1.1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.1.1.1.1.2.1\">Similarity Coefficients (%)</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.1.1.2.1.1\">Jaccard Similarity</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_t\" id=\"S4.T5.1.1.2.1.2\">60.39</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.3.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.1.1.3.2.1\">Overlap Similarity</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T5.1.1.3.2.2\">99.17</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.4.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.1.1.4.3.1\">Cosine Similarity</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center\" id=\"S4.T5.1.1.4.3.2\">74.51</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.5.4\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T5.1.1.5.4.1\">Semantic Similarity (via USE)</td>\n<td class=\"ltx_td ltx_nopad_r ltx_align_center ltx_border_bb\" id=\"S4.T5.1.1.5.4.2\">56.09</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 5: </span>Similarity between HateXplain human explanations and LLM-extracted features/rationales.</figcaption>\n</figure>",
+            "capture": "Table 5: Similarity between HateXplain human explanations and LLM-extracted features/rationales."
+        },
+        "6": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T6\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T6.1\" style=\"width:433.6pt;height:81.1pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(24.2pt,-4.5pt) scale(1.12571537881084,1.12571537881084) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T6.1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T6.1.1.1.1\">\n<td class=\"ltx_td ltx_border_tt\" id=\"S4.T6.1.1.1.1.1\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T6.1.1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.1.1.2.1\">GAB</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T6.1.1.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.1.1.3.1\">YouTube</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T6.1.1.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.1.1.4.1\">REDDIT</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T6.1.1.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.1.1.5.1\">Twitter</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T6.1.1.1.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.1.1.6.1\">Implicit HS</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.1.1.2.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T6.1.1.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.2.2.1.1\">SHIELD (roberta-base HSD)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.1.1.2.2.2\">87.53</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.1.1.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.2.2.3.1\">72.2</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.1.1.2.2.4\">84.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.1.1.2.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.2.2.5.1\">67.03</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.1.1.2.2.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.2.2.6.1\">78.36</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.1.1.3.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.1.1.3.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.3.3.1.1\">SHIELD (roberta-base FE)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.1.1.3.3.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.3.3.2.1\">96.42</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.1.1.3.3.3\">69.27</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.1.1.3.3.4\">94.21</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.1.1.3.3.5\">56.22</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.1.1.3.3.6\">77.52</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.1.1.4.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T6.1.1.4.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.4.4.1.1\">SHIELD</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T6.1.1.4.4.2\">96.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T6.1.1.4.4.3\">70</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T6.1.1.4.4.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.1.1.4.4.4.1\">94.5</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T6.1.1.4.4.5\">64</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T6.1.1.4.4.6\">78</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 6: </span>Analysis of HSD and FE model choices in the <span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.5.1\">SHIELD</span> framework. HSD: hate speech detector, FE: feature embeddeing model. The original <span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.6.2\">SHIELD</span> framework has HateBERT as the hate speech detector and bert-base-uncased as the feature embedding model. Numbers in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.7.3\">bold</span> denote best performaning model variant for each dataset.</figcaption>\n</figure>",
+            "capture": "Table 6: Analysis of HSD and FE model choices in the SHIELD framework. HSD: hate speech detector, FE: feature embeddeing model. The original SHIELD framework has HateBERT as the hate speech detector and bert-base-uncased as the feature embedding model. Numbers in bold denote best performaning model variant for each dataset."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.12403v2_figure_1.png",
+            "caption": "Figure 1: Our proposed SHIELD framework."
+        },
+        "2": {
+            "figure_path": "2403.12403v2_figure_2.png",
+            "caption": "Figure 2: Examples with both LLM-annotated and human-annotated rationales. Overlap is in purple."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Deep learning using rectified linear units (relu).",
+                "author": "Abien Fred Agarap. 2018.",
+                "venue": "arXiv preprint arXiv:1803.08375.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Large language models as annotators: Enhancing generalization of nlp models at minimal cost.",
+                "author": "Parikshit Bansal and Amit Sharma. 2023.",
+                "venue": "arXiv preprint arXiv:2306.15766.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "The price of interpretability.",
+                "author": "Dimitris Bertsimas, Arthur Delarue, Patrick Jaillet, and Sebastien Martin. 2019.",
+                "venue": "arXiv preprint arXiv:1907.03419.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Conda: Contrastive domain adaptation for ai-generated text detection.",
+                "author": "Amrita Bhattacharjee, Tharindu Kumarage, Raha Moraffah, and Huan Liu. 2023a.",
+                "venue": "arXiv preprint arXiv:2309.03992.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Fighting fire with fire: can chatgpt detect ai-generated text?",
+                "author": "Amrita Bhattacharjee and Huan Liu. 2024.",
+                "venue": "ACM SIGKDD Explorations Newsletter, 25(2):14\u201321.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Llms as counterfactual explanation modules: Can chatgpt explain black-box text classifiers?",
+                "author": "Amrita Bhattacharjee, Raha Moraffah, Joshua Garland, and Huan Liu. 2023b.",
+                "venue": "arXiv preprint arXiv:2309.13340.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Sparks of artificial general intelligence: Early experiments with gpt-4.",
+                "author": "S\u00e9bastien Bubeck, Varun Chandrasekaran, Ronen Eldan, Johannes Gehrke, Eric Horvitz, Ece Kamar, Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lundberg, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.12712.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Hatebert: Retraining bert for abusive language detection in english.",
+                "author": "Tommaso Caselli, Valerio Basile, Jelena Mitrovi\u0107, and Michael Granitzer. 2020.",
+                "venue": "arXiv preprint arXiv:2010.12472.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Universal sentence encoder.",
+                "author": "Daniel Cer, Yinfei Yang, Sheng-yi Kong, Nan Hua, Nicole Limtiaco, Rhomni St John, Noah Constant, Mario Guajardo-Cespedes, Steve Yuan, Chris Tar, et al. 2018.",
+                "venue": "arXiv preprint arXiv:1803.11175.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Socialhaterbert: A dichotomous approach for automatically detecting hate speech on twitter through textual analysis and user profiles.",
+                "author": "Gloria del Valle-Cano, Lara Quijano-S\u00e1nchez, Federico Liberatore, and Jes\u00fas G\u00f3mez. 2023.",
+                "venue": "Expert Systems with Applications, 216:119446.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Hate me, hate me not: Hate speech detection on facebook.",
+                "author": "Fabio Del Vigna12, Andrea Cimino23, Felice Dell\u2019Orletta, Marinella Petrocchi, and Maurizio Tesconi. 2017.",
+                "venue": "In Proceedings of the first Italian conference on cybersecurity (ITASEC17), pages 86\u201395.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Bert: Pre-training of deep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2018.",
+                "venue": "arXiv preprint arXiv:1810.04805.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Structured information extraction from complex scientific text with fine-tuned large language models.",
+                "author": "Alexander Dunn, John Dagdelen, Nicholas Walker, Sanghoon Lee, Andrew S Rosen, Gerbrand Ceder, Kristin Persson, and Anubhav Jain. 2022.",
+                "venue": "arXiv preprint arXiv:2212.05238.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Enforcing interpretability and its statistical impacts: Trade-offs between accuracy and interpretability.",
+                "author": "Gintare Karolina Dziugaite, Shai Ben-David, and Daniel M Roy. 2020.",
+                "venue": "arXiv preprint arXiv:2010.13764.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Hate lingo: A target-based linguistic analysis of hate speech in social media.",
+                "author": "Mai ElSherief, Vivek Kulkarni, Dana Nguyen, William Yang Wang, and Elizabeth Belding. 2018.",
+                "venue": "In Proceedings of the International AAAI Conference on Web and Social MediaProceedings of the International AAAI Conference on Web and Social Media, volume 12.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Covid-19 has driven racism and violence against asian americans: perspectives from 12 national polls.",
+                "author": "Mary G Findling, Robert J Blendon, John Benson, and Howard Koh. 2022.",
+                "venue": "Health Affairs Forefront.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "An investigation of large language models for real-world hate speech detection.",
+                "author": "Keyan Guo, Alexander Hu, Jaden Mu, Ziheng Shi, Ziming Zhao, Nishant Vishwamitra, and Hongxin Hu. 2024.",
+                "venue": "arXiv preprint arXiv:2401.03346.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Anti-asian american hate crimes spike during the early stages of the covid-19 pandemic.",
+                "author": "Sungil Han, Jordan R Riddell, and Alex R Piquero. 2023.",
+                "venue": "Journal of interpersonal violence, 38(3-4):3513\u20133533.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Attention is not all you need: the complicated case of ethically using large language models in healthcare and medicine.",
+                "author": "Stefan Harrer. 2023.",
+                "venue": "EBioMedicine, 90.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Large language models for propaganda span annotation.",
+                "author": "Maram Hasanain, Fatema Ahmed, and Firoj Alam. 2023.",
+                "venue": "arXiv preprint arXiv:2311.09812.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Annollm: Making large language models to be better crowdsourced annotators.",
+                "author": "Xingwei He, Zhenghao Lin, Yeyun Gong, Alex Jin, Hang Zhang, Chen Lin, Jian Jiao, Siu Ming Yiu, Nan Duan, Weizhu Chen, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.16854.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Large language models are reasoning teachers.",
+                "author": "Namgyu Ho, Laura Schmid, and Se-Young Yun. 2022.",
+                "venue": "arXiv preprint arXiv:2212.10071.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Learning to faithfully rationalize by construction.",
+                "author": "Sarthak Jain, Sarah Wiegreffe, Yuval Pinter, and Byron C Wallace. 2020.",
+                "venue": "arXiv preprint arXiv:2005.00115.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Constructing interval variables via faceted rasch measurement and multitask deep learning: a hate speech application.",
+                "author": "Chris J Kennedy, Geoff Bacon, Alexander Sahn, and Claudia von Vacano. 2020.",
+                "venue": "arXiv preprint arXiv:2009.10277.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Generalizable implicit hate speech detection using contrastive learning.",
+                "author": "Youngwook Kim, Shinwoo Park, and Yo-Sub Han. 2022.",
+                "venue": "In Proceedings of the 29th International Conference on Computational LinguisticsProceedings of the 29th International Conference on Computational Linguistics, pages 6667\u20136679.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Adam: A method for stochastic optimization.",
+                "author": "Diederik P Kingma and Jimmy Ba. 2014.",
+                "venue": "arXiv preprint arXiv:1412.6980.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Chatgpt: Jack of all trades, master of none.",
+                "author": "Jan Koco\u0144, Igor Cichecki, Oliwier Kaszyca, Mateusz Kochanek, Dominika Szyd\u0142o, Joanna Baran, Julita Bielaniewicz, Marcin Gruza, Arkadiusz Janz, Kamil Kanclerz, et al. 2023.",
+                "venue": "Information Fusion, 99:101861.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Harnessing artificial intelligence to combat online hate: Exploring the challenges and opportunities of large language models in hate speech detection.",
+                "author": "Tharindu Kumarage, Amrita Bhattacharjee, and Joshua Garland. 2024.",
+                "venue": "arXiv preprint arXiv:2403.08035.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Hate speech on social media: Global comparisons.",
+                "author": "Zachary Laub. 2019.",
+                "venue": "Council on foreign relations, 7.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "\u201chot\u201d chatgpt: The promise of chatgpt in detecting and discriminating hateful, offensive, and toxic comments on social media.",
+                "author": "Lingyao Li, Lizhou Fan, Shubham Atreja, and Libby Hemphill. 2023.",
+                "venue": "ACM Transactions on the Web.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Roberta: A robustly optimized bert pretraining approach.",
+                "author": "Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer Levy, Mike Lewis, Luke Zettlemoyer, and Veselin Stoyanov. 2019.",
+                "venue": "arXiv preprint arXiv:1907.11692.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "Exploring stylometric and emotion-based features for multilingual cross-domain hate speech detection.",
+                "author": "Ilia Markov, Nikola Ljube\u0161i\u0107, Darja Fi\u0161er, and Walter Daelemans. 2021.",
+                "venue": "In Proceedings of the Eleventh Workshop on Computational Approaches to Subjectivity, Sentiment and Social Media Analysis, pages 149\u2013159.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Hatexplain: A benchmark dataset for explainable hate speech detection.",
+                "author": "Binny Mathew, Punyajoy Saha, Seid Muhie Yimam, Chris Biemann, Pawan Goyal, and Animesh Mukherjee. 2021.",
+                "venue": "In Proceedings of the AAAI conference on artificial intelligence, volume 35, pages 14867\u201314875.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Recent advances in natural language processing via large pre-trained language models: A survey.",
+                "author": "Bonan Min, Hayley Ross, Elior Sulem, Amir Pouran Ben Veyseh, Thien Huu Nguyen, Oscar Sainz, Eneko Agirre, Ilana Heintz, and Dan Roth. 2023.",
+                "venue": "ACM Computing Surveys, 56(2):1\u201340.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "An in-depth analysis of implicit and subtle hate speech messages.",
+                "author": "Nicolas Benjamin Ocampo, Ekaterina Sviridova, Elena Cabrio, and Serena Villata. 2023.",
+                "venue": "In Proceedings of the 17th Conference of the European Chapter of the Association for Computational Linguistics, pages 1997\u20132013. Association for Computational Linguistics.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Improved text classification via contrastive adversarial training.",
+                "author": "Lin Pan, Chung-Wei Hang, Avirup Sil, and Saloni Potdar. 2022.",
+                "venue": "In Proceedings of the AAAI Conference on Artificial Intelligence, volume 36, pages 11130\u201311138.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Language models as knowledge bases?",
+                "author": "Fabio Petroni, Tim Rockt\u00e4schel, Patrick Lewis, Anton Bakhtin, Yuxiang Wu, Alexander H Miller, and Sebastian Riedel. 2019.",
+                "venue": "arXiv preprint arXiv:1909.01066.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Anatomy of online hate: developing a taxonomy and machine learning models for identifying and classifying hate in online news media.",
+                "author": "Joni Salminen, Hind Almerekhi, Milica Milenkovi\u0107, Soon-gyo Jung, Jisun An, Haewoon Kwak, and Bernard Jansen. 2018.",
+                "venue": "In Proceedings of the International AAAI Conference on Web and Social Media, volume 12.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "A survey on hate speech detection using natural language processing.",
+                "author": "Anna Schmidt and Michael Wiegand. 2017.",
+                "venue": "In Proceedings of the fifth international workshop on natural language processing for social media, pages 1\u201310.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Causality guided disentanglement for cross-platform hate speech detection.",
+                "author": "Paras Sheth, Tharindu Kumarage, Raha Moraffah, Aman Chadha, and Huan Liu. 2023a.",
+                "venue": "arXiv preprint arXiv:2308.02080.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Peace: Cross-platform hate speech detection-a causality-guided framework.",
+                "author": "Paras Sheth, Tharindu Kumarage, Raha Moraffah, Aman Chadha, and Huan Liu. 2023b.",
+                "venue": "arXiv preprint arXiv:2306.08804.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Trusting roberta over bert: Insights from checklisting the natural language inference task.",
+                "author": "Ishan Tarunesh, Somak Aditya, and Monojit Choudhury. 2021.",
+                "venue": "arXiv preprint arXiv:2107.07229.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Annobert: Effectively representing multiple annotators\u2019 label choices to improve hate speech detection.",
+                "author": "Wenjie Yin, Vibhor Agarwal, Aiqi Jiang, Arkaitz Zubiaga, and Nishanth Sastry. 2022.",
+                "venue": "arXiv preprint arXiv:2212.10405.",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Can chatgpt reproduce human-generated labels? a study of social computing tasks.",
+                "author": "Yiming Zhu, Peixian Zhang, Ehsan-Ul Haq, Pan Hui, and Gareth Tyson. 2023.",
+                "venue": "arXiv preprint arXiv:2304.10145.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.12403v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2",
+            "3",
+            "3.3"
+        ],
+        "main_experiment_and_results_sections": [
+            "3.1",
+            "3.2",
+            "4",
+            "4.1",
+            "4.2",
+            "4.3"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4.2",
+            "4.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.12403v2",
+        "paper_title": "Towards Interpretable Hate Speech Detection using Large Language Model-extracted Rationales",
+        "research_background": "### Paper's Motivation\n\nThe paper is motivated by the pervasive issue of hate speech on social media platforms, which can lead to serious real-world consequences such as hate crimes. Although state-of-the-art hate speech detection models have shown good performance, they are often built using complex transformer-based language models or deep neural networks, which lack interpretability. Due to the sensitive nature of hate speech detection, there is a crucial need for models that are not only accurate but also interpretable to understand biased predictions, domain shifts, and errors.\n\n### Research Problem\n\nThe research problem addressed by the paper is the challenge of enhancing the interpretability of hate speech detection models while retaining their performance. Specifically, the paper aims to incorporate interpretable explanations or rationales into the detection process by leveraging large language models (LLMs) to extract these rationales, thereby facilitating a more explainable model.\n\n### Relevant Prior Work\n\n1. **Hate Speech Detection**: Previous works have established the problem of hate speech on social media and have proposed multiple models for its detection.\n   - *Schmidt and Wiegand (2017 ###reference_b39###):* They outlined different approaches to detect online hate speech.\n   - *Del Vigna et al. (2017 ###reference_b11###):* Another significant contribution to hate speech detection methodologies.\n\n2. **State-of-the-art Models**: Although existing models achieve good performance, they often rely on complex architectures that lack interpretability.\n   - *Sheth et al. (2023b ###reference_b41###):* Highlighted the use of transformer-based pre-trained language models and other deep neural networks in hate speech detection.\n\n3. **Interpretability in Models**: The importance of model interpretability is well-documented, especially for sensitive tasks like hate speech detection.\n   - The *FRESH framework by Jain et al. (2020 ###reference_b23###)* demonstrated a method to incorporate interpretability using two disjoint networks: one for extracting task-specific rationales and another for learning the classification task using those rationales.\n\nInspired by the FRESH framework, this paper proposes SHIELD, a framework that uses LLMs to extract rationales to augment a base hate speech detection model, aiming to achieve a balance between interpretability and performance.",
+        "methodology": "Our SHIELD framework leverages the capabilities of state-of-the-art instruction-tuned large language models (LLMs) as textual feature extractors in an off-the-shelf manner. Recent research indicates that LLMs face challenges in hate speech detection tasks when used without fine-tuning or additional modeling (Li et al., 2023; Zhu et al., 2023). We propose utilizing these models' textual understanding capabilities to extract textual features, termed rationales, rather than employing them directly for the sensitive application task of hate speech detection (Harrer, 2023).\n\nFor a given input text, we deploy a carefully designed task prompt to trigger the LLM to extract hate-promoting features, such as derogatory words and cuss words. Additionally, drawing inspiration from Bhattacharjee et al. (2023b), we instruct the LLM to provide rationales for why the text can be considered hateful or non-hateful. The task prompt used is:\n\n```\n\u201cYou are a content moderation bot. Identify the list of rationales, list of derogatory language, list of cuss words that promote a hateful sentiment and respond with non-hateful if there are none. Note: The output should be in a json format.\u201d\n\nText: [input_text]\n```\n\nPost-processing these outputs results in a list of textual features for the given input text.\n\nThe next component in our framework is the base hate speech detector, such as HateBERT (Caselli et al., 2020), a BERT model fine-tuned on hate speech data. Instead of directly obtaining labels or class probabilities, we extract the last-layer embedding of the [CLS] token for each input text, containing all relevant information for the hate speech detection task.\n\nTo embed the textual features and rationales extracted by the LLM, we use a pre-trained transformer-based language model (PLM) like BERT. Even without task-specific fine-tuning, PLMs yield rich and expressive latent representations for text. We obtain the last hidden layer embedding of the [CLS] token by feeding the LLM-extracted textual features into a BERT model.\n\nFor each input text, we then have two embeddings: the text embedding from the base hate speech detector and the feature embedding from the BERT model. These embeddings are concatenated to combine them:\n\nIn contrast to Jain et al. (2020), who used only the extracted rationales in the subsequent detector model, we incorporate additional contextual features by concatenating the embeddings, providing a more comprehensive perspective that may be crucial for determining hate or non-hate labels (Ocampo et al., 2023). This combined embedding is then fed into a feed-forward multi-layer perceptron (MLP) with two fully connected layers and a ReLU activation function (Agarap, 2018) in between. The MLP projects this concatenated embedding into a smaller-dimensional space to retain essential features and avoid overfitting during training, as per the methods of Pan et al. (2022) and Bhattacharjee et al. (2023a).\n\nThe MLP training is guided by the batch-wise binary cross entropy loss, computed using the ground truth labels for each input text. To keep the feature embeddings stable, the BERT feature embedding model is kept frozen, and only the remainder of the framework is trained using this loss function.",
+        "main_experiment_and_results": "In the main experiment of the study, the evaluation of SHIELD, an interpretable hate speech detection model using Large Language Model-extracted rationales, involves a setup consisting of both explicit and implicit hate speech datasets, various baselines, and specific evaluation metrics. Here's an overview:\n\n### Datasets:\n\n1. **Explicit Hate Speech Datasets:**\n   - **GAB:** Annotated posts from the GAB website with binary labels (hateful or not).\n   - **Reddit:** Posts with binary annotations indicating whether they are hateful.\n   - **Twitter:** Instances of hate speech gathered from tweets on the Twitter platform.\n   - **YouTube:** Hateful expressions and comments from the YouTube platform.\n\n2. **Implicit Hate Speech Dataset:**\n   - **Implicit Hate Speech Corpus:** Posts from Twitter annotated as either explicit hate, implicit hate, or non-hate. For this study, only implicit hate and non-hate posts are used for the binary classification task.\n\n### Pre-Processing:\nThe datasets are pre-processed following the method described in Sheth et al. (2023a) to obtain cleaned binary labels.\n\n### Baselines:\nThe paper does not clearly mention the baselines used in the main experiment in the provided text. Thus, any specific baseline models for comparison would need to be identified from the full paper.\n\n### Evaluation Metrics:\nAgain, the text provided does not specify metrics. However, typical metrics for binary classification tasks in hate speech detection usually include:\n   - **Accuracy:** The ratio of correctly predicted instances to the total instances.\n   - **Precision:** The ratio of true positive predictions to the total positive predictions made.\n   - **Recall:** The ratio of true positive predictions to all actual positive instances.\n   - **F1 Score:** The harmonic mean of precision and recall.\n\n### Main Experimental Results:\nThe provided text does not detail the specific results of the main experiment. For comprehensive insights, one would have to refer to the results section in the full paper. Typically, the results would showcase SHIELD's performance in terms of the above metrics and compare it against traditional or state-of-the-art baselines, highlighting improvements in detecting both explicit and implicit hate speech.\n\n### Conclusion:\nWhile the main experimental results are not included in the provided text, the full paper likely outlines how SHIELD performs relative to various baselines using the datasets and metrics discussed. One can expect a detailed analysis of SHIELD's ability to detect explicit and implicit hate speech, possibly with a focus on interpretability and nuanced detections. For full details, refer to the experiment results in the actual paper."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Evaluate the textual and contextual understanding capabilities of ChatGPT (GPT-3.5) in extracting meaningful features, termed rationales, from input text for hate speech detection.",
+            "experiment_process": "Using a carefully crafted prompt, ChatGPT is employed to extract cuss words, derogatory language, and rationales from input texts. The extracted features are then compared to human-annotated ground truth rationales from the HateXplain dataset. Standard pre-processing, such as removing stop words, is applied, and similarity metrics are computed in both token space (Jaccard and Overlap similarity) and latent space (Cosine and Semantic similarity with Universal Sentence Encoder embeddings). Example comparisons and overlaps between human and LLM annotations are illustrated.",
+            "result_discussion": "Significant overlap and high semantic similarity were observed between LLM and human rationales. The LLM was able to successfully identify relevant words and spans. Some noisy signals present in human annotations were filtered out by the LLM, indicating that using LLM-extracted rationales might help in avoiding irrelevant data noise.",
+            "ablation_id": "2403.12403v2.No1"
+        },
+        {
+            "research_objective": "Assess the performance of a hate speech detector when trained with LLM-extracted rationales incorporated into the input text, to ensure interpretability without compromising detection accuracy.",
+            "experiment_process": "The HateBERT model is used as the base hate speech detector, and its performance is evaluated after incorporating LLM-extracted rationales into the input text. Results are reported in comparison to a simple fine-tuned HateBERT model and other baselines. Additional experiments modify the pre-trained language models used in the detection and feature extraction components, substituting HateBERT and bert-base-uncased with roberta-base for certain configurations. The resulting performance variations are recorded.",
+            "result_discussion": "The SHIELD framework performs at par with a simple fine-tuned HateBERT model, maintaining performance while providing interpretability. A performance jump was observed in the Twitter dataset, potentially due to the discriminative training signals provided by the rationales amidst noisy data. The analysis of different base models showed varied performance, with roberta-base achieving higher performance for three datasets when used instead of HateBERT, suggesting the importance of model choice.",
+            "ablation_id": "2403.12403v2.No2"
+        }
+    ]
+}

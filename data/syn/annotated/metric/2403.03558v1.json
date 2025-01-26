@@ -1,0 +1,420 @@
+{
+    "title": "Benchmarking Hallucination in Large Language Models based on Unanswerable Math Word Problem",
+    "abstract": "Large language models (LLMs) are highly effective in various natural language processing (NLP) tasks. However, they are susceptible to producing unreliable conjectures in ambiguous contexts called hallucination. This paper presents a new method for evaluating LLM hallucination in Question Answering (QA) based on the unanswerable math word problem (MWP). To support this approach, we innovatively develop a dataset called Unanswerable Math Word Problem (UMWP) which comprises 5200 questions across five categories. We developed an evaluation methodology combining text similarity and mathematical expression detection to determine whether LLM considers the question unanswerable. The results of extensive experiments conducted on 31 LLMs, including GPT-3, InstructGPT, LLaMA, and Claude, demonstrate that in-context learning and reinforcement learning with human feedback (RLHF) training significantly enhance the model\u2019s ability to avoid hallucination. We show that utilizing MWP is a reliable and effective approach to assess hallucination.\nOur code and data are available at https://github.com/Yuki-Asuuna/UMWP.\n\n\n\nKeywords:\u2009Large Language Model, Hallucination, Math Word Problem, Dataset",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1.   Introduction",
+            "text": "Large Language Models (LLMs) have taken the field by storm, making remarkable advancements in pushing the boundaries of Natural Language Processing (NLP) (Zhao et al., 2023). Notably, OpenAI\u2019s GPT-4 (OpenAI, 2023), Meta AI\u2019s LLaMA-2 (Touvron et al., 2023a) and Google\u2019s PaLM 2 Anil et al. (2023) have demonstrated exceptional performance across various few-shot and zero-shot NLP tasks, including text generation, text summarization, and question answering.\n\nHowever, LLMs can produce unreliable conjectures in ambiguous contexts, which is known as hallucination (Rawte et al., 2023). Within the context of NLP, the most inclusive and standard definition of hallucination is the generated content that is nonsensical or unfaithful to the provided source content (Ji et al., 2023). The undesired phenomenon has the potential to seriously mislead humans (Talmor et al., 2019). Figure 1 illustrates an example of hallucination towards a Math Word Problem (MWP).\n\nTowards the QA task, this paper evaluates LLMs\u2019 degree of hallucination based on Math Word Problems (MWP). (i) Compared with general questions, MWP is challenging to mitigate hallucination through additional text retrieval. Answering MWP heavily relies on the LLM\u2019s intrinsic abilities, including comprehension, reasoning, and computation abilities. (ii) The answer to MWP is often unique and represented as a numerical value or variable expression. In determining whether a model is prone to hallucination, the MWP-based method only involves evaluating the correctness of a numerical or variable expression output.\n\nKey Information Missing\nAmbiguous Key Information\nUnrealistic Conditions\nUnrelated Object\nQuestion Missing\n\nWe regard the MWP with non-unique solutions or no solution that may lead to hallucination in LLMs as the \u201cunanswerable question\u201d. Unanswerable questions can serve as a means to evaluate the degree of hallucination in LLMs, just as teachers often use unanswerable questions to gauge students\u2019 understanding of certain concepts. Rajpurkar et al. (2018) observes extractive reading comprehension systems often tend to make unreliable guesses when the context is missing or ambiguous. This phenomenon also happens in LLMs. When hallucination occurs, LLM tends to give arbitrary or unreasonable answers, just as Figure 1 shows. Ideally, LLM should reply with \u201cInformation missing\u201d or \u201cUnable to answer\u201d.\n\nIt\u2019s worth noting that while all existing MWP datasets (Hendrycks et al., 2021; Cobbe et al., 2021; Patel et al., 2021) focus on answerable questions, there is a scarcity of datasets related to unanswerable questions. Therefore, to address this data gap, we build a new dataset called UMWP, upon several previous MWP datasets. UMWP comprises a total of 5,200 questions with half answerable questions and half unanswerable questions. We classify unanswerable questions into five categories based on their unanswerability reasons.\n\nThe main contributions of this paper are summarized as follows:\n\nWe innovatively propose a new dataset UMWP consisting of answerable and unanswerable MWP to evaluate the degree of hallucination in LLMs. We present a novel hallucination evaluation method for LLMs. Our method employs text similarity and mathematical expression detection to judge whether the LLMs\u2019 responses reflect unanswerability.\n\nExtensive experiments on a variety of LLMs reveal variations in the degree of hallucination concerning model size, input form, and the utilization of RLHF."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2.   Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "2.1.   Math Word Problem Benchmark",
+            "text": "Many answerable MWP datasets have been proposed in previous research, primarily differing in terms of difficulty, dataset size, and content. Koncel-Kedziorski et al. (2016  ###reference_b8###) provides an automatic construction framework and collects 3,320 problems for a dataset called MAWPS. Miao et al. (2020  ###reference_b11###) presents ASDiv that covers more text patterns and most problem types taught in elementary school. Each MWP is annotated with its problem type and grade level. Patel et al. (2021  ###reference_b16###) creates a challenge set called SVAMP for a more robust evaluation of methods developed to solve elementary-level MWP. OpenAI introduces GSM8K (Cobbe et al., 2021  ###reference_b3###), a dataset comprising 8.5K high-quality linguistically diverse grade school MWPs, designing to evaluate the multi-step mathematical reasoning capability of LLMs. Hendrycks et al. (2021  ###reference_b6###) introduces MATH, a dataset of 12,500 challenging competition mathematics problems. For now, MATH and GSM8K are the two most difficult MWP datasets."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "2.2.   Mathematical Ability of LLM",
+            "text": "With the popularity of LLM, there is an increasing focus on applying LLM to solve math problems. Frieder et al. (2023  ###reference_b4###) investigates the mathematical capabilities of two iterations of ChatGPT (released 9-January-2023 and 30-January-2023) and of GPT-4 by testing them on 6 publicly available datasets. The result shows that though the quality of answers can be positively surprising, GPT is not yet ready to deliver high-quality proofs or calculations consistently. Wei et al. (2022  ###reference_b22###) shows that applying a chain of thought prompting can greatly improve performance on a range of arithmetic, commonsense, and symbolic reasoning tasks. Yu et al. (2023  ###reference_b24###) proposes MetaMath, a fine-tuned language model from Llama-v2 that specializes in mathematical reasoning. MetaMath-7B exceeds the state-of-the-art models of the same size by 11.5% and 8.7% on GSM8K and 19.4% on MATH (Hendrycks et al., 2021  ###reference_b6###). MetaMath-70B achieves an accuracy of 82.3% on GSM8K, slightly better than GPT-3.5-Turbo. It proves that well-fine-tuned open-source LLMs can compete with commercial LLMs even having much fewer parameters."
+        },
+        {
+            "section_id": "2.3",
+            "parent_section_id": "2",
+            "section_name": "2.3.   Hallucination Benchmark",
+            "text": "Research is scarce on hallucination benchmark in the field of mathematical reasoning. However, here are some existing hallucination evaluation studies that focus on general questions. Lin et al. (2022  ###reference_b10###) purposes TruthfulQA containing 817 questions that span 38 categories, including health, law, finance, and politics, to evaluate the truthfulness of LLM. These questions are crafted in a way that will lead humans to answer falsely due to a false belief or misconception. Yin et al. (2023  ###reference_b23###) purposes the SelfAware dataset consisting of 1,032 open-ended unanswerable questions to evaluate LLMs\u2019 self-knowledge. Li et al. (2023  ###reference_b9###) introduces the HaluEval benchmark, a large collection of generated and human-annotated hallucinated samples for evaluating the performance of LLMs in recognizing hallucination. HaluEval evaluates whether LLM hallucinates through a binary label approach. Min et al. (2023  ###reference_b12###) proposes a unique benchmark called FACTSCORE to automatically evaluate the truthfulness of LLM from the perspective of biographies in Wikipedia."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3.   Dataset Construction",
+            "text": "To the best of our knowledge, all popular MWP datasets do not have unanswerable questions. We build a novel dataset UMWP upon the existing four MWP datasets - SVAMP (Patel et al., 2021  ###reference_b16###), MultiArith (Koncel-Kedziorski et al., 2016  ###reference_b8###), GSM8K (Cobbe et al., 2021  ###reference_b3###), and ASDiv (Miao et al., 2020  ###reference_b11###). The questions in these four datasets are from real-life scenarios and have unique answers. We task two data annotators with modifying the original questions to make them unanswerable. Specific strategies in Table 5  ###reference_### are applied during the modification process. Three volunteers validate the questions. The question with three unanswerable annotations is accepted. Finally, we build a dataset composed of 2,600 answerable questions and 2,600 unanswerable questions.\n###table_2###"
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1.   Unanswerable Question",
+            "text": "Unanswerable questions are classified into five categories based on the reasons for unanswerability. The classification criteria are referenced from negative examples in SQUAD 2.0 (Rajpurkar et al., 2018  ###reference_b17###). Table 1  ###reference_### illustrates the five categories with the statistics. LLM\u2019s ideal response for unanswerable question should express uncertainty rather than providing a precise answer.\n(i) Key Information Missing: Questions where essential conditions are omitted.\n(ii) Ambiguous Key Information: Questions with ambiguous conditions, including ranges, vague terms, or negations.\n(iii) Unrealistic Conditions: Questions with conditions that conflict with real-world logic, such as using negative numbers for item quantities or decimals for indivisible items.\n(iv) Unrelated Object: Questions where the subject mentioned in the question is absent from the source input.\n(v) Question Missing: Questions without the actual question body."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2.   Answerable Question",
+            "text": "Each answerable question has a definite answer. The statistics of answerable questions are shown in Table 2  ###reference_###. The GSM8K dataset features longer question descriptions by token count, whereas the other three datasets have shorter ones."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4.   Evaluation Method",
+            "text": "In this section, we introduce the method for quantitatively evaluating LLMs\u2019 degree of hallucination. In the context of instruction and In-Context Learning (ICL) input forms (Ouyang et al., 2022), we observe that LLMs tend to exhibit strong template-like outputs when expressing uncertain meanings. However, in the Direct input form, LLM outputs may contain words indicating uncertainty, such as \u201cunknown\u201d or \u201cunsure\u201d. Algorithm 1 shows the details of the evaluation process.\n\nTo judge whether the output of a question reflects unanswerability, we define a similarity function to compute the similarity between a given sentence and a set of unanswerable template sentences. A pre-determined threshold is used in this evaluation.\n\nIf the condition is met, the output is regarded as \u201cunanswerable.\u201d If LLMs\u2019 responses appear as variable expressions, we assume the LLM may have identified potential variables in the unanswerable question. Otherwise, we assume the LLM regards the question as \u201canswerable.\u201d The identification process is described as follows:\n(i) LLM output is tokenized by the open-source tool Spacy Montani et al. (2023).\n(ii) Common vocabulary and space characters are removed from the text.\n(iii) Identification is done by checking for the presence of valid variable expressions by regex. If found, the output is labeled as \u201cunanswerable.\u201d An example is illustrated in Figure 2.\n\nThe identification of unanswerable questions involves designating them as positive cases and answerable questions as negative cases."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5.   Experiment",
+            "text": "We conduct experiments using a series of LLMs, including GPT-3 (Brown et al., 2020), InstructGPT (Ouyang et al., 2022), Claude, LLaMA (Touvron et al., 2023b) and LLaMA-2 (Touvron et al., 2023a). We employ three different input forms: Direct, Instruction, and ICL.\n\nCompared to Direct input, the Instruction and ICL input forms can provide richer contextual information, significantly improving the LLMs\u2019 ability to recognize hallucination.\n\nLLMs can recognize potential variables within unanswerable questions and may output a math expression in response. We set the sample size to 520 (10% of the UMWP) and employ the random sampling strategy. We ensure the proportion of unanswerable questions across different categories is consistent with Table 2. 5 annotators participate in the evaluation process. Table 3 shows that using a template-based approach combined with mathematical expression detection can improve the consistency with human judgment. The Cohen\u2019s kappa coefficient for the LLMs in Table 3 falls within the range of a good match (>0.75).\n\nWe also investigate human benchmarks on UMWP."
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "5.1.   Setting",
+            "text": "We adopt SimCSE (Gao et al., 2021  ###reference_b5###) as the similarity function. According to the threshold ablation (Yin et al., 2023  ###reference_b23###), we set the similarity threshold. During the generation process, we set the temperature for GPT, InstructGPT, LLaMA, and LLaMA-2. To eliminate potential similarity calculation errors caused by differences in the lengths of target and reference sentences, we employ a sliding window of length 6 to parse the output sentence into semantic chunks."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "5.2.   Human Benchmark",
+            "text": "To establish a benchmark for humans, we randomly select 200 samples from UMWP, ensuring the distribution of these samples across different categories remains consistent with the original dataset. Subsequently, we assign these samples to five volunteers."
+        },
+        {
+            "section_id": "5.3",
+            "parent_section_id": "5",
+            "section_name": "5.3.   Set U Construction",
+            "text": "We aggregate answers from 31 LLMs that are labeled as \u201cunanswerable\u201d and extract common features to construct the set . Subsequently, we conducted a manual filtering process to eliminate incorrect strings from set . The detail of set  is shown in Section A.5  ###reference_###."
+        },
+        {
+            "section_id": "5.4",
+            "parent_section_id": "5",
+            "section_name": "5.4.   Experiment Results Analysis",
+            "text": "We conduct a concise analysis of LLMs\u2019 hallucination performance on UMWP, mainly considering 4 dimensions: model size, input forms, RLHF, and comparison of evaluation methods. The experimental results for the following three dimensions (model size, input forms, RLHF) are depicted in Figure 3.\n\nIn the LLaMA series, across three input forms, there is a continuous improvement as the model size increases. In the InstructGPT series, this trend is generally observed, except for the text-babbage-001.\n\nCompared to Direct input, the Instruction and ICL input forms can provide richer contextual information, significantly improving the LLMs\u2019 ability to recognize hallucination. As the parameter size increases, the difference between the instruction and the ICL input form is gradually decreasing.\n\nComparing LLaMA-v2-7b-chat to LLaMA-v2-7b, LLaMA-v2-13b-chat to LLaMA-v2-13b, and LLaMA-v2-70b-chat to LLaMA-v2-70b, we find RLHF substantially improves performance across three input forms. Notably, LLaMA-v2-13b-chat\u2019s performance can compete with that of LLaMA-65b, despite having significantly fewer parameters.\n\nLLMs can recognize potential variables within unanswerable questions and may output a math expression in response. We set the sample size to 520 (10% of the UMWP) and employ the random sampling strategy. We ensure the proportion of unanswerable questions across different categories is consistent with Table 2. 5 annotators participate in the evaluation process. Table 3 shows that using a template-based approach combined with mathematical expression detection can improve the consistency with human judgment. The Cohen\u2019s kappa coefficient for the LLMs in Table 3 falls within the range of a good match(>0.75).\n\nWe also investigate human benchmarks on UMWP. GPT-4 demonstrates impressive performance. However, it still shows a difference when compared to the human benchmark result of 93.16%."
+        },
+        {
+            "section_id": "5.5",
+            "parent_section_id": "5",
+            "section_name": "5.5.   Noise Analysis",
+            "text": "According to Algorithm 1, the LLM response is labeled binary. Experiments need to be conducted to judge whether LLM output contains nonsensical or unfaithful information beyond the binary classification. We manually examine whether 5 LLMs generate unrelated content. These LLMs are chosen because they exhibit relatively lower capabilities within their respective series. The result is shown in Appendix Table 4. Although there are cases where LLM may output information unrelated to the question, such cases are rare and have a limited impact on the benchmark results. We conduct further discussions and analysis in Section A.1."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6.   Conclusion",
+            "text": "The hallucination of LLM has the potential to mislead humans seriously. This study explores the evaluation of hallucination in LLMs through the perspective of Unanswerable Math Word Problems (UMWP). Based on existing MWP datasets, we create a new dataset and introduce an evaluation method combining text similarity and mathematical expression detection for assessing hallucination in various series of LLMs including GPT-3, InstructGPT, Claude, and LLaMA. The results of extensive experiments highlight the impact of model size, In-Context Learning, and RLHF on hallucination mitigation. We believe that our work provides a feasible way of assessing hallucination in LLMs."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Appendices",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S1.T1\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S1.T1.2\">\n<tr class=\"ltx_tr\" id=\"S1.T1.2.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S1.T1.2.1.1.1\">Type</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S1.T1.2.1.2.1\">Example</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S1.T1.2.1.3.1\">Percentage</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S1.T1.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S1.T1.2.2.1.1\">Key Information Missing</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.2.2\">Samanta has 8 more points than Mark, and Mark has 50% more points than <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.2.2.1\">Eric</span>. How many points do Samanta, Mark, and <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.2.2.2\">Eric</span> have in total?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.2.3\">32%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S1.T1.2.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.3.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S1.T1.2.3.1.1\">Ambiguous Key Information</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.3.2\">Jack received <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.3.2.1\">some</span> emails in the morning, 5 emails in the afternoon, and 8 emails in the evening. How many more emails did Jack receive in the afternoon and evening than in the morning?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.3.3\">49%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S1.T1.2.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.4.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S1.T1.2.4.1.1\">Unrealistic Conditions</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.4.2\">How many <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.4.2.1\">triangles with a height of 0 inches and a width of 0 inches</span> could fit inside a square with 2-inch sides?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.4.3\">11%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S1.T1.2.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.5.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S1.T1.2.5.1.1\">Unrelated Object</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.5.2\">Joshua bought 25 <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.5.2.1\">oranges</span><span class=\"ltx_text ltx_font_italic\" id=\"S1.T1.2.5.2.2\"> </span>for $12.50. He sells each one for 60c, how much profit in cents will he make on each <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.5.2.3\">apple</span>?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.5.3\">4%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S1.T1.2.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.6.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S1.T1.2.6.1.1\">Question Missing</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S1.T1.2.6.2\">Baker made 13 cakes. He sold 91 of them and bought 154 new cakes. <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"S1.T1.2.6.2.1\">How many?</span>\n</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S1.T1.2.6.3\">5%</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S1.T1.4.1.1\" style=\"font-size:90%;\">Table 1</span>: </span><span class=\"ltx_text\" id=\"S1.T1.5.2\" style=\"font-size:90%;\">Unanswerable questions in the <span class=\"ltx_text ltx_font_italic\" id=\"S1.T1.5.2.1\">UMWP</span> dataset that span across mutiple categories.</span></figcaption>\n</figure>",
+            "capture": "Table 1: Unanswerable questions in the UMWP dataset that span across mutiple categories."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T2\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S3.T2.2\">\n<tr class=\"ltx_tr\" id=\"S3.T2.2.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.1.1\">Source</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.2.1\">Total</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.3.1\">Percentage</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T2.2.1.4.1\">Avg. Length</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.2.1\">SVAMP</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.2.2\">500</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.2.3\">19.2%</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.2.4\">30.38</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.3.1\">MultiArith</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.3.2\">300</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.3.3\">11.5%</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.3.4\">31.76</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.4.1\">GSM8K</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.4.2\">1700</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.4.3\">65.4%</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.4.4\">45.38</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T2.2.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.5.1\">ASDiv</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.5.2\">100</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S3.T2.2.5.3\">3.8%</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T2.2.5.4\">28.37</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T2.3.1.1\" style=\"font-size:90%;\">Table 2</span>: </span><span class=\"ltx_text\" id=\"S3.T2.4.2\" style=\"font-size:90%;\">Statistics of answerable questions.</span></figcaption>\n</figure>",
+            "capture": "Table 2: Statistics of answerable questions."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T3\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S5.T3.2\">\n<tr class=\"ltx_tr\" id=\"S5.T3.2.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"S5.T3.2.1.1.1\">Model</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.2.1.2.1\">Template</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T3.2.1.3.1\">TemplateRule</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.2.2.1.1\">text-davinci-003</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.2.2\">0.732</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.2.3\">0.804(+0.072)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.2.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.3.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.2.3.1.1\">claude-1</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.3.2\">0.744</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.3.3\">0.791(+0.047)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.2.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.4.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.2.4.1.1\">Llama-7b</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.4.2\">0.702</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.4.3\">0.757(+0.055)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.2.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.5.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.2.5.1.1\">gpt-3.5</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.5.2\">0.753</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.5.3\">0.802(+0.049)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T3.2.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.6.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"S5.T3.2.6.1.1\">gpt-4</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T3.2.6.2\">0.864</td>\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T3.2.6.3\">0.891(+0.027)</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T3.3.1.1\" style=\"font-size:90%;\">Table 3</span>: </span><span class=\"ltx_text\" id=\"S5.T3.4.2\" style=\"font-size:90%;\">Cohen\u2019s Kappa comparison between two evaluation methods in the direct input form.</span></figcaption>\n</figure>",
+            "capture": "Table 3: Cohen\u2019s Kappa comparison between two evaluation methods in the direct input form."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T4\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"A1.T4.2\">\n<tr class=\"ltx_tr\" id=\"A1.T4.2.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"A1.T4.2.1.1.1\">Model</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.2.1\">Count</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T4.2.1.3.1\">Ratio</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T4.2.2.1.1\">gpt-3.5-turbo-0301</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.2.2\">3</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.2.3\">0.057%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.3.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T4.2.3.1.1\">claude-1</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.3.2\">7</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.3.3\">0.13%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.4.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T4.2.4.1.1\">Llama-7b</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.4.2\">68</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.4.3\">1.31%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.5.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T4.2.5.1.1\">Llama2-7b</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.5.2\">39</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.5.3\">0.75%</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T4.2.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.6.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T4.2.6.1.1\">text-davinci-001</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T4.2.6.2\">72</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T4.2.6.3\">1.38%</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.T4.3.1.1\" style=\"font-size:90%;\">Table 4</span>: </span><span class=\"ltx_text\" id=\"A1.T4.4.2\" style=\"font-size:90%;\">Unrelated generation count beyond the binary label.</span></figcaption>\n</figure>",
+            "capture": "Table 4: Unrelated generation count beyond the binary label."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T5\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"A1.T5.2\">\n<tr class=\"ltx_tr\" id=\"A1.T5.2.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"A1.T5.2.1.1.1\">Strategy</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T5.2.1.2.1\">Example</span></td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.T5.2.1.3.1\">Original</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.2.1.1\">Key information Deletion</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.2.2\">Suzanne wants to raise money for charity by <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.2.2.1\">running a race</span>. Her parents have pledged to donate $10 for her first kilometer and double the donation for every successive kilometer. If Suzanne finishes the race, how much money will her parents donate?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.2.3\">running a 5-kilometer race</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.3.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.3.1.1\">Range</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.3.2\">Nadine collected different colored pebbles. She has <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.3.2.1\">more than 20</span> white pebbles and half as many red pebbles. How many pebbles does she have in all?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.3.3\">20</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.4.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.4.1.1\">Contradiction</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.4.2\">The sum of <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.4.2.1\">one consecutive even number is 247</span>. What is the number?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.4.3\">three consecutive even numbers is 246</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.5.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.5.1.1\">Negation</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.5.2\">There were 8 friends playing a video game online when 2 more players joined the game. If each player <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.5.2.1\">had not 6 lives</span>, how many lives did they have in total?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.5.3\">had 6 lives</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.6.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.6.1.1\">Summation</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.6.2\">Baker made 61 pastries and 167 cakes. If he sold <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.6.2.1\">totally 108 cakes and pastries altogether</span>. How many cakes would baker still have?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.6.3\">108 cakes and 44 pastries</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.7\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.7.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.7.1.1\">Unrealism</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.7.2\">Sue works in a factory and <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.7.2.1\">every 0 minutes</span>, a machine she oversees produces 30 cans of soda. How many cans of soda can one machine produce in 8 hours?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.7.3\">every 30 minutes</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.8\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.8.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.8.1.1\">Subject Substitution</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.8.2\">Brittany, Alex, and Jamy all share 600 marbles divided between them in the ratio 3:5:7. If Brittany gives Alex half of her marbles, what\u2019s the total number of marbles that <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.8.2.1\">Johnson</span> has?</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.8.3\">Alex</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T5.2.9\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.9.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.T5.2.9.1.1\">Question Deletion</p>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T5.2.9.2\">Jennifer will be 30 years old in ten years. At that time, her sister Jordana will be three times as old Jennifer. <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.T5.2.9.2.1\">How ?</span>\n</td>\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T5.2.9.3\">How old is Jennifer\u2019s sister now?</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.T5.3.1.1\" style=\"font-size:90%;\">Table 5</span>: </span><span class=\"ltx_text\" id=\"A1.T5.4.2\" style=\"font-size:90%;\">Modification strategies for converting answerable questions into unanswerable questions.</span></figcaption>\n</figure>",
+            "capture": "Table 5: Modification strategies for converting answerable questions into unanswerable questions."
+        },
+        "6": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.SS6.tab1\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.SS6.tab1.2.1.1\" style=\"font-size:90%;\">Table 6</span>: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.3.2\" style=\"font-size:90%;\">Categorization of hallucination examples from different LLMs.</span></figcaption><div class=\"ltx_flex_figure ltx_flex_table\">\n<div class=\"ltx_flex_cell ltx_flex_size_1\">\n<table class=\"ltx_tabular ltx_flex_size_1 ltx_align_middle\" id=\"A1.SS6.tab1.1\">\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.1.1\"><span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"A1.SS6.tab1.1.1.1.1\">Category</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.1.2.1\">Example</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.2.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.2.1.1\">Making arbitrary assumptions</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.2.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.2.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.2.2.2\" style=\"color:#007F00;\"> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.2.2.2.1\" style=\"color:#000000;\">Zoe had 42 bottles of water in her fridge. If she drank some of them and then bought 30 more. How many bottles would she have?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.3\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.3.1\">\n<span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"A1.SS6.tab1.1.3.1.1\" style=\"color:#FF0000;\">A:<span class=\"ltx_text ltx_font_medium\" id=\"A1.SS6.tab1.1.3.1.1.1\">\u00a0<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.3.1.1.1.1\" style=\"color:#000000;\">Zoe had 42 bottles of water in her fridge to start with. If she drank some of them, then she had fewer bottles of water. Let\u2019s say she drank half of them, so she had 42 / 2 = 21 bottles left. Then, she bought 30 more bottles of water, so she had 21 + 30 = 51 bottles of water in her fridge.<span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.3.1.1.1.1.1\" style=\"color:#FFA400;\">(Llama-v2-7b-chat)</span></span></span></span></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.3.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.4.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.4.1.1\">Ignoring scope condition</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.4.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.4.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.4.2.2\" style=\"color:#007F00;\">\u00a0<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.4.2.2.1\" style=\"color:#000000;\">The Razorback t-shirt shop sells each t-shirt for $ 51 dollars. During the Arkansas and Texas tech game they offered a discount of more than $ 8 per t-shirt and sold roughly 130 t-shirts. How much money did they make from selling the t-shirts?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.5\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.5.1\">\n<span class=\"ltx_text ltx_font_bold ltx_align_top\" id=\"A1.SS6.tab1.1.5.1.1\" style=\"color:#FF0000;\">A:<span class=\"ltx_text ltx_font_medium\" id=\"A1.SS6.tab1.1.5.1.1.1\">\u00a0<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.5.1.1.1.1\" style=\"color:#000000;\">The t-shirts were sold for $51 - $8 = $43 each after the discount. So, the t-shirt shop made approximately $43 * 130 = $5,590 from selling the t-shirts.<span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.5.1.1.1.1.1\" style=\"color:#FFA400;\">(gpt-4-0613)</span></span></span></span></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.5.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.6.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.6.1.1\">Ignoring unreasonable condition</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.6.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.6.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.6.2.2\" style=\"color:#007F00;\"> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.6.2.2.1\" style=\"color:#000000;\">Faye was placing her pencils into -14 rows with 11 pencils in each row. How many pencils does she have?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.7\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.7.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.7.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.7.1.1.1\" style=\"color:#FF0000;\">A:<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.7.1.1.1.1\" style=\"color:black;\">\u00a0</span></span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.7.1.1.2\" style=\"color:#000000;\">Faye was placing her pencils into -14 rows. Each row has 11 pencils. To calculate the total number of pencils, we multiply the number of rows by the number of pencils in each row. So the total number of pencils is: Number of rows = -14. Pencils per row = 11. So total pencils = -14 * 11 = -154. Therefore, the total number of pencils Faye has is -154.<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.7.1.1.2.1\" style=\"color:#007F00;\"> <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.7.1.1.2.1.1\" style=\"color:#FFA400;\">(claude-instant-1.2)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.7.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.8\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.8.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.8.1.1\">Ignoring subject</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.8.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.8.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.8.2.2\" style=\"color:#007F00;\">\u00a0<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.8.2.2.1\" style=\"color:#000000;\">Every day Ryan spends 6 hours on learning english and 7 hours on learning chinese. How many more hours does he spend on learning chinese than he does on learning italy?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.9\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.9.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.9.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.9.1.1.1\" style=\"color:#FF0000;\">A: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.9.1.1.2\" style=\"color:#000000;\">Ryan spends 6 hours per day learning English. Ryan spends 7 hours per day learning Chinese. So he spends 7 - 6 = 1 hour more per day learning Chinese than English. Therefore, the answer is: 1.<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.9.1.1.2.1\" style=\"color:#FFA400;\"> <span class=\"ltx_text ltx_ulem_uline\" id=\"A1.SS6.tab1.1.9.1.1.2.1.1\">(claude-1)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.9.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.10\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.10.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.10.1.1\">Confusing condition</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.10.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.10.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.10.2.2\" style=\"color:#007F00;\"> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.10.2.2.1\" style=\"color:#000000;\">Rachel bought two coloring books. One had 23 pictures and the other had 32. After one week she had already colored 10 of the two coloring books. How many pictures does she still have to color in the first coloring book?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.11\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.11.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.11.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.11.1.1.1\" style=\"color:#FF0000;\">A: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.11.1.1.2\" style=\"color:#000000;\">Rachel bought 2 coloring books - one with 23 pictures and one with 32 pictures\\n* In total there were 23 + 32 = 55 pictures in the 2 books. After 1 week, Rachel had already colored 10 pictures. So there were 55 - 10 = 45 pictures left to color. Since the first book originally had 23 pictures, and Rachel colored some of them, there must be 23 - 10 = 13 pictures left to color in the first book. So the answer is:13.<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.11.1.1.2.1\" style=\"color:#FFA400;\"> <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.11.1.1.2.1.1\" style=\"color:#FFA400;\">(claude-1)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.11.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.12\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.12.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.12.1.1\">Misidentifying hidden information</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.12.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.12.2.1\" style=\"color:#008000;\">Q:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.12.2.2\" style=\"color:#007F00;\"> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.12.2.2.1\" style=\"color:#000000;\">Molly got a bike for her thirteenth birthday. She rode her bike 3 miles a day, every day, until she turned 16. How many miles did Molly ride on her bike?</span></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.13\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.13.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.13.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.13.1.1.1\" style=\"color:#FF0000;\">A: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.13.1.1.2\" style=\"color:#000000;\">Molly got a bike for her 13th birthday. She rode 3 miles per day. She rode every day until she turned 16. So she rode for 16 - 13 = 3 years. In each year there are 365 days. So in 3 years there are 3 * 365 = 1095 days. On each of those days she rode 3 miles. So total miles ridden = 1095 * 3 = 3285 miles. Therefore, the total miles Molly rode on her bike is 3285.<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.13.1.1.2.1\" style=\"color:#007F00;\"> <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.13.1.1.2.1.1\" style=\"color:#FFA400;\">(claude-2)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.13.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.14\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.14.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.14.1.1\">Misclassifying answerable question</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.14.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.14.2.1\" style=\"color:#008000;\">Q: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.14.2.2\" style=\"color:#000000;\">Jack received 3 emails in the afternoon, 6 emails in the morning and some more in the evening. If he received a total of 10 emails in the day. How many emails did jack receive in the evening?</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.15\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.15.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.15.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.15.1.1.1\" style=\"color:#FF0000;\">A:</span><span class=\"ltx_text\" id=\"A1.SS6.tab1.1.15.1.1.2\" style=\"color:#007F00;\">\u00a0<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.15.1.1.2.1\" style=\"color:#000000;\">The problem states that Jack received some more emails in the evening, but it doesn\u2019t provide any information about the number of emails he received in the evening. Without this information, we cannot determine the total number of emails Jack received in the evening.<span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.15.1.1.2.1.1\" style=\"color:#FFA400;\">(Llama-v2-70b-chat)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.15.2\"></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.16\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.16.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.16.1.1\">Ignoring attribute</p>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"A1.SS6.tab1.1.16.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.16.2.1\" style=\"color:#008000;\">Q:</span> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.16.2.2\" style=\"color:#000000;\">A 10 meters yarn was cut into 5 different length parts. If 3 parts were used for crocheting, how long was used for crocheting?</span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.SS6.tab1.1.17\">\n<td class=\"ltx_td ltx_align_center\" id=\"A1.SS6.tab1.1.17.1\">\n<p class=\"ltx_p ltx_align_top\" id=\"A1.SS6.tab1.1.17.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"A1.SS6.tab1.1.17.1.1.1\" style=\"color:#FF0000;\">A:</span> <span class=\"ltx_text\" id=\"A1.SS6.tab1.1.17.1.1.2\" style=\"color:#000000;\">We know that a 10 meters yarn was cut into 5 different length parts. We want to find out how long was used for crocheting. Since 3 parts were used for crocheting, we can say that the total length of yarn used for crocheting is 3x, where x is the length of each part. We also know that the total length of the yarn is 10 meters. Therefore, we can set up the following equation: 3x + 2x = 10. Simplifying the equation, we get:5x = 10. Dividing both sides by 5, we get:x = 2. Thus, each part of the yarn is 2 meters long. Since 3 parts were used for crocheting, the total length of yarn used for crocheting is 3x = 3(2) = 6 meters.<span class=\"ltx_text\" id=\"A1.SS6.tab1.1.17.1.1.2.1\" style=\"color:#007F00;\"> <span class=\"ltx_text ltx_ulem_uline ltx_font_bold\" id=\"A1.SS6.tab1.1.17.1.1.2.1.1\" style=\"color:#FFA400;\">(Llama-v2-70b-chat)</span></span></span></p></td>\n<td class=\"ltx_td\" id=\"A1.SS6.tab1.1.17.2\"></td>\n</tr>\n</table>\n</div>\n<div class=\"ltx_flex_break\"></div>\n<div class=\"ltx_flex_cell ltx_flex_size_1\">\n<figure class=\"ltx_figure ltx_flex_size_1\" id=\"A1.F6\"><img alt=\"Refer to caption\" class=\"ltx_graphics ltx_centering ltx_img_landscape\" height=\"98\" id=\"A1.F6.g1\" src=\"x5.png\" width=\"830\"/>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_figure\"><span class=\"ltx_text\" id=\"A1.F6.2.1.1\" style=\"font-size:90%;\">Figure 6</span>: </span><span class=\"ltx_text\" id=\"A1.F6.3.2\" style=\"font-size:90%;\">Direct input form.</span></figcaption>\n</figure>\n</div>\n<div class=\"ltx_flex_break\"></div>\n<div class=\"ltx_flex_cell ltx_flex_size_1\">\n<figure class=\"ltx_figure ltx_flex_size_1\" id=\"A1.F7\"><img alt=\"Refer to caption\" class=\"ltx_graphics ltx_centering ltx_img_landscape\" height=\"173\" id=\"A1.F7.g1\" src=\"x6.png\" width=\"830\"/>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_figure\"><span class=\"ltx_text\" id=\"A1.F7.2.1.1\" style=\"font-size:90%;\">Figure 7</span>: </span><span class=\"ltx_text\" id=\"A1.F7.3.2\" style=\"font-size:90%;\">Instruction input form.</span></figcaption>\n</figure>\n</div>\n<div class=\"ltx_flex_break\"></div>\n<div class=\"ltx_flex_cell ltx_flex_size_1\">\n<figure class=\"ltx_figure ltx_flex_size_1\" id=\"A1.F8\"><img alt=\"Refer to caption\" class=\"ltx_graphics ltx_centering ltx_img_landscape\" height=\"579\" id=\"A1.F8.g1\" src=\"x7.png\" width=\"830\"/>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_figure\"><span class=\"ltx_text\" id=\"A1.F8.2.1.1\" style=\"font-size:90%;\">Figure 8</span>: </span><span class=\"ltx_text\" id=\"A1.F8.3.2\" style=\"font-size:90%;\">ICL input form.</span></figcaption>\n</figure>\n</div>\n</div>\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"A1.SS6.tab1.2.1.1\" style=\"font-size:90%;\">Table 6</span>: </span><span class=\"ltx_text\" id=\"A1.SS6.tab1.3.2\" style=\"font-size:90%;\">Categorization of hallucination examples from different LLMs.</span></figcaption>\n</figure>",
+            "capture": "Table 6: Categorization of hallucination examples from different LLMs."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.03558v1_figure_1.png",
+            "caption": "Figure 1: An example of hallucination towards a Math Word Problem(MWP)."
+        },
+        "2": {
+            "figure_path": "2403.03558v1_figure_2.png",
+            "caption": "Figure 2: An example of extracting variable expression from raw LLM output."
+        },
+        "3": {
+            "figure_path": "2403.03558v1_figure_3.png",
+            "caption": "Figure 3: Experiment results from InstructGPT, Claude, and LLaMA series using three different input forms (Direct, Instruction, and ICL)."
+        },
+        "4": {
+            "figure_path": "2403.03558v1_figure_4.png",
+            "caption": "Figure 4: F1 score of LLMs in different series and human in the instruction input form."
+        },
+        "5": {
+            "figure_path": "2403.03558v1_figure_5.png",
+            "caption": "Figure 5: Accuracy of the InstructGPT series in responding to answerable questions in the instruction input form."
+        },
+        "6": {
+            "figure_path": "2403.03558v1_figure_6.png",
+            "caption": "Figure 6: Direct input form."
+        },
+        "7": {
+            "figure_path": "2403.03558v1_figure_7.png",
+            "caption": "Figure 7: Instruction input form."
+        },
+        "8": {
+            "figure_path": "2403.03558v1_figure_8.png",
+            "caption": "Figure 8: ICL input form."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Palm 2 technical report.",
+                "author": "Rohan Anil, Andrew M Dai, Orhan Firat, Melvin Johnson, Dmitry Lepikhin,\nAlexandre Passos, Siamak Shakeri, Emanuel Taropa, Paige Bailey, Zhifeng Chen,\net al. 2023.",
+                "venue": "arXiv preprint arXiv:2305.10403.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Language models are few-shot learners.",
+                "author": "Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla\nDhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell,\net al. 2020.",
+                "venue": "Advances in neural information processing systems,\n33:1877\u20131901.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Training verifiers to solve math word problems.",
+                "author": "Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz\nKaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano,\net al. 2021.",
+                "venue": "arXiv preprint arXiv:2110.14168.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Mathematical capabilities of chatgpt.",
+                "author": "Simon Frieder, Luca Pinchetti, Alexis Chevalier, Ryan-Rhys Griffiths, Tommaso\nSalvatori, Thomas Lukasiewicz, Philipp Christian Petersen, and Julius Berner.\n2023.",
+                "venue": "arXiv preprint arXiv:2301.13867.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Simcse: Simple contrastive learning of sentence embeddings.",
+                "author": "Tianyu Gao, Xingcheng Yao, and Danqi Chen. 2021.",
+                "venue": "In 2021 Conference on Empirical Methods in Natural Language\nProcessing, EMNLP 2021, pages 6894\u20136910. Association for Computational\nLinguistics (ACL).",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Measuring mathematical problem solving with the math dataset.",
+                "author": "Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul Arora, Steven Basart, Eric\nTang, Dawn Song, and Jacob Steinhardt. 2021.",
+                "venue": "In Thirty-fifth Conference on Neural Information Processing\nSystems Datasets and Benchmarks Track (Round 2).",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Survey of hallucination in natural language generation.",
+                "author": "Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan Su, Yan Xu, Etsuko Ishii,\nYe Jin Bang, Andrea Madotto, and Pascale Fung. 2023.",
+                "venue": "ACM Computing Surveys, 55(12):1\u201338.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Mawps: A math word problem repository.",
+                "author": "Rik Koncel-Kedziorski, Subhro Roy, Aida Amini, Nate Kushman, and Hannaneh\nHajishirzi. 2016.",
+                "venue": "In Proceedings of the 2016 conference of the north american\nchapter of the association for computational linguistics: human language\ntechnologies, pages 1152\u20131157.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Halueval: A large-scale hallucination evaluation benchmark for large\nlanguage models.",
+                "author": "Junyi Li, Xiaoxue Cheng, Wayne Xin Zhao, Jian-Yun Nie, and Ji-Rong Wen. 2023.",
+                "venue": "In Proceedings of the 2023 Conference on Empirical Methods in\nNatural Language Processing, pages 6449\u20136464.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Truthfulqa: Measuring how models mimic human falsehoods.",
+                "author": "Stephanie Lin, Jacob Hilton, and Owain Evans. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association\nfor Computational Linguistics (Volume 1: Long Papers), pages 3214\u20133252.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "A diverse corpus for evaluating and developing english math word\nproblem solvers.",
+                "author": "Shen-Yun Miao, Chao-Chun Liang, and Keh-Yih Su. 2020.",
+                "venue": "In Proceedings of the 58th Annual Meeting of the Association\nfor Computational Linguistics, pages 975\u2013984.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Factscore: Fine-grained atomic evaluation of factual precision in\nlong form text generation.",
+                "author": "Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang Wei Koh,\nMohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi. 2023.",
+                "venue": "arXiv preprint arXiv:2305.14251.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "explosion/spaCy:\nv3.6.1: Support for Pydantic v2, find-function CLI and more.",
+                "author": "Ines Montani, Matthew Honnibal, Matthew Honnibal, Adriane Boyd, Sofie Van\nLandeghem, Henning Peters, Paul O\u2019Leary McCann, jim geovedi, Jim O\u2019Regan,\nMaxim Samsonov, Dani\u00ebl de Kok, Gy\u00f6rgy Orosz, Marcus Bl\u00e4ttermann, Duygu\nAltinok, Madeesh Kannan, Raphael Mitsch, S\u00f8ren Lind Kristiansen, Edward,\nLj Miranda, Peter Baumgartner, Rapha\u00ebl Bournhonesque, Richard Hudson,\nExplosion Bot, Roman, Leander Fiedler, Ryn Daniels, kadarakos, Wannaphong\nPhatthiyaphaibun, and Schero1994. 2023.",
+                "venue": null,
+                "url": "https://doi.org/10.5281/zenodo.8225292"
+            }
+        },
+        {
+            "14": {
+                "title": "Gpt-4\ntechnical report.",
+                "author": "OpenAI. 2023.",
+                "venue": "ArXiv, abs/2303.08774.",
+                "url": "https://api.semanticscholar.org/CorpusID:257532815"
+            }
+        },
+        {
+            "15": {
+                "title": "Training language\nmodels to follow instructions with human feedback.",
+                "author": "Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida, Carroll Wainwright, Pamela\nMishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Gray, John\nSchulman, Jacob Hilton, Fraser Kelton, Luke Miller, Maddie Simens, Amanda\nAskell, Peter Welinder, Paul Christiano, Jan Leike, and Ryan Lowe. 2022.",
+                "venue": "In Advances in Neural Information Processing Systems.",
+                "url": "https://openreview.net/forum?id=TG8KACxEON"
+            }
+        },
+        {
+            "16": {
+                "title": "Are nlp models really able to solve simple math word problems?",
+                "author": "Arkil Patel, Satwik Bhattamishra, and Navin Goyal. 2021.",
+                "venue": "In Proceedings of the 2021 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, pages 2080\u20132094.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Know what you don\u2019t know: Unanswerable questions for squad.",
+                "author": "Pranav Rajpurkar, Robin Jia, and Percy Liang. 2018.",
+                "venue": "In Proceedings of the 56th Annual Meeting of the Association\nfor Computational Linguistics (Volume 2: Short Papers), pages 784\u2013789.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "A survey of hallucination in\nlarge foundation models.",
+                "author": "Vipula Rawte, Amit Sheth, and Amitava Das. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2309.05922"
+            }
+        },
+        {
+            "19": {
+                "title": "Commonsenseqa: A question answering challenge targeting commonsense\nknowledge.",
+                "author": "Alon Talmor, Jonathan Herzig, Nicholas Lourie, and Jonathan Berant. 2019.",
+                "venue": "In Proceedings of NAACL-HLT, pages 4149\u20134158.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne\nLachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric\nHambro, Faisal Azhar, et al. 2023a.",
+                "venue": "arXiv preprint arXiv:2302.13971.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine\nBabaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale,\net al. 2023b.",
+                "venue": "arXiv preprint arXiv:2307.09288.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Chain-of-thought prompting elicits reasoning in large language\nmodels.",
+                "author": "Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed Chi, Quoc V\nLe, Denny Zhou, et al. 2022.",
+                "venue": "Advances in Neural Information Processing Systems,\n35:24824\u201324837.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Do large\nlanguage models know what they don\u2019t know?",
+                "author": "Zhangyue Yin, Qiushi Sun, Qipeng Guo, Jiawen Wu, Xipeng Qiu, and Xuanjing\nHuang. 2023.",
+                "venue": "In Findings of the Association for Computational Linguistics:\nACL 2023, pages 8653\u20138665, Toronto, Canada. Association for Computational\nLinguistics.",
+                "url": "https://aclanthology.org/2023.findings-acl.551"
+            }
+        },
+        {
+            "24": {
+                "title": "Metamath: Bootstrap your own\nmathematical questions for large language models.",
+                "author": "Longhui Yu, Weisen Jiang, Han Shi, Jincheng Yu, Zhengying Liu, Yu Zhang,\nJames T. Kwok, Zhenguo Li, Adrian Weller, and Weiyang Liu. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2309.12284"
+            }
+        },
+        {
+            "25": {
+                "title": "A survey of large language models.",
+                "author": "Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang, Xiaolei Wang, Yupeng Hou,\nYingqian Min, Beichen Zhang, Junjie Zhang, Zican Dong, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.18223.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.03558v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2",
+            "2.3"
+        ],
+        "methodology_sections": [
+            "4"
+        ],
+        "main_experiment_and_results_sections": [
+            "5",
+            "5.1",
+            "5.2",
+            "5.3",
+            "5.4",
+            "5.5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "5.1",
+            "5.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.03558v1",
+        "paper_title": "Benchmarking Hallucination in Large Language Models based on Unanswerable Math Word Problem",
+        "research_background": "### Paper's Motivation\n\nThe primary motivation of this paper is to evaluate the degree of hallucination in Large Language Models (LLMs) by focusing on Math Word Problems (MWPs). Hallucination, defined as the generation of content that is nonsensical or unfaithful to the provided source, represents a significant issue in LLM outputs, especially in ambiguous contexts. The paper recognizes the need to rigorously benchmark hallucination since it has the potential to mislead users significantly. The phenomenon of hallucination is particularly challenging within the domain of MWPs because these problems heavily rely on the model\u2019s intrinsic abilities in comprehension, reasoning, and computation, which makes mitigating hallucination more complex. \n\n### Research Problem\n\nThe research problem addressed by this paper is the lack of a standard method and dataset to evaluate LLMs' performance concerning hallucination when dealing with unanswerable MWPs. Existing MWP datasets mainly focus on answerable questions and do not sufficiently consider unanswerable scenarios, which can provoke hallucination in LLMs. The paper seeks to fill this gap by proposing a new dataset, UMWP (consisting of both answerable and unanswerable MWPs), and a novel method to benchmark hallucination based on this dataset.\n\n### Relevant Prior Work\n\nThe paper builds on several lines of relevant prior work:\n\n1. **Advancements in LLMs and Hallucination**: The paper references advancements made by prominent LLMs like OpenAI\u2019s GPT-4 (OpenAI, 2023), Meta AI\u2019s LLaMA-2 (Touvron et al., 2023a), and Google\u2019s PaLM 2 (Anil et al., 2023), which showcase exceptional performance in various NLP tasks but still struggle with hallucination in ambiguous contexts (Rawte et al., 2023; Ji et al., 2023).\n\n2. **Impact of Hallucination**: Significant concern has been raised over hallucinations in generated content, which can mislead users (Talmor et al., 2019). Hallucination is particularly problematic in complex tasks such as MWPs, where intrinsic comprehension, reasoning, and computation are crucial.\n\n3. **Evaluating Extractive Reading Comprehension**: Previous studies like Rajpurkar et al. (2018) have observed that extractive reading comprehension systems tend to make unreliable guesses when the context is ambiguous or missing, a phenomenon also observed in LLMs.\n\n4. **Existing MWP Datasets**: The paper notes that existing MWP datasets (Hendrycks et al., 2021; Cobbe et al., 2021; Patel et al., 2021) focus exclusively on answerable questions, highlighting the need for datasets addressing unanswerable scenarios.\n\nBy building upon these prior works, the paper aims to develop a more rigorous tool for evaluating and understanding hallucination in the context of MWPs.",
+        "methodology": "The methodology section describes a novel approach to quantitatively evaluate the degree of hallucination in Large Language Models (LLMs) by assessing their responses to unanswerable math word problems. Here\u2019s a summary of the proposed method:\n\n1. **Input Forms and Observation**: \n    - The analysis focuses on various input forms, particularly Instruction and In-Context Learning (ICL) inputs, based on the study by Ouyang et al. (2022).\n    - The researchers observe that LLMs tend to produce template-like outputs with uncertain meanings in these forms. In contrast, for Direct input forms, LLM outputs might include words indicating uncertainty, such as \"unknown\" or \"unsure\".\n\n2. **Unanswerability Judgement**: \n    - **Similarity Function**: A similarity function \\(\\text{Sim}(\\cdot,\\cdot)\\) is defined to compute the similarity \\(s\\) between a given sentence \\(S\\) and a set \\(\\mathcal{T}\\). The set \\(\\mathcal{T}\\) contains template sentences deemed unanswerable.\n    - **Threshold**: A predetermined threshold \\(t\\) is set.\n    - **Condition for Unanswerability**: If the condition \\(s \\ge t\\) holds, the output is considered \"unanswerable\".\n\n3. **Variable Expression Identification**:\n    - **Tokenization**: The LLM's output is tokenized using the open-source tool Spacy (Montani et al., 2023).\n    - **Text Cleanup**: Common vocabulary and space characters are removed from the text.\n    - **Regex Check**: The presence of valid variable expressions is checked using regular expressions. If such expressions are found, the output is labeled as \u201cunanswerable\u201d.\n\n4. **Evaluation Metric**:\n    - **F1 Score**: The F1 score is adopted as the metric for evaluating the degree of hallucination in LLMs.\n    - **Case Designation**: Unanswerable questions are designated as positive cases, while answerable questions are designated as negative cases for the purpose of this evaluation.\n\nThis methodology provides a structured approach to distinguish whether LLMs recognize an unanswerable math word problem and appropriately signify their uncertainty or not.",
+        "main_experiment_and_results": "**Main Experiment Setup**\n\nWe conduct experiments using a series of Large Language Models (LLMs), including GPT-3, InstructGPT, Claude, LLaMA, and LLaMA-2. The experiments employ three different input forms: Direct, Instruction, and In-Context Learning (ICL).\n\n**Datasets**\n\nThe main dataset used for these experiments is the Unanswerable Math Word Problems (UMWP) dataset. We ensure consistency by maintaining the proportion of unanswerable questions across different categories in the sample size of 520 questions, which are randomly sampled.\n\n**Baselines**\n\nThe baseline models in the study include:\n\n- GPT-3\n- InstructGPT\n- Claude\n- LLaMA series\n- LLaMA-2 series\n\n**Evaluation Metrics**\n\nThe primary evaluation metric for this study is the F1 Score, which measures the LLMs' ability to recognize hallucination. Additionally, the Cohen\u2019s kappa coefficient is used to determine the consistency with human judgment for evaluating the alignments.\n\n**Main Experimental Results**\n\n1. **LLaMA Series Performance:** \n   - There is a continuous improvement in the model\u2019s F1 Score as the model size increases across all three input forms.\n\n2. **InstructGPT Series Performance:** \n   - A general trend of improvement is observed with larger model sizes, although there are some exceptions, such as text-babbage-001.\n\n3. **Impact of Input Forms:** \n   - Instruction and ICL input forms provide richer contextual information compared to Direct inputs, significantly improving the LLMs' ability to recognize hallucination.\n   - The F1 score difference between Instruction and ICL forms decreases as the parameter size increases.\n\n4. **Consistency with Human Judgment:** \n   - Using a template-based approach combined with mathematical expression detection enhances the consistency with human judgment.\n   - The Cohen\u2019s kappa coefficient falls within the range of a good match (>0.75).\n\n5. **Comparison with Human Benchmarks:**\n   - GPT-4 demonstrates the best performance among the LLMs with an F1 score of 85.24%.\n   - However, there is still a performance gap compared to the human benchmark, which registers an F1 score of 93.16%."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Evaluate the effectiveness of LLMs in identifying and avoiding hallucination in unanswerable math word problems (MWP).",
+            "experiment_process": "The experiment uses the SimCSE similarity function to assess text similarity, incorporating a threshold based on previous studies. Generation parameters for GPT, InstructGPT, LLaMA, and LLaMA-2 include setting a specific temperature. A sliding window of length 6 is employed to parse and evaluate output sentences into semantic chunks to address potential errors due to sentence length differences.",
+            "result_discussion": "The results suggest that particular settings and configurations (e.g., temperature, sliding window, use of similarity function) can effectively reduce hallucination in LLM outputs when dealing with unanswerable MWPs. This indicates that with proper tuning, LLMs are capable of better recognizing and handling ambiguous or unanswerable scenarios.",
+            "ablation_id": "2403.03558v1.No1"
+        },
+        {
+            "research_objective": "Construct a reliable set of unanswerable responses from various LLMs to aid in hallucination evaluation.",
+            "experiment_process": "Answers labeled as 'unanswerable' from 31 different LLMs were aggregated to construct the set U. A subsequent manual filtering process was undertaken to remove incorrect strings, ensuring the quality and reliability of set U. Further details on the construction process and manual filtering are provided in Section A.5.",
+            "result_discussion": "The construction and refinement of set U highlight common features in unanswerable responses across varied LLMs, providing a consistent basis for evaluating model performances. Manual filtering ensures accuracy, which is critical for subsequent evaluation of hallucination tendencies.",
+            "ablation_id": "2403.03558v1.No2"
+        }
+    ]
+}

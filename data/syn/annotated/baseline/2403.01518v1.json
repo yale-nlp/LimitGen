@@ -1,0 +1,237 @@
+{
+    "title": "Revisiting Dynamic Evaluation: Online Adaptation for Large Language Models",
+    "abstract": "We consider the problem of online finetuning the parameters of a language model at test time, also known as dynamic evaluation. While it is generally known that this approach improves the overall predictive performance, especially when considering distributional shift between training and evaluation data, we here emphasize the perspective that online adaptation turns parameters into temporally changing states and provides a form of context-length extension with memory in weights, more in line with the concept of memory in neuroscience. We pay particular attention to the speed of adaptation (in terms of sample efficiency), sensitivity to the overall distributional drift, and the computational overhead for performing gradient computations and parameter updates. Our empirical study provides insights on when online adaptation is particularly interesting. We highlight that with online adaptation the conceptual distinction between in-context learning and finetuning blurs: both are methods to condition the model on previously observed tokens.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "Transformer-based language models can be conceptualized as systems with two distinct memory components: one is given by the model\u2019s parameters, where learning (through gradient descent) encodes information from the training set into this memory. The other is the context, which roughly corresponds to the persistent hidden states in recurrent neural networks. For transformers, context is a non-parametric form of memory: the tokens within the attention window.\n\nLLMs heavily rely on context to condition the model towards the desired behaviour. However, the prompt is a precious resource, and for transformers, the cost of inference grows with the size of the attention window. This becomes more problematic in multimodal systems, where images or short videos can easily exhaust the context tokens we can afford to use.\n\nWith dynamic evaluation as explored by Krause et al. (2018, 2019), the concept of updating model parameters at test time is introduced, with model parameters becoming part of the temporal, changing state of the model. Parameters can capture longer-term information that exceeds the length of the context window and are also suited to adapt to distributional changes that exceed the in-context adaptability of the model. Online learning can be seen as a particular type of memory, especially suited to changes like style or topic, which appear to the model as a distribution shift in the observations.\n\nWe investigate various trade-offs when online-adapting transformer-based LLMs with gradient descent on long text sequences."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Methods for SGD online adaptation",
+            "text": "In this section, we describe the methods that we put in place to make our study possible. These methods have two main goals:\n\n(i) learn from a sequence of tokens longer than the model context, and\n\n(ii) efficiently update the model parameters and reduce the memory and/or compute footprint of online adaptation.\n\nThe challenge is that transformer implementations operate on a limited, typically fixed number of tokens each time they are invoked. To operate on longer sequences they have to be broken into sub-sequences, and the model implementation operates on such a sub-sequence at a time. \n\nCompared to static evaluation, online adaptation requires additional computational resources for the backward pass and, typically, additional memory for the optimizer state. We investigate an approach to mitigate these costs:\n\nReducing the Update Frequency. In order to vary the computational cost of online learning, and to construct Pareto fronts that highlight the compute vs. performance trade-offs, we update the parameters only every nth forward step. While this approach leads to a suboptimal performance, we show in our experiments that it can strike interesting trade-offs."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Experimental Setup",
+            "text": "To investigate the online adaptability of transformers, we use the books from Project-Gutenberg (the PG-19 dataset) as a source for long and consistent text sequences. The starting point for all experiments is a transformer pretrained on the C4 dataset. We experiment with different model sizes, between 150M and 1B parameters; Appendix B contains the experimental details. The pretrained models are then finetuned on books from the PG-19 training set because the content and style of text in the C4 dataset, which consists mostly of internet-scraped data, and PG-19, which contains books from before 1919, is significantly different.\n\nThe finetuned models are then tested against the sequence of 100 books from the PG-19 test set. For the test sequence, we record the (cumulative) log-losses for all tokens. We concatenate the 100 books from the PG-19 test set, in the order they are stored, to form a fixed sequence of 11.8M tokens.\n\nFigure 1 visualizes typical results: We compare static evaluation vs. dynamic evaluation where the model is reset to the finetuned model at each book boundary. The static model accumulates in total 26.73 M nats log-loss on the test sequence (2.26 nats/token), while the dynamic model accumulates 26.20 M nats (corresponding to 2.20 nats/token).\n\nThe regret plots show the cumulative log-loss relative to the static comparator: a flat curve indicates that a model has on average the same per-token log-loss as the comparator around the position, while positive and negative slopes indicate a locally higher or lower log-loss respectively. It often takes the online adapting model some thousand tokens to show a clear advantage over the static model. Just after book boundaries, a continuously adapted model often underperforms compared to the pretrained (static or dynamic) model. This may not be surprising as the continuously learning model has specialized to the previous books, but also suggests that more advanced adaptation methods should be able to close this gap."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Overlapping vs. Transformer-XL style updates",
+            "text": "Figure 2 shows the results when using varying increment lengths. We observe that the differences are minuscule."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Online Learning - An analysis of compute vs. performance",
+            "text": "In order to understand the impact of online learning and its interaction with in-context learning, we conduct a large exploration varying:\n\nThe number of samples used for finetuning: This allows us to control the distribution shift that the model is faced with \u2013 the more the model is finetuned on the training set of PG-19, the more it is in-distribution with respect to the test sequence.\n\nThe model context size: We hypothesize that online learning can have similar benefits as larger context windows. We therefore compare online adapted models with short context windows to in-context learning in models with longer context windows.\n\nThe model size: We are interested in understanding how our observations generalize across different scales.\n\nIn Figure 3, we first look at a single model size (1B parameters) and compare the Pareto fronts corresponding to two context sizes (512 and 2048) as we vary the number of samples the model is finetuned on. We observe that when the model is directly updated online on the PG-19 test set without prior finetuning, the models with a smaller context exhibit a better compute to performance trade-off than the models with a larger context (left panel). As the amount of finetuning increases, this advantage is reduced (middle panel) and even inverted (right panel). These observations generalize to other model sizes (figures in the appendix). These results suggest that the models favor memory in weights when faced with a large distribution shift between the pretraining and online adaptation data. When the models are more in-distribution with respect to the online data, the results suggest that at a fixed budget, it is better to use a model with a larger context window. Online adaptation however unsurprisingly always improves the performance of the models. Moreover, models with shorter context and online adaptation can achieve a competitive performance to the models with longer context. While this can be more expensive in terms of FLOPs, it comes at a lower memory requirement.\n\nFigure 4 gathers the results obtained with different model sizes (150M, 400M, and 1B parameters). For this figure, we show only models that are updated at every step (corresponding to an update frequency of 1 in Figure 3). We observe that when we increase the amount of finetuning, the number of the static models that appear on the Pareto front increases. We however similarly observe that online adaptation always improves the performance, smaller models with online adaptation can achieve a competitive and sometimes better performance than larger models.\n\nFinally, Figure 5 shows how the static and dynamic model performance scale with the distribution shift (amount of finetuning data) and the model size. The figure shows that while finetuning reduces the gap between static and online evaluation, this gap does not disappear, but rather becomes constant once the model adapts to the change in distribution. Similarly, increasing model size, while also improving overall performance, does not replace the benefit of online learning."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "In this paper, we offered a new perspective on online adaptation of LLMs (a.k.a. dynamic evaluation). Through extensive experiments, we show that when a model is faced with a significant distribution shift, online learning with a smaller context window and/or a smaller model can lead to a better compute-performance Pareto front, which suggests a superiority of the memory in weights over the memory in activations associated with in-context learning. This advantage is reduced and eventually disappears when the model is fine-tuned to the target distribution before the online adaptation phase. We observe that online learning always improves performance. Moreover, for models that are in-distribution, online learning with a smaller context (and therefore smaller memory requirements) can close the gap with in-context learning with a larger context. It is also worth noting that the best results observed with online adaptation employ a simple strategy to avoid that the models overfit to data in the local context by resetting the weights to their value at the start of the online adaptation phase.\n\nThis study opens up many interesting research avenues, such as improving the efficiency of online learning (in terms of memory or compute), automatic detection of reset points, and a better understanding of the difference between what the weight memory and the activation memory capture. In particular, it is to be expected that weight memory would be better suited to store the style or topic of a discussion, which are perceived by the model as a distribution change. Context and retrieval are better at capturing details, leading to a separation of concerns similar to how memory of biological systems is categorized into different types in cognitive sciences or neuroscience."
+        }
+    ],
+    "appendix": [],
+    "tables": {},
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.01518v1_figure_1.png",
+            "caption": "Figure 1: \nLeft: Cumulative log-loss for dynamic evaluation relative to static evaluation (regret). The starting point is always a model that has been finetuned on the PG-19 training set.\nRight: Detailed view of the regret for the first 5 books.\nVertical green lines indicate the beginning of new books."
+        },
+        "2": {
+            "figure_path": "2403.01518v1_figure_2.png",
+            "caption": "Figure 1: \nLeft: Cumulative log-loss for dynamic evaluation relative to static evaluation (regret). The starting point is always a model that has been finetuned on the PG-19 training set.\nRight: Detailed view of the regret for the first 5 books.\nVertical green lines indicate the beginning of new books."
+        },
+        "3": {
+            "figure_path": "2403.01518v1_figure_3.png",
+            "caption": "Figure 2: \nRegret plot of Transformer-XL style online learning with varying increment-size relative to\nOverlapping online learning with 0.5 overlap. We observe that Transformer-XL style online learning generally leads to 20k to 70k fewer accumulated loss. However, 70k nats\nover 11.8M tokens corresponds to only about 0.006 nat/token uplift \u2013 a minuscule\nimprovement compared to the differences plotted in Figures 1 to 11."
+        },
+        "4": {
+            "figure_path": "2403.01518v1_figure_4.png",
+            "caption": "Figure 3: \nPerformance vs. compute (FLOPs) for static and dynamic evaluation. Models with 1 billion parameters, varying the context size and the number of finetuning samples (books). The Pareto front is constructed by varying the update frequency."
+        },
+        "5": {
+            "figure_path": "2403.01518v1_figure_5.png",
+            "caption": "Figure 4: \nPerformance vs. compute (FLOPs) for static and dynamic evaluation. Varying model and context sizes, and the number of finetuning samples. The models are updated with every new observation."
+        },
+        "6": {
+            "figure_path": "2403.01518v1_figure_6.png",
+            "caption": "Figure 5: \nLeft: Scaling of the average PG-19 test loss with size of PG-19 i.i.d. finetuning dataset (for the 400 M model).\nRight: Average test NLL as a function of the model size (after finetuning on 10k books)"
+        },
+        "7": {
+            "figure_path": "2403.01518v1_figure_7.png",
+            "caption": "Figure 5: \nLeft: Scaling of the average PG-19 test loss with size of PG-19 i.i.d. finetuning dataset (for the 400 M model).\nRight: Average test NLL as a function of the model size (after finetuning on 10k books)"
+        },
+        "8": {
+            "figure_path": "2403.01518v1_figure_8.png",
+            "caption": "Figure 6: Comparing sequence length distribution between PG-19 and C4 datasets. For C4, this histogram corresponds to a subset of 10 million samples. The vertical dashed lines show the context length used in our experiments."
+        },
+        "9": {
+            "figure_path": "2403.01518v1_figure_9.png",
+            "caption": "Figure 7: Comparing token distribution between PG-19 and C4 datasets. For C4, this histogram represents a subset of 10 million samples."
+        },
+        "10": {
+            "figure_path": "2403.01518v1_figure_10.png",
+            "caption": "Figure 8: Performance vs. compute (FLOPs). Models with 150 million parameters. Pareto fronts for each context size and number of finetuning samples constructed by varying the update frequency and evaluation methods (static vs. dynamic)"
+        },
+        "11": {
+            "figure_path": "2403.01518v1_figure_11.png",
+            "caption": "Figure 9: Performance vs. compute (FLOPs). Models with 400 million parameters. Pareto fronts for each context size and number of finetuning samples constructed by varying the update frequency and evaluation methods (static vs. dynamic)"
+        },
+        "12": {
+            "figure_path": "2403.01518v1_figure_12.png",
+            "caption": "Figure 10: \nAdapting only a subset of the transformer blocks:\nThe blue curve shows the average log-loss when updating a single transformer block\nat one of the layer indices 1 to 12. The yellow curve shows the performance when updating two successive blocks at\nlayers 1+2, 3+4, 5+6, \u2026."
+        },
+        "13": {
+            "figure_path": "2403.01518v1_figure_13.png",
+            "caption": "Figure 11: Cumulative log-loss for dynamic evaluation with LoRA relative to full finetuning (regret).\nNote the steep blue curves for static model evaluation: static evaluation quickly accumulates dramatically more log-loss\nthan all the dynamic evaluated models."
+        },
+        "14": {
+            "figure_path": "2403.01518v1_figure_14.png",
+            "caption": "Figure 11: Cumulative log-loss for dynamic evaluation with LoRA relative to full finetuning (regret).\nNote the steep blue curves for static model evaluation: static evaluation quickly accumulates dramatically more log-loss\nthan all the dynamic evaluated models."
+        },
+        "15": {
+            "figure_path": "2403.01518v1_figure_15.png",
+            "caption": "Figure 11: Cumulative log-loss for dynamic evaluation with LoRA relative to full finetuning (regret).\nNote the steep blue curves for static model evaluation: static evaluation quickly accumulates dramatically more log-loss\nthan all the dynamic evaluated models."
+        },
+        "16": {
+            "figure_path": "2403.01518v1_figure_16.png",
+            "caption": "Figure 12: Performance vs. Compute (FLOPs) Models with 1 billion parameters adapted online with LoRA (rank indicated in the legend) compared to static models and fully finetuned models)."
+        },
+        "17": {
+            "figure_path": "2403.01518v1_figure_17.png",
+            "caption": "Figure 13: Performance vs. size of trainable parameters. Models with 1 billion parameters adapted online with LoRA (rank indicated in the legend) compared to static models and fully finetuned models (LoRA rank = 0)."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Transformer-xl: Attentive language models beyond a fixed-length\ncontext.",
+                "author": "Z. Dai, Z. Yang, Y. Yang, J. Carbonell, Q. V. Le, and R. Salakhutdinov.",
+                "venue": "arXiv preprint arXiv:1901.02860, 2019.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Lora: Low-rank adaptation of large language models.",
+                "author": "E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and\nW. Chen.",
+                "venue": "arXiv preprint arXiv:2106.09685, 2021.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Dynamic evaluation of neural sequence models.",
+                "author": "B. Krause, E. Kahembwe, I. Murray, and S. Renals.",
+                "venue": "In International Conference on Machine Learning, pages\n2766\u20132775. PMLR, 2018.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Dynamic evaluation of transformer language models.",
+                "author": "B. Krause, E. Kahembwe, I. Murray, and S. Renals.",
+                "venue": "arXiv preprint arXiv:1904.08378, 2019.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Sentencepiece: A simple and language independent subword tokenizer\nand detokenizer for neural text processing.",
+                "author": "T. Kudo and J. Richardson.",
+                "venue": "arXiv preprint arXiv:1808.06226, 2018.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Decoupled weight decay regularization.",
+                "author": "I. Loshchilov and F. Hutter.",
+                "venue": "arXiv preprint arXiv:1711.05101, 2017.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Compressive transformers for long-range sequence modelling.",
+                "author": "J. W. Rae, A. Potapenko, S. M. Jayakumar, C. Hillier, and T. P. Lillicrap.",
+                "venue": "arXiv preprint, 2019.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Exploring the limits of transfer learning with a unified text-to-text\ntransformer.",
+                "author": "C. Raffel, N. Shazeer, A. Roberts, K. Lee, S. Narang, M. Matena, Y. Zhou,\nW. Li, and P. J. Liu.",
+                "venue": "Journal of Machine Learning Research, 21(140):1\u201367, 2020.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Attention is all you need.",
+                "author": "A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez,\n\u0141. Kaiser, and I. Polosukhin.",
+                "venue": "Advances in neural information processing systems, 30, 2017.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "On layer normalization in the transformer architecture.",
+                "author": "R. Xiong, Y. Yang, D. He, K. Zheng, S. Zheng, C. Xing, H. Zhang, Y. Lan,\nL. Wang, and T. Liu.",
+                "venue": "In International Conference on Machine Learning, pages\n10524\u201310533. PMLR, 2020.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.01518v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2"
+        ],
+        "main_experiment_and_results_sections": [
+            "3",
+            "3.1",
+            "3.2"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "3.1",
+            "3.2"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.01518v1",
+        "paper_title": "Revisiting Dynamic Evaluation: Online Adaptation for Large Language Models",
+        "research_background": "### Motivation\nThe paper is motivated by the reliance of transformer-based language models (LLMs) on context to achieve desired behaviour. The context, in the form of tokens within the attention window, acts as a non-parametric memory for these models. This reliance on context becomes problematic in multimodal systems where the context tokens can easily be exhausted, leading to inefficiencies during inference. The paper addresses this by exploring dynamic evaluation, introducing the concept of online adaptation where model parameters are updated at test time. This allows the model parameters to become part of the temporal, changing state of the model, capturing longer-term information beyond the context window and better adapting to distributional changes.\n\n### Research Problem\nThe primary research problem this paper addresses is optimizing the trade-offs when online-adapting transformer-based LLMs with gradient descent on long text sequences. Specifically, it seeks to identify how dynamic evaluation can be effectively applied to transform model parameters into an adaptive state, enabling the model to handle distributional shifts, like changes in style or topic, more efficiently.\n\n### Relevant Prior Work\n1. **Krause et al. (2018, 2019)** introduced the concept of dynamic evaluation, where model parameters are updated at test time to adapt to temporal changes in the state of the model. This prior work demonstrates that such adaptation can capture information that exceeds the length of the context window and can handle distributional changes more effectively.\n",
+        "methodology": "### Methodology: Revisiting Dynamic Evaluation for Large Language Models\n\nThe methodology section addresses two primary goals:\n\n1. Learning from token sequences longer than the model context.\n2. Efficiently updating model parameters while minimizing memory and computational costs during online adaptation.\n\n#### Strategies for Handling Long Sequences\n\n##### Overlapping Strategy\n- This strategy involves processing sub-sequences with an overlap to handle tokens exceeding the model's fixed input size.\n- Example: For a transformer processing 1000 tokens at a time with a 500-token overlap, the model would process sequences like tokens 1-1000, 501-1500, and so on.\n- Each token is encoded twice: once as a new token and once as context for subsequent tokens.\n- For test-set log-loss calculations, only the first occurrence of each token is utilized.\n- For gradient steps, all tokens in the sub-sequences contribute to the loss and gradient computation.\n- Adjusting the overlap can control computational cost and the number of gradient steps per token.\n\n##### Transformer-XL Style Strategy\n- Inspired by Dai et al. (2019) and Krause et al. (2019), this method uses streaming or key-value (KV) caching.\n- The model can attend not only to tokens from the current forward pass but also to previously computed keys and values.\n- Each token is processed and predicts only once per gradient step, enhancing efficiency.\n\n#### Efficient Online Adaptation Techniques\n\n##### Reducing Update Frequency\n- To manage computational costs for online learning and illustrate compute vs. performance trade-offs, updates are performed less frequently.\n- Parameters are updated every \\( k \\)-th forward step, where \\( k \\) is a chosen interval.\n- Although this approach can lead to suboptimal performance, it may offer beneficial trade-offs.\n\n##### Online LoRA Adaptation\n- A memory-efficient finetuning technique, inspired by Hu et al. (2021), which involves incorporating low-rank matrices into transformer layers.\n- Only the parameters of these low-rank matrices are adapted during finetuning.\n- This approach drastically reduces the number of parameters requiring adaptation, thus decreasing memory requirements with minimal additional computational cost.\n\n#### Summary\nThe proposed methodology leverages two primary strategies to handle longer token sequences and two techniques to optimize computational and memory efficiency for online adaptation. Overlapping and Transformer-XL styles tackle sequence length issues, while reduced update frequency and Online LoRA adaptation aim to balance performance with computational resource constraints.",
+        "main_experiment_and_results": "### Main Experiment Setup\n\n1. **Datasets:**\n   - **Training Dataset:** PG-19 dataset (Rae et al., 2019), consisting of books from Project Gutenberg.\n   - **Pretrained Dataset:** The C4 dataset (Raffel et al., 2020), consisting mostly of internet-scraped data.\n   - **Test Dataset:** A sequence of 100 books from the PG-19 test set, concatenated in order to form a fixed sequence of 11.8M tokens.\n\n2. **Model:**\n   - Transformers pretrained on the C4 dataset.\n   - Experiments conducted on transformer models of various sizes, ranging from 150 million to 1 billion parameters.\n\n3. **Finetuning:**\n   - The pretrained models are finetuned on the PG-19 training set to adapt to the significantly different content and style from the C4 dataset.\n\n4. **Evaluation Metrics:**\n   - **Cumulative log-loss:** Recorded for all tokens in the test sequence.\n   - **Per-token log-loss:** Calculated by normalizing the total log-loss by the number of tokens.\n\n### Baselines\n1. **Static Evaluation:** The model accumulates log-loss without any adaptation during testing.\n2. **Dynamic Evaluation:** The model continually adapts to the incoming token sequence during testing.\n3. **Dynamic Evaluation (Reset at Book Boundary):** The model is continuously adapted but reset to the finetuned model at each book boundary.\n\n### Main Experimental Results\n\n- **Static Evaluation:** \n  - The model accumulates a total of 26.73 million nats log-loss on the test sequence, equivalent to 2.26 nats/token.\n- **Dynamic Evaluation:**\n  - The dynamically adapted model accumulates 26.38 million nats of log-loss, translating to 2.23 nats/token.\n- **Dynamic Evaluation with Reset:**\n  - This model accumulates the lowest log-loss of 26.20 million nats, equivalent to 2.20 nats/token.\n- **Visual Analysis:** \n  - Cumulative log-loss relative to the static model is typically lower for dynamic models after several thousand tokens.\n  - Dynamic models often underperform just after book boundaries, suggesting room for improvement in adaptation methods.\n\nThese results illustrate that dynamic evaluation, whether reset at book boundaries or continuously adapted, consistently outperforms static evaluation. However, the initial performance dip after book boundaries indicates the need for more advanced adaptation methods."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To compare Transformer-XL style online adaptation with overlapping online learning and assess which method has computational advantages.",
+            "experiment_process": "The comparison involved using Transformer-XL style online adaptation with various increment lengths and overlapping online learning with a 50% overlap (1024 tokens). The performance differences were analyzed to determine any significant discrepancies.",
+            "result_discussion": "The results showed minimal differences between the two methods. Therefore, Transformer-XL style online learning was preferred due to its computational advantage of encoding every token only once.",
+            "ablation_id": "2403.01518v1.No1"
+        },
+        {
+            "research_objective": "To analyze the impact of online learning on performance and its efficacy compared to in-context learning with different model context sizes and scales.",
+            "experiment_process": "The study varied the following parameters: number of samples used for finetuning (to control distribution shift), model context size (to compare short and long context windows), and model size (to test scalability). The experiment involved updating a 1B parameter model online using the PG-19 test set and comparing it to in-context learning across different context sizes (512 and 2048 tokens). The performance was examined under different degrees of finetuning and extended to smaller models (150M, 400M parameters) with evaluations based on compute to performance trade-offs, memory requirements, and overall performance metrics.",
+            "result_discussion": "It was observed that models with shorter context and online adaptation had a better compute-to-performance trade-off than those with larger context when directly updated without prior finetuning. However, as finetuning increased, the benefits reduced and even inverted. The study generalized these observations to other model sizes. Moreover, online adaptation consistently improved model performance, allowing smaller models with online adaptation to compete with or outperform larger static models. Finetuning reduced performance gaps but did not eliminate them, indicating that online learning remains beneficial even as distribution shifts decrease and model sizes increase.",
+            "ablation_id": "2403.01518v1.No2"
+        }
+    ]
+}

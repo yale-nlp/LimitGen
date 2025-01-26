@@ -1,0 +1,547 @@
+{
+    "title": "Exploring Language Model\u2019s Code Generation Ability with Auxiliary Functions",
+    "abstract": "Auxiliary function is a helpful component to improve a language model\u2019s code generation ability. However, a systematic exploration of how they affect has yet to be done. In this work, we comprehensively evaluate the ability to utilize auxiliary functions encoded in recent code-pretrained language models. First, we construct a human-crafted evaluation set, called HumanExtension, which contains examples of two functions where one function assists the other. With HumanExtension, we design several experiments to examine their ability in a multifaceted way. Our evaluation processes enable a comprehensive understanding of including auxiliary functions in the prompt in terms of effectiveness and robustness. An additional implementation style analysis captures the models\u2019 various implementation patterns when they access the auxiliary function. Through this analysis, we discover the models\u2019 promising ability to utilize auxiliary functions including their self-improving behavior by implementing the two functions step-by-step. However, our analysis also reveals the model\u2019s underutilized behavior to call the auxiliary function, suggesting the future direction to enhance their implementation by eliciting the auxiliary function call ability encoded in the models. We release our code and dataset to facilitate this research direction.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "Program synthesis, i.e., writing function code by taking natural language descriptions as inputs, has garnered attention in the research community (Yin and Neubig, 2017; Rahit et al., 2020; Austin et al., 2021; Li et al., 2022). With the help of language modeling, several code-pretrained Large Language Models (LLMs) implement functions with prompts that contain target function signatures (Fried et al., 2023; Nijkamp et al., 2023b, a; Allal et al., 2023; Li et al., 2023; Gunasekar et al., 2023).\n\nAdditional code components, e.g., comment lines (Gao et al., 2023), documents (Zhou et al., 2023c), and other function and class definitions across files (Ding et al., 2023), have been attached to the prompts to boost up their implementation ability.\n\nAuxiliary function is one promising component to improve their code synthesis ability. We define the auxiliary function as a function that handles a subroutine for the target one or performs an easier version of the actual requirements. When this function is included in the prompt, LLMs could call the function to delegate their subroutine or refer to their implementation while synthesizing the target function. However, due to the lack of an evaluation dataset that enables a systematic examination of how these auxiliary functions are utilized, no structured analysis has yet to be conducted.\n\nIn this work, we investigate several LLMs\u2019 ability to utilize auxiliary functions. To do this, we first construct an evaluation dataset, called HumanExtension, which contains human-crafted examples of two functions that are closely related to each other. Specifically, we guided labelers to extend functions in the HumanEval dataset (Chen et al., 2021). We offer software design concepts related to function extension such as subtyping (Liskov and Wing, 1994) to promote labelers to create realistic function relationships. Additionally, the curated examples are parsed into several components to enable robustness evaluation similar to Wang et al. (2023a).\n\nWith the HumanExtension dataset, we conduct systematic analyses to understand how LLMs leverage auxiliary functions. First, we investigate if appending a single auxiliary function to the prompt enhances the likelihood of accurately implementing the target function. Specifically, we design several prompts with auxiliary functions while considering their existence, their functional relevance, and the availability to access auxiliary function implementations. With these prompts, we generate implementations with LLMs and analyze the model behavior focusing on the auxiliary function\u2019s effectiveness, robustness, and the models\u2019 implementation style.\n\nSecond, we examine the cases where LLMs can access multiple auxiliary functions for synthesizing target functions. The randomly sampled auxiliary functions are additionally included in the prompts to verify whether LLMs can selectively use the appropriate one. Similar to Liu et al. (2023b), we inspect whether the position of a relevant function affects their code generation ability. This investigation is combined with the implementation style analysis to permit an in-depth analysis through the lens of the auxiliary function call.\n\nOur experimental results show current LLMs\u2019 capabilities to utilize auxiliary function and their limitations. First, most LLMs exhibit large performance improvement with proper relevant auxiliary functions. Also, for some advanced LLMs, our evaluation process sheds light on their self-improving behavior by implementing the two functions in a step-by-step manner. However, the ability to utilize auxiliary functions is varied depending on the factors that do not change their functionality, which raises a question about their robustness. In addition, our implementation style analysis results reveal that the models prefer repeating the internal logic in the auxiliary function even when the logic can be easily handled by simply calling them. Finally, our human preference evaluation of their style shows this disparity between model-generated implementation and that of humans, suggesting the future direction of enhancing the ability to delegate their subroutine to the auxiliary functions by calling them."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Related work",
+            "text": "Several studies have been conducted to evaluate code generation ability (Xu et al., 2022  ###reference_b36###).\nNeelakantan et al. (2016  ###reference_b26###); Iyer et al. (2018  ###reference_b16###) first introduce neural networks into code completion tasks and evaluate them on traditional metrics, e.g., BLEU.\nChen et al. (2021  ###reference_b6###) propose the HumanEval dataset and show LLMs can generate functionally correct implementations by introducing a functional correctness evaluation process.\nConcurrently, Austin et al. (2021  ###reference_b2###) propose the MBPP dataset for Python basic programs and Hendrycks et al. (2021  ###reference_b13###) release the APPS dataset related to coding contest problems.\nConsecutive studies have proposed datasets targeted for realistic purposes.\nLai et al. (2023  ###reference_b18###) focused on data science problems and Wang et al. (2023b  ###reference_b35###) paid attention to realistic coding queries from StackOverflow and Yu et al. (2024  ###reference_b38###) aimed at Python and Java code generation tasks from real-world open-source projects, and Babe et al. (2023  ###reference_b3###) concentrated on beginning programmers.\nThese work are combined and included in several coding benchmarks (Lu et al., 2021  ###reference_b24###; Khan et al., 2023  ###reference_b17###; Ni et al., 2023  ###reference_b27###).\nFor the metrics, Dong et al. (2023  ###reference_b8###) propose CodeScore to estimate functional correctness and Zhou et al. (2023b  ###reference_b42###) propose CodeBERTScore that utilizes BERTScore (Zhang et al., 2020  ###reference_b39###).\nThere exists research work that extends the HumanEval dataset to support other features.\nCassano et al. (2022  ###reference_b5###); Zheng et al. (2023  ###reference_b40###) extend the dataset to support multiple programming languages and Liu et al. (2023a  ###reference_b22###) propose the HumanEval+ dataset that extends their test case to enable rigorous evaluation of functional correctness.\nWang et al. (2023a  ###reference_b34###) focused on prompt robustness by extending the HumanEval dataset.\nHowever, an evaluation procedure that enables systematic analysis of how LLMs leverage auxiliary functions has yet to be released in code generation tasks."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Dataset",
+            "text": "We manually construct a variety of coding examples with corresponding auxiliary functions.\nTo do this, we treat the Python examples in the HumanEval dataset as our base auxiliary functions and employ human experts to create an extended function for each example.\nWe guide them to produce functions that have additional functionalities compared to the given functions.\nThe following aspects are considered to remove the ambiguity inside the concept of extension and enhance their quality.\nThere exist two different types of extension, i.e., black-box extension and white-box extension.\nThe black-box extension extends a function by calling the auxiliary function.\nIt does not consider the internal mechanism of the auxiliary function.\nHowever, the white-box extension extends them by rewriting the improved internal mechanism.\nWe allow any type of extension, but recommend the black-box one as calling the existing functions if possible is mostly better than rewriting the whole mechanism (Fowler, 2018  ###reference_b9###).\nWe show the Liskov-substitution principle and the concept of subtyping (Liskov and Wing, 1994  ###reference_b21###) to the labelers.\nIn doing so, we expect that the curated function could be treated as an extended version of the given function from the software engineering point of view.\nWe filtered out some examples in the HumanEval dataset that are not appropriate for using auxiliary functions.\nWe removed the examples that provide the same functionality embedded in Python built-in functions, e.g., sum_to_n, as it already serves through the Python features.\nAlso, the examples that are semantically duplicated with other examples are excluded from the final evaluation set.\nFor example, if the two functions handle the same logic to process symbols but accept brackets or parentheses as their inputs, one of them is removed.\nWe collect 151 problems representing a function pair that one function extends the other and name it HumanExtension.\nAdditionally, we mechanically parse these code snippets and create features for components for future usage."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": "We comprehensively evaluate LLMs\u2019 ability to harness auxiliary functions using our HumanExtension dataset. To do this, we designed research questions as follows. RQ1: Could LLMs properly and robustly utilize different types of auxiliary functions? RQ2: How do LLMs\u2019 implementations vary when they access relevant auxiliary functions? RQ3: Do current training methodologies enhance the ability to utilize auxiliary functions? We first examine the effectiveness and robustness of including a single auxiliary function in the prompt and extend this setting into multiple auxiliary functions. Also, we explore their implementation styles and analyze them based on human preference. We collect several LLMs pre-trained on code described as follows. Incoder is the early open-source decoder-only generative language model pretrained on public codes and StackOverflow questions and answers. CodeGen is another open-source language model pretrained on public codes. We use two versions where \u201cMulti\u201d represents pre-training on multiple programming languages and \u201cMono\u201d is additionally trained on Python codes from the \"Multi\" checkpoint. BigCode releases two checkpoints, i.e., SantaCoder and StarCoder, pretrained on public codes. They adopt various data-cleaning techniques to enhance the quality of the training corpus. CodeLLaMA is a variant of LLaMA2 additionally pretrained on code corpus. CodeLLaMAPython and CodeLLaMAInstruct are further trained on Python codes and instruction following datasets, respectively. We follow the decoding strategy for LLMs consistent with the existing benchmark. We use nucleus sampling with top-p 0.95 and low-temperature scaling, i.e., 0.2, focusing on the correctness of the generated implementation. The models generate at most 512 tokens for each prompt and stop generation when either end of sequence token or predefined stop sequences, i.e., \"\\ndef\", \"\\nclass\", \"\\nif\", \"\\n#\", are generated. The implementations generated by the models are evaluated on functional correctness based on the corresponding test cases. Specifically, an implementation is regarded as functionally correct when it passes all the corresponding test cases. Whole models exhibit remarkable improvement when they access the human-written relevant auxiliary functions (Table 1, Oracle). It implies that most LLMs could utilize the proper relevant auxiliary function. The improvement is observed even for the most recent competitive model, i.e., CodeLLaMAPython 34B, indicating assisting code synthesis with auxiliary function is still a valid approach even as the model size grows. Considering the \"Step-by-step\" column in Table 1, the model-written relevant auxiliary functions contribute to the improvement for some advanced LLMs. CodeLLaMA series, StarCoder, CodeGenMono series, and Incoder 6B properly utilize the auxiliary function written by themselves. It suggests that the models can improve their codes if we provide a two-step plan in the form of function signatures. We attach one successful example that calls the generated auxiliary function during target implementation in Figure 1(b). In this sense, this approach is similar to the Least-to-Most prompting that solves target tasks with the model-generated answer of predefined subtasks. We observe that providing an irrelevant auxiliary function brings meaningful improvement on few models. To investigate how these functions affect the target implementation, we qualitatively analyze the examples that CodeLLaMAPython 13B successfully generates under both settings, i.e., irrelevant and step-by-step. In Figure 2, we found that the irrelevant auxiliary function acts as a demonstration like few-shot prompting so that the few models exhibit performance improvement. However, since the given auxiliary function is not relevant to the target function (Figure 1(a)), no implementation pattern that directly utilizes the auxiliary function is found. On the contrary, the relevant auxiliary functions are successfully utilized by calling in the target function and reduce their implementation difficulty (Figure 1(b)). Therefore, we conclude there exists a unique advantage of providing relevant auxiliary function although the irrelevant one is helpful to some extent. We investigate how the additional training with Python corpus affects its ability to utilize auxiliary functions. To do this, we compare the two model families specialized in Python, i.e., CodeGenMono and CodeLLaMAPython. In these model groups, we observed higher pass rates compared to the corresponding base model groups, i.e., CodeGenMulti and CodeLLaMA. Comparing CodeGenMono 2B and CodeGenMulti 2B, the pass rate is similar when no auxiliary function is provided (Direct), but the pass rate of CodeGenMono becomes significantly higher than that of CodeGenMulti when we provide an appropriate auxiliary function (Oracle). Additionally, in the Step-by-step setting, CodeGenMono models show meaningful improvement while CodeGenMulti could not. In the case of CodeLLaMA, CodeLLaMAPython models show higher pass rates in the whole model size. From these experimental evidences, we conclude that additional learning with Python code enhances the ability to utilize auxiliary functions. We speculate that the Python codes"
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Single auxiliary function experiment",
+            "text": "We measure the effectiveness of an auxiliary function in a code synthesis task by designing several prompts varying their existence and type. Currently, the prompt used in the existing work to solve the task is mainly composed of a target function signature with the corresponding import statements (Ben Allal et al., 2022; Cassano et al., 2022; Chen et al., 2021). We attached the auxiliary function signature and their implementation between the import statements and the target function signature to allow LLMs to access the knowledge about auxiliary functions. Our prompts with several types of auxiliary functions are described as follows.\n\nNo auxiliary function (Direct): Prompt consists of a target function signature without auxiliary functions. This setting acts as a baseline in our experiments. Human-written irrelevant auxiliary function (Irrelevant): We attached an irrelevant auxiliary function written by humans in the prompt. We constructed an auxiliary function pool with the canonical solutions in the HumanEval dataset (Chen et al., 2021) and sampled an irrelevant function from the pool to construct the prompt.\n\nModel-written relevant auxiliary function (Step-by-step): We utilize the relevant auxiliary function written by the model in the prompt. Concretely, LLMs first synthesize relevant auxiliary function and then it is attached to the prompt for implementing the target function. Note that only a relevant auxiliary function signature without their implementation is additionally required for this setting.\n\nHuman-written relevant auxiliary function (Oracle): We provide a relevant auxiliary function written by humans to the model. The corresponding canonical solutions in the HumanEval dataset are used for human-written relevant auxiliary functions. We consider this setting as an oracle because these functions are currently the best in terms of quality and understandability. The details about function signature, e.g., type annotation and docstring format, are consistent with the format curated in Cassano et al. (2022).\n\nWe collect several LLMs pre-trained on code described as follows. Incoder (Fried et al., 2023) is the early open-source decoder-only generative language model pretrained on public codes and StackOverflow questions and answers. CodeGen (Nijkamp et al., 2023b) is another open-source language model pretrained on public codes. We use two versions where \u201cMulti\u201d represents pre-training on multiple programming languages and \u201cMono\u201d is additionally trained on Python codes from the \"Multi\" checkpoint. BigCode (Allal et al., 2023; Li et al., 2023) releases two checkpoints, i.e., SantaCoder and StarCoder, pretrained on public codes. They adopt various data-cleaning techniques to enhance the quality of the training corpus. CodeLLaMA (Rozi\u00e8re et al., 2023) is a variant of LLaMA2 (Touvron et al., 2023) additionally pretrained on code corpus. CodeLLaMAPython and CodeLLaMAInstruct are further trained on Python codes and instruction following datasets, respectively.\n\nWe follow the decoding strategy for LLMs consistent with the existing benchmark (Ben Allal et al., 2022). We use nucleus sampling (Holtzman et al., 2020) with top-p 0.95 and low-temperature scaling, i.e., 0.2, focusing on the correctness of the generated implementation. The models generate at most 512 tokens for each prompt and stop generation when either end of sequence token or predefined stop sequences, i.e., \"\\ndef\", \"\\nclass\", \"\\nif\", \"\\n#\", are generated. The implementations generated by the models are evaluated on functional correctness based on the corresponding test cases. Specifically, an implementation is regarded as functionally correct when it passes all the corresponding test cases.\n\nWe observe that providing an irrelevant auxiliary function brings meaningful improvement on few models. To investigate how these functions affect the target implementation, we qualitatively analyze the examples that CodeLLaMAPython 13B successfully generates under both settings, i.e., irrelevant and step-by-step. In Figure 2, we found that the irrelevant auxiliary function acts as a demonstration like few-shot prompting so that the few models exhibit performance improvement. However, since the given auxiliary function is not relevant to the target function, no implementation pattern that directly utilizes the auxiliary function is found. On the contrary, the relevant auxiliary functions are successfully utilized by calling in the target function and reduce their implementation difficulty.\n\nWe investigate how the additional training with Python corpus affects its ability to utilize auxiliary functions. To do this, we compare the two model families specialized in Python, i.e., CodeGenMono and CodeLLaMAPython. In these model groups, we observed higher pass rates compared to the corresponding base model groups, i.e., CodeGenMulti and CodeLLaMA. Comparing CodeGenMono 2B and CodeGenMulti 2B, the pass rate is similar when no auxiliary function is provided (Direct), but the pass rate of CodeGenMono becomes significantly higher than that of CodeGenMulti when"
+        },
+        {
+            "section_id": "4.1.1",
+            "parent_section_id": "4.1",
+            "section_name": "4.1.1 Performance analysis",
+            "text": "We report the performances and the relative improvement compared with the one without auxiliary function in Table 1 and compare them to identify the effectiveness of different auxiliary functions. Whole models exhibit remarkable improvement when they access the human-written relevant auxiliary functions (Table 1, Oracle). It implies that most LLMs could utilize the proper relevant auxiliary function. The improvement is observed even for the most recent competitive model, i.e., CodeLLaMAPython 34B, indicating assisting code synthesis with auxiliary function is still a valid approach even as the model size grows.\n\nConsidering the \"Step-by-step\" column in Table 1, the model-written relevant auxiliary functions contribute to the improvement for some advanced LLMs. CodeLLaMA series, StarCoder, CodeGenMono series, and Incoder 6B properly utilize the auxiliary function written by themselves. It suggests that the models can improve their codes if we provide a two-step plan in the form of function signatures. We attach one successful example that calls the generated auxiliary function during target implementation in Figure 1(b). In this sense, this approach is similar to the Least-to-Most prompting (Zhou et al., 2023a) that solves target tasks with the model-generated answer of predefined subtasks.\n\nWe observe that providing an irrelevant auxiliary function brings meaningful improvement on few models. To investigate how these functions affect the target implementation, we qualitatively analyze the examples that CodeLLaMAPython 13B successfully generates under both settings, i.e., irrelevant and step-by-step. In Figure 2, we found that the irrelevant auxiliary function acts as a demonstration like few-shot prompting so that the few models exhibit performance improvement. However, since the given auxiliary function is not relevant to the target function (Figure 1(a)), no implementation pattern that directly utilizes the auxiliary function is found. On the contrary, the relevant auxiliary functions are successfully utilized by calling in the target function and reduce their implementation difficulty (Figure 1(b)). Therefore, we conclude there exists a unique advantage of providing relevant auxiliary function although the irrelevant one is helpful to some extent.\n\nWe investigate how the additional training with Python corpus affects its ability to utilize auxiliary functions. To do this, we compare the two model families specialized in Python, i.e., CodeGenMono and CodeLLaMAPython. In these model groups, we observed higher pass rates compared to the corresponding base model groups, i.e., CodeGenMulti and CodeLLaMA. From these experimental evidences, we conclude that additional learning with Python code enhances the ability to utilize auxiliary functions. We speculate that the Python codes used for training contain relevant functions in the same file and the model is trained to jointly consider the functions within the same context.\n\nWe also compare CodeLLaMAInstruct models to determine whether the instruction tuning affects the ability to harness auxiliary functions. In order to use an instruction-tuned model, instructions written in natural language and a prompt template are additionally required. To this end, we apply an approach similar to HumanEvalPack (Muennighoff et al., 2023), where the instructions are automatically generated from the original prompt. We combine these instructions with the CodeLLaMAInstruct template to create a prompt. The prompt is formulated into two consecutive turns where the first turn is about the auxiliary function and the second one is about generating the target function. Our empirical results show that CodeLLaMAInstruct models perform better than CodeLLaMA models when implementing functions without auxiliary functions (Table 1, Direct), which is consistent with previous findings (Rozi\u00e8re et al., 2023). On the other hand, when an appropriate auxiliary function is provided in the prompt (Table 1, Oracle), the base models show better performance than the instruction-tuned models. In addition, the relative improvement in the Step-by-step settings has prominently decreased compared to that of the base models. This suggests that the ability to utilize other functions in the context has been weakened during the instruction tuning process. Therefore, it is necessary to develop an advanced instruction-tuning methodology to incorporate the previously implemented functions, which is our future work."
+        },
+        {
+            "section_id": "4.1.2",
+            "parent_section_id": "4.1",
+            "section_name": "4.1.2 Robustness analysis",
+            "text": "We check whether the model could properly use the given relevant auxiliary function after some components inside the function have been perturbed. We apply two perturbations: (1) replacing the name of the auxiliary function with other function names in the HumanEval dataset or (2) deleting the docstring included in the function. Note that the functionality of the auxiliary function itself does not change because we did not change the function implementation or its input/output format. \n\nThe experimental results show that even if the functionality of the function does not change, a performance drop is observed depending on the name of the function or the existence of a docstring. The lack of a docstring had a greater impact than renaming the function, and it is natural in that the docstring contains a more detailed description of its functionality. Despite their usefulness, we want to highlight that LLMs have to understand the function without docstring for their realistic use cases as most practical codes do not include them. In bigcode/the-stack-smol, 70.5% of Python functions do not have docstring. The performance drop was not alleviated even when the model size was increased or the model was additionally trained with Python codes. Therefore, there is a need to propose a robust learning methodology that can reduce performance differences caused by such perturbations."
+        },
+        {
+            "section_id": "4.1.3",
+            "parent_section_id": "4.1",
+            "section_name": "4.1.3 Implementation style analysis",
+            "text": "We analyze the generated implementation based on their style and compare preferences between them. In this experiment, we use the implementations generated under the Oracle setting. To identify their implementation style, we apply Python static parser and check whether they called the given auxiliary function. The implementations that call the auxiliary function are regarded as black-box style while the rest as white-box style. The black-box style directly utilizes the auxiliary function as is, while the white-box style mimics the internal mechanism of the auxiliary function.\n\nFurther investigating the two different styles, we conduct a human pairwise preference evaluation with human-written implementations (Human), and model-written ones with both styles (Black box and White box). We created a labeling sheet with 17 examples that CodeLLaMAPython 34B implements in both styles correctly. We recruited labelers who have been coding with Python for over five years. For the three possible pairs, labelers were instructed to choose the better implementations according to their preference such as performance or readability.\n\nThe evaluation results show that implementations that call auxiliary functions are preferred over implementations that do not. After inspecting the result qualitatively, we interpret that most black box implementations were selected due to their clarity and conciseness coming from appropriately delegating subroutines to auxiliary functions. Usually, the model-generated white-box implementations tend to repeat the identical mechanism inside the auxiliary function, which is not preferred in software engineering fields. In few cases, white-box implementations are preferred over black-box ones as they are considered as over-engineering. Therefore, training the models to delegate the subroutine to other functions suitably would be the next step for generating realistic code."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Multiple auxiliary function experiment",
+            "text": "We provide several auxiliary functions in the prompt and study whether the model selectively utilizes the appropriate auxiliary function. For CodeLLaMA models, the performance improved when the related function was located at the first or the last. This result is consistent with the existing findings (Liu et al., 2023b) that, in natural language processing tasks, LLMs can effectively utilize relevant documents when they are located at the beginning or end.\n\nOn the other hand, for CodeLLaMAPython models, this trend was weakened, and improvement was noted only when the relevant function was located at the end. We conjectured that the two related functions were usually located adjacently in Python codes, and this pattern was learned by the model. However, since the location of relevant functions is independent of their functionality, LLMs need to be tuned to robustly utilize them regardless of where they are placed.\n\nWe found a strong correlation between the proportion of black-box style implementations and model effectiveness. The Pearson correlation scores between the proportion and performance are larger than 0.9, indicating that LLMs perform better when they use appropriate auxiliary functions. However, the black-box style implementations are mostly observed when the relevant auxiliary functions are located at the end.\n\nFor CodeLLaMA models, they can use the relevant function if it is located at the beginning. Model scaling and additional training with Python codes provide a marginal effect on promoting a model to generate black-box style implementations. This suggests that specialized training for LLMs to call relevant functions, similar to invoking general LLMs to use tools (Schick et al., 2023), is needed for enhancing their code synthesis ability."
+        },
+        {
+            "section_id": "4.2.1",
+            "parent_section_id": "4.2",
+            "section_name": "4.2.1 Experimental setup",
+            "text": "We design a prompt with nine auxiliary functions followed by the target function signature. The functions consist of one relevant auxiliary function and the others are randomly sampled from the auxiliary function pool used in the Irrelevant setting. We change the location of the relevant function in the prompt and measure the proportion of black-box style implementations classified as the existence of auxiliary function call."
+        },
+        {
+            "section_id": "4.2.2",
+            "parent_section_id": "4.2",
+            "section_name": "4.2.2 Result",
+            "text": "The experimental results are shown in Figure 5 and we list up empirical findings we observed.\n\nFor CodeLLaMA models, the performance improved when the related function was located at the first or the last. This result is consistent with the existing findings that, in natural language processing tasks, LLMs can effectively utilize relevant documents when they are located at the beginning or end.\n\nOn the other hand, for CodeLLaMAPython models, the performance increased only when the relevant function was located at the end. We conjectured that the two related functions were usually located adjacently in Python codes and this pattern was learned by the model. However, since the location of relevant functions is independent of their functionality, LLMs need to be tuned to robustly utilize them regardless of where they are placed.\n\nThere exists a strong correlation between certain scores and the proportion of black-box style implementations. The Pearson correlation scores between the proportion and the pass rate are larger than 0.9, indicating that LLMs get higher scores when they try to call appropriate auxiliary functions. However, the black-box style implementations are mostly observed when the relevant auxiliary functions are located at the last.\n\nFor CodeLLaMA models, they can call the relevant function if they are located at the first. Model scaling and additional training with Python codes provide a marginal effect on promoting a model to generate black-box style implementations, suggesting that specialized training for LLMs to call relevant functions similar to invoking general LLMs to use tools is needed for enhancing their code synthesis ability."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "We have explored the ability to utilize auxiliary functions encoded in the LLMs through our newly proposed HumanExtension dataset. The HumanExtension dataset is constructed to contain function relationships while considering software engineering concepts. Our multi-faceted experiments with the HumanExtension dataset comprehensively show the current LLMs\u2019 ability to harness auxiliary functions.\n\nOur auxiliary function experiments demonstrate that the LLMs have the ability to utilize auxiliary functions even when the function is implemented by themselves. However, our in-depth analysis discovered that their ability varies depending on factors that humans might not, i.e., the position of relevant functions, function name, and docstring. Furthermore, our implementation style analysis reveals that, in some cases, the LLMs repeat the mechanism of the given auxiliary function while humans simply call the auxiliary functions, suggesting the future research direction of current code LLMs for auxiliary function calls."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Limitations",
+            "text": "Although the curated dataset in this study allowed us to evaluate the ability to utilize auxiliary functions from a variety of perspectives, it has some limitations in determining whether multiple relevant auxiliary functions can be jointly utilized.\nAdditionally, our behavioral analyses indicate that the capabilities have been empirically observed, but it might be insufficient to conclude the model truly understands and utilizes the auxiliary function, so additional methods are required to reinforce the statement."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Appendix",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T1\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"S4.T1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T1.1.1.1.1\">Model</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T1.1.1.1.2\">Direct</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T1.1.1.1.3\">Irrelevant</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T1.1.1.1.4\">Step-by-step</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T1.1.1.1.5\">Oracle</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T1.1.2.1.1\">Incoder 1B</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.1.2.1.2\">0.0373</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.1.2.1.3\">0.0472 (+26.7%)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.1.2.1.4\">0.0364 (-2.2%)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.1.2.1.5\">0.2028 (+444.4%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.3.2.1\">Incoder 6B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.3.2.2\">0.0621</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.3.2.3\">0.0762 (+22.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.3.2.4\">0.0737 (+18.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.3.2.5\">0.2856 (+360.0%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.4.3.1\">CodeGenMulti 2B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.4.3.2\">0.0969</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.4.3.3\">0.0894 (-7.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.4.3.4\">0.0778 (-19.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.4.3.5\">0.2856 (+194.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.5.4.1\">CodeGenMulti 16B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.5.4.2\">0.1060</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.5.4.3\">0.1134 (+7.0%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.5.4.4\">0.1093 (+3.1%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.5.4.5\">0.3568 (+236.7%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.6.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.6.5.1\">CodeGenMono 2B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.6.5.2\">0.1068</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.6.5.3\">0.1118 (+4.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.6.5.4\">0.1366 (+27.9%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.6.5.5\">0.3469 (+224.8%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.7.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.7.6.1\">CodeGenMono 16B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.7.6.2\">0.1912</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.7.6.3\">0.1912 (0.0%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.7.6.4\">0.2127 (+11.3%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.7.6.5\">0.4776 (+149.8%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.8.7\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.8.7.1\">Santacoder 1B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.8.7.2\">0.1002</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.8.7.3\">0.1010 (+0.8%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.8.7.4\">0.0944 (-5.8%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.8.7.5\">0.3104 (+209.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.9.8\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.9.8.1\">Starcoder 16B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.9.8.2\">0.1937</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.9.8.3\">0.2310 (+19.2%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.9.8.4\">0.2848 (+47.0%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.9.8.5\">0.5596 (+188.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.10.9\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.10.9.1\">CodeLLaMA 7B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.10.9.2\">0.1738</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.10.9.3\">0.2185 (+25.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.10.9.4\">0.2219 (+27.6%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.10.9.5\">0.5248 (+201.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.11.10\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.11.10.1\">CodeLLaMA 13B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.11.10.2\">0.2359</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.11.10.3\">0.2773 (+17.5%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.11.10.4\">0.2773 (+17.5%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.11.10.5\">0.5712 (+142.1%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.12.11\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.12.11.1\">CodeLLaMA 34B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.12.11.2\">0.2748</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.12.11.3\">0.3262 (+18.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.12.11.4\">0.3750 (+36.4%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.12.11.5\">0.6416 (+133.4%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.13.12\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.13.12.1\">CodeLLaMAPython 7B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.13.12.2\">0.2583</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.13.12.3\">0.2690 (+4.2%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.13.12.4\">0.3237 (+25.3%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.13.12.5\">0.5919 (+129.2%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.14.13\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.14.13.1\">CodeLLaMAPython 13B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.14.13.2\">0.2657</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.14.13.3\">0.3278 (+23.4%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.14.13.4\">0.3957 (+48.9%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.14.13.5\">0.5737 (+115.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.15.14\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.15.14.1\">CodeLLaMAPython 34B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.15.14.2\">0.3179</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.15.14.3\">0.3460 (+8.9%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.15.14.4\">0.4296 (+35.2%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.15.14.5\">0.6598 (+107.6%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.16.15\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.16.15.1\">CodeLLaMAInstruct 7B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.16.15.2\">0.2955</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.16.15.3\">0.3088 (+4.5%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.16.15.4\">0.3526 (+19.3%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.16.15.5\">0.4164 (+40.9%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.17.16\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.17.16.1\">CodeLLaMAInstruct 13B</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.17.16.2\">0.3874</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.17.16.3\">0.3791 (-2.1%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.17.16.4\">0.4172 (+7.7%)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.17.16.5\">0.5017 (+29.5%)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.18.17\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T1.1.18.17.1\">CodeLLaMAInstruct 34B</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.1.18.17.2\">0.4222</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.1.18.17.3\">0.4214 (-0.2%)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.1.18.17.4\">0.4255 (+0.8%)</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.1.18.17.5\">0.5017 (+18.8%)</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>The pass@1 performance on the HumanExtension dataset. The values in the parentheses represent the relative improvement with the Direct setting.</figcaption>\n</figure>",
+            "capture": "Table 1: The pass@1 performance on the HumanExtension dataset. The values in the parentheses represent the relative improvement with the Direct setting."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T2.1\" style=\"width:433.6pt;height:135.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(101.4pt,-31.6pt) scale(1.8784939932616,1.8784939932616) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_row ltx_border_tt\" id=\"S4.T2.1.1.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.1.1.1.1.2\">Former Win</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.1.1.1.1.3\">Tie</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S4.T2.1.1.1.1.4\">Latter Win</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T2.1.1.2.1.1\">Human vs Black box</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.2.1.2\">37.25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.2.1.3\">56.86</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.2.1.4\">5.88</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T2.1.1.3.2.1\">Human vs White box</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.1.3.2.2\">88.24</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.1.3.2.3\">1.96</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.1.1.3.2.4\">9.80</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T2.1.1.4.3.1\">Black box vs White box</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.1.4.3.2\">84.31</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.1.4.3.3\">5.88</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.1.1.4.3.4\">9.80</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Human pairwise preference evaluation results</figcaption>\n</figure>",
+            "capture": "Table 2: Human pairwise preference evaluation results"
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A1.T3\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"A1.T3.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A1.T3.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T3.1.1.1.1\">Statistics</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A1.T3.1.1.1.2\">Value</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A1.T3.1.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"A1.T3.1.2.1.1\">Number of examples</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A1.T3.1.2.1.2\">151</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T3.1.3.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T3.1.3.2.1\">Number of testcases per examples</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T3.1.3.2.2\">3.45</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T3.1.4.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T3.1.4.3.1\">Auxiliary function character length per examples (signature only)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T3.1.4.3.2\">457.05</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T3.1.5.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T3.1.5.4.1\">Auxiliary function character length per examples</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T3.1.5.4.2\">638.97</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T3.1.6.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"A1.T3.1.6.5.1\">Target function character length per examples (signature only)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A1.T3.1.6.5.2\">443.19</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A1.T3.1.7.6\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"A1.T3.1.7.6.1\">Target function character length per examples</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A1.T3.1.7.6.2\">536.44</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Dataset statistics</figcaption>\n</figure>",
+            "capture": "Table 3: Dataset statistics"
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.10575v1_figure_1.png",
+            "caption": "Figure 1: An illustrative example of HumanExtension. The function has_close_elements_in_array delegates their subroutine to the auxiliary function has_close_elements. Red bold text is the reference implementation written by humans."
+        },
+        "2": {
+            "figure_path": "2403.10575v1_figure_2.png",
+            "caption": "(a) A passed case with irrelevant auxiliary function."
+        },
+        "3": {
+            "figure_path": "2403.10575v1_figure_3.png",
+            "caption": "(b) A passed case with relevant auxiliary function."
+        },
+        "4": {
+            "figure_path": "2403.10575v1_figure_4.png",
+            "caption": "Figure 3: Robustness analysis on two perturbations, renaming auxiliary function and removing docstring."
+        },
+        "5": {
+            "figure_path": "2403.10575v1_figure_5.png",
+            "caption": "Figure 4: Pass@1 score comparison between black-box implementations (auxiliary function call) and white-box implementations (no auxiliary function call). The scale of dots represents their model size. Aqua dotted line indicates the performance on black-box and white-box implementations are the same."
+        },
+        "6": {
+            "figure_path": "2403.10575v1_figure_6.png",
+            "caption": "(a) Pass@1 scores depending on the position of relevant auxiliary function."
+        },
+        "7": {
+            "figure_path": "2403.10575v1_figure_7.png",
+            "caption": "(b) Proportion of black-box style implementations among generated ones. The scores inside the parentheses are Pearson correlation scores between the proportion of black-box style implementations and the pass@1 scores."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Santacoder: don\u2019t reach for the stars!",
+                "author": "Loubna Ben Allal, Raymond Li, Denis Kocetkov, Chenghao Mou, Christopher Akiki, Carlos Munoz Ferrandis, Niklas Muennighoff, Mayank Mishra, Alex Gu, Manan Dey, Logesh Kumar Umapathi, Carolyn Jane Anderson, Yangtian Zi, Joel Lamy Poirier, Hailey Schoelkopf, Sergey Troshin, Dmitry Abulkhanov, Manuel Romero, Michael Lappert, Francesco De Toni, Bernardo Garc\u00eda del R\u00edo, Qian Liu, Shamik Bose, Urvashi Bhattacharyya, Terry Yue Zhuo, Ian Yu, Paulo Villegas, Marco Zocca, Sourab Mangrulkar, David Lansky, Huu Nguyen, Danish Contractor, Luis Villa, Jia Li, Dzmitry Bahdanau, Yacine Jernite, Sean Hughes, Daniel Fried, Arjun Guha, Harm de Vries, and Leandro von Werra. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2301.03988"
+            }
+        },
+        {
+            "2": {
+                "title": "Program synthesis with large language models.",
+                "author": "Jacob Austin, Augustus Odena, Maxwell Nye, Maarten Bosma, Henryk Michalewski, David Dohan, Ellen Jiang, Carrie Cai, Michael Terry, Quoc Le, and Charles Sutton. 2021.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2108.07732"
+            }
+        },
+        {
+            "3": {
+                "title": "Studenteval: A benchmark of student-written prompts for large language models of code.",
+                "author": "Hannah McLean Babe, Sydney Nguyen, Yangtian Zi, Arjun Guha, Molly Q Feldman, and Carolyn Jane Anderson. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2306.04556"
+            }
+        },
+        {
+            "4": {
+                "title": "A framework for the evaluation of code generation models.",
+                "author": "Loubna Ben Allal, Niklas Muennighoff, Logesh Kumar Umapathi, Ben Lipkin, and Leandro von Werra. 2022.",
+                "venue": "https://github.com/bigcode-project/bigcode-evaluation-harness.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Multipl-e: A scalable and extensible approach to benchmarking neural code generation.",
+                "author": "Federico Cassano, John Gouwar, Daniel Nguyen, Sydney Nguyen, Luna Phipps-Costin, Donald Pinckney, Ming-Ho Yee, Yangtian Zi, Carolyn Jane Anderson, Molly Q Feldman, Arjun Guha, Michael Greenberg, and Abhinav Jangda. 2022.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2208.08227"
+            }
+        },
+        {
+            "6": {
+                "title": "Evaluating large language models trained on code.",
+                "author": "Mark Chen, Jerry Tworek, Heewoo Jun, Qiming Yuan, Henrique Ponde de Oliveira Pinto, Jared Kaplan, Harri Edwards, Yuri Burda, Nicholas Joseph, Greg Brockman, Alex Ray, Raul Puri, Gretchen Krueger, Michael Petrov, Heidy Khlaaf, Girish Sastry, Pamela Mishkin, Brooke Chan, Scott Gray, Nick Ryder, Mikhail Pavlov, Alethea Power, Lukasz Kaiser, Mohammad Bavarian, Clemens Winter, Philippe Tillet, Felipe Petroski Such, Dave Cummings, Matthias Plappert, Fotios Chantzis, Elizabeth Barnes, Ariel Herbert-Voss, William Hebgen Guss, Alex Nichol, Alex Paino, Nikolas Tezak, Jie Tang, Igor Babuschkin, Suchir Balaji, Shantanu Jain, William Saunders, Christopher Hesse, Andrew N. Carr, Jan Leike, Josh Achiam, Vedant Misra, Evan Morikawa, Alec Radford, Matthew Knight, Miles Brundage, Mira Murati, Katie Mayer, Peter Welinder, Bob McGrew, Dario Amodei, Sam McCandlish, Ilya Sutskever, and Wojciech Zaremba. 2021.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2107.03374"
+            }
+        },
+        {
+            "7": {
+                "title": "Cocomic: Code completion by jointly modeling in-file and cross-file context.",
+                "author": "Yangruibo Ding, Zijian Wang, Wasi Uddin Ahmad, Murali Krishna Ramanathan, Ramesh Nallapati, Parminder Bhatia, Dan Roth, and Bing Xiang. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2212.10007"
+            }
+        },
+        {
+            "8": {
+                "title": "Codescore: Evaluating code generation by learning code execution.",
+                "author": "Yihong Dong, Jiazheng Ding, Xue Jiang, Zhuo Li, Ge Li, and Zhi Jin. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2301.09043"
+            }
+        },
+        {
+            "9": {
+                "title": "Refactoring.",
+                "author": "Martin Fowler. 2018.",
+                "venue": "Addison-Wesley Professional.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Incoder: A generative model for code infilling and synthesis.",
+                "author": "Daniel Fried, Armen Aghajanyan, Jessy Lin, Sida Wang, Eric Wallace, Freda Shi, Ruiqi Zhong, Scott Yih, Luke Zettlemoyer, and Mike Lewis. 2023.",
+                "venue": "In The Eleventh International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=hQwb-lbM6EL"
+            }
+        },
+        {
+            "11": {
+                "title": "Pal: Program-aided language models.",
+                "author": "Luyu Gao, Aman Madaan, Shuyan Zhou, Uri Alon, Pengfei Liu, Yiming Yang, Jamie Callan, and Graham Neubig. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2211.10435"
+            }
+        },
+        {
+            "12": {
+                "title": "Textbooks are all you need.",
+                "author": "Suriya Gunasekar, Yi Zhang, Jyoti Aneja, Caio C\u00e9sar Teodoro Mendes, Allie Del Giorno, Sivakanth Gopi, Mojan Javaheripi, Piero Kauffmann, Gustavo de Rosa, Olli Saarikivi, Adil Salim, Shital Shah, Harkirat Singh Behl, Xin Wang, S\u00e9bastien Bubeck, Ronen Eldan, Adam Tauman Kalai, Yin Tat Lee, and Yuanzhi Li. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2306.11644"
+            }
+        },
+        {
+            "13": {
+                "title": "Measuring coding challenge competence with APPS.",
+                "author": "Dan Hendrycks, Steven Basart, Saurav Kadavath, Mantas Mazeika, Akul Arora, Ethan Guo, Collin Burns, Samir Puranik, Horace He, Dawn Song, and Jacob Steinhardt. 2021.",
+                "venue": "In Thirty-fifth Conference on Neural Information Processing Systems Datasets and Benchmarks Track (Round 2).",
+                "url": "https://openreview.net/forum?id=sD93GOzH3i5"
+            }
+        },
+        {
+            "14": {
+                "title": "The curious case of neural text degeneration.",
+                "author": "Ari Holtzman, Jan Buys, Li Du, Maxwell Forbes, and Yejin Choi. 2020.",
+                "venue": "In International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=rygGQyrFvH"
+            }
+        },
+        {
+            "15": {
+                "title": "The Pragmatic Programmer: From Journeyman to Master.",
+                "author": "Andrew Hunt and David Thomas. 2000.",
+                "venue": "Addison-Wesley Longman Publishing Co., Inc., USA.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Mapping language to code in programmatic context.",
+                "author": "Srinivasan Iyer, Ioannis Konstas, Alvin Cheung, and Luke Zettlemoyer. 2018.",
+                "venue": "In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing, pages 1643\u20131652, Brussels, Belgium. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/D18-1192"
+            }
+        },
+        {
+            "17": {
+                "title": "xcodeeval: A large scale multilingual multitask benchmark for code understanding, generation, translation and retrieval.",
+                "author": "Mohammad Abdullah Matin Khan, M Saiful Bari, Xuan Long Do, Weishi Wang, Md Rizwan Parvez, and Shafiq Joty. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2303.03004"
+            }
+        },
+        {
+            "18": {
+                "title": "Ds-1000: A natural and reliable benchmark for data science code generation.",
+                "author": "Yuhang Lai, Chengxi Li, Yiming Wang, Tianyi Zhang, Ruiqi Zhong, Luke Zettlemoyer, Wen-tau Yih, Daniel Fried, Sida Wang, and Tao Yu. 2023.",
+                "venue": "In International Conference on Machine Learning, pages 18319\u201318345. PMLR.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Starcoder: may the source be with you!",
+                "author": "Raymond Li, Loubna Ben Allal, Yangtian Zi, Niklas Muennighoff, Denis Kocetkov, Chenghao Mou, Marc Marone, Christopher Akiki, Jia Li, Jenny Chim, Qian Liu, Evgenii Zheltonozhskii, Terry Yue Zhuo, Thomas Wang, Olivier Dehaene, Mishig Davaadorj, Joel Lamy-Poirier, Jo\u00e3o Monteiro, Oleh Shliazhko, Nicolas Gontier, Nicholas Meade, Armel Zebaze, Ming-Ho Yee, Logesh Kumar Umapathi, Jian Zhu, Benjamin Lipkin, Muhtasham Oblokulov, Zhiruo Wang, Rudra Murthy, Jason Stillerman, Siva Sankalp Patel, Dmitry Abulkhanov, Marco Zocca, Manan Dey, Zhihan Zhang, Nour Fahmy, Urvashi Bhattacharyya, Wenhao Yu, Swayam Singh, Sasha Luccioni, Paulo Villegas, Maxim Kunakov, Fedor Zhdanov, Manuel Romero, Tony Lee, Nadav Timor, Jennifer Ding, Claire Schlesinger, Hailey Schoelkopf, Jan Ebert, Tri Dao, Mayank Mishra, Alex Gu, Jennifer Robinson, Carolyn Jane Anderson, Brendan Dolan-Gavitt, Danish Contractor, Siva Reddy, Daniel Fried, Dzmitry Bahdanau, Yacine Jernite, Carlos Mu\u00f1oz Ferrandis, Sean Hughes, Thomas Wolf, Arjun Guha, Leandro von\nWerra, and Harm de Vries. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2305.06161"
+            }
+        },
+        {
+            "20": {
+                "title": "Competition-level code generation with alphacode.",
+                "author": "Yujia Li, David Choi, Junyoung Chung, Nate Kushman, Julian Schrittwieser, R\u00e9mi Leblond, Tom Eccles, James Keeling, Felix Gimeno, Agustin Dal Lago, Thomas Hubert, Peter Choy, Cyprien de Masson d\u2019Autume, Igor Babuschkin, Xinyun Chen, Po-Sen Huang, Johannes Welbl, Sven Gowal, Alexey Cherepanov, James Molloy, Daniel J. Mankowitz, Esme Sutherland Robson, Pushmeet Kohli, Nando de Freitas, Koray Kavukcuoglu, and Oriol Vinyals. 2022.",
+                "venue": "Science, 378(6624):1092\u20131097.",
+                "url": "https://doi.org/10.1126/science.abq1158"
+            }
+        },
+        {
+            "21": {
+                "title": "A behavioral notion of subtyping.",
+                "author": "Barbara H Liskov and Jeannette M Wing. 1994.",
+                "venue": "ACM Transactions on Programming Languages and Systems (TOPLAS), 16(6):1811\u20131841.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Is your code generated by chatGPT really correct? rigorous evaluation of large language models for code generation.",
+                "author": "Jiawei Liu, Chunqiu Steven Xia, Yuyao Wang, and LINGMING ZHANG. 2023a.",
+                "venue": "In Thirty-seventh Conference on Neural Information Processing Systems.",
+                "url": "https://openreview.net/forum?id=1qvx610Cu7"
+            }
+        },
+        {
+            "23": {
+                "title": "Lost in the middle: How language models use long contexts.",
+                "author": "Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. 2023b.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2307.03172"
+            }
+        },
+        {
+            "24": {
+                "title": "CodeXGLUE: A machine learning benchmark dataset for code understanding and generation.",
+                "author": "Shuai Lu, Daya Guo, Shuo Ren, Junjie Huang, Alexey Svyatkovskiy, Ambrosio Blanco, Colin Clement, Dawn Drain, Daxin Jiang, Duyu Tang, Ge Li, Lidong Zhou, Linjun Shou, Long Zhou, Michele Tufano, MING GONG, Ming Zhou, Nan Duan, Neel Sundaresan, Shao Kun Deng, Shengyu Fu, and Shujie LIU. 2021.",
+                "venue": "In Thirty-fifth Conference on Neural Information Processing Systems Datasets and Benchmarks Track (Round 1).",
+                "url": "https://openreview.net/forum?id=6lE4dQXaUcb"
+            }
+        },
+        {
+            "25": {
+                "title": "Octopack: Instruction tuning code large language models.",
+                "author": "Niklas Muennighoff, Qian Liu, Armel Zebaze, Qinkai Zheng, Binyuan Hui, Terry Yue Zhuo, Swayam Singh, Xiangru Tang, Leandro von Werra, and Shayne Longpre. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2308.07124"
+            }
+        },
+        {
+            "26": {
+                "title": "Neural programmer: Inducing latent programs with gradient descent.",
+                "author": "Arvind Neelakantan, Quoc V Le, and Ilya Sutskever. 2016.",
+                "venue": "In International Conference on Learning Representations.",
+                "url": "https://arxiv.org/abs/1511.04834"
+            }
+        },
+        {
+            "27": {
+                "title": "L2ceval: Evaluating language-to-code generation capabilities of large language models.",
+                "author": "Ansong Ni, Pengcheng Yin, Yilun Zhao, Martin Riddell, Troy Feng, Rui Shen, Stephen Yin, Ye Liu, Semih Yavuz, Caiming Xiong, Shafiq Joty, Yingbo Zhou, Dragomir Radev, and Arman Cohan. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2309.17446"
+            }
+        },
+        {
+            "28": {
+                "title": "Codegen2: Lessons for training llms on programming and natural languages.",
+                "author": "Erik Nijkamp, Hiroaki Hayashi, Caiming Xiong, Silvio Savarese, and Yingbo Zhou. 2023a.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2305.02309"
+            }
+        },
+        {
+            "29": {
+                "title": "Codegen: An open large language model for code with multi-turn program synthesis.",
+                "author": "Erik Nijkamp, Bo Pang, Hiroaki Hayashi, Lifu Tu, Huan Wang, Yingbo Zhou, Silvio Savarese, and Caiming Xiong. 2023b.",
+                "venue": "In The Eleventh International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=iaYcJKpY2B_"
+            }
+        },
+        {
+            "30": {
+                "title": "Machine translation from natural language to code using long-short term memory.",
+                "author": "K. M. Tahsin Hassan Rahit, Rashidul Hasan Nabil, and Md Hasibul Huq. 2020.",
+                "venue": "In Proceedings of the Future Technologies Conference (FTC) 2019, pages 56\u201363, Cham. Springer International Publishing.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Code llama: Open foundation models for code.",
+                "author": "Baptiste Rozi\u00e8re, Jonas Gehring, Fabian Gloeckle, Sten Sootla, Itai Gat, Xiaoqing Ellen Tan, Yossi Adi, Jingyu Liu, Tal Remez, J\u00e9r\u00e9my Rapin, Artyom Kozhevnikov, Ivan Evtimov, Joanna Bitton, Manish Bhatt, Cristian Canton Ferrer, Aaron Grattafiori, Wenhan Xiong, Alexandre D\u00e9fossez, Jade Copet, Faisal Azhar, Hugo Touvron, Louis Martin, Nicolas Usunier, Thomas Scialom, and Gabriel Synnaeve. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2308.12950"
+            }
+        },
+        {
+            "32": {
+                "title": "Toolformer: Language models can teach themselves to use tools.",
+                "author": "Timo Schick, Jane Dwivedi-Yu, Roberto Dessi, Roberta Raileanu, Maria Lomeli, Eric Hambro, Luke Zettlemoyer, Nicola Cancedda, and Thomas Scialom. 2023.",
+                "venue": "In Thirty-seventh Conference on Neural Information Processing Systems.",
+                "url": "https://openreview.net/forum?id=Yacmpz84TH"
+            }
+        },
+        {
+            "33": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton Ferrer, Moya Chen, Guillem Cucurull, David Esiobu, Jude Fernandes, Jeremy Fu, Wenyin Fu, Brian Fuller, Cynthia Gao, Vedanuj Goswami, Naman Goyal, Anthony Hartshorn, Saghar Hosseini, Rui Hou, Hakan Inan, Marcin Kardas, Viktor Kerkez, Madian Khabsa, Isabel Kloumann, Artem Korenev, Punit Singh Koura, Marie-Anne Lachaux, Thibaut Lavril, Jenya Lee, Diana Liskovich, Yinghai Lu, Yuning Mao, Xavier Martinet, Todor Mihaylov, Pushkar Mishra, Igor Molybog, Yixin Nie, Andrew Poulton, Jeremy Reizenstein, Rashi Rungta, Kalyan Saladi, Alan Schelten, Ruan Silva, Eric Michael Smith, Ranjan Subramanian, Xiaoqing Ellen Tan, Binh Tang, Ross Taylor, Adina Williams, Jian Xiang Kuan, Puxin Xu, Zheng Yan, Iliyan Zarov, Yuchen Zhang, Angela Fan, Melanie Kambadur, Sharan Narang, Aurelien Rodriguez, Robert Stojnic, Sergey Edunov, and Thomas\nScialom. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2307.09288"
+            }
+        },
+        {
+            "34": {
+                "title": "ReCode: Robustness evaluation of code generation models.",
+                "author": "Shiqi Wang, Zheng Li, Haifeng Qian, Chenghao Yang, Zijian Wang, Mingyue Shang, Varun Kumar, Samson Tan, Baishakhi Ray, Parminder Bhatia, Ramesh Nallapati, Murali Krishna Ramanathan, Dan Roth, and Bing Xiang. 2023a.",
+                "venue": "In Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 13818\u201313843, Toronto, Canada. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/2023.acl-long.773"
+            }
+        },
+        {
+            "35": {
+                "title": "Execution-based evaluation for open-domain code generation.",
+                "author": "Zhiruo Wang, Shuyan Zhou, Daniel Fried, and Graham Neubig. 2023b.",
+                "venue": "In Findings of the Association for Computational Linguistics: EMNLP 2023, pages 1271\u20131290, Singapore. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/2023.findings-emnlp.89"
+            }
+        },
+        {
+            "36": {
+                "title": "A systematic evaluation of large language models of code.",
+                "author": "Frank F. Xu, Uri Alon, Graham Neubig, and Vincent Josua Hellendoorn. 2022.",
+                "venue": "In Proceedings of the 6th ACM SIGPLAN International Symposium on Machine Programming, MAPS 2022, page 1\u201310, New York, NY, USA. Association for Computing Machinery.",
+                "url": "https://doi.org/10.1145/3520312.3534862"
+            }
+        },
+        {
+            "37": {
+                "title": "A syntactic neural model for general-purpose code generation.",
+                "author": "Pengcheng Yin and Graham Neubig. 2017.",
+                "venue": "In Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 440\u2013450, Vancouver, Canada. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/P17-1041"
+            }
+        },
+        {
+            "38": {
+                "title": "Codereval: A benchmark of pragmatic code generation with generative pre-trained models.",
+                "author": "H. Yu, B. Shen, D. Ran, J. Zhang, Q. Zhang, Y. Ma, G. Liang, Y. Li, Q. Wang, and T. Xie. 2024.",
+                "venue": "In 2024 IEEE/ACM 46th International Conference on Software Engineering (ICSE), pages 417\u2013428, Los Alamitos, CA, USA. IEEE Computer Society.",
+                "url": "https://doi.ieeecomputersociety.org/"
+            }
+        },
+        {
+            "39": {
+                "title": "Bertscore: Evaluating text generation with bert.",
+                "author": "Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q. Weinberger, and Yoav Artzi. 2020.",
+                "venue": "In International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=SkeHuCVFDr"
+            }
+        },
+        {
+            "40": {
+                "title": "Codegeex: A pre-trained model for code generation with multilingual benchmarking on humaneval-x.",
+                "author": "Qinkai Zheng, Xiao Xia, Xu Zou, Yuxiao Dong, Shan Wang, Yufei Xue, Lei Shen, Zihan Wang, Andi Wang, Yang Li, Teng Su, Zhilin Yang, and Jie Tang. 2023.",
+                "venue": "In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, KDD \u201923, page 5673\u20135684, New York, NY, USA. Association for Computing Machinery.",
+                "url": "https://doi.org/10.1145/3580305.3599790"
+            }
+        },
+        {
+            "41": {
+                "title": "Least-to-most prompting enables complex reasoning in large language models.",
+                "author": "Denny Zhou, Nathanael Sch\u00e4rli, Le Hou, Jason Wei, Nathan Scales, Xuezhi Wang, Dale Schuurmans, Claire Cui, Olivier Bousquet, Quoc V Le, and Ed H. Chi. 2023a.",
+                "venue": "In The Eleventh International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=WZH7099tgfM"
+            }
+        },
+        {
+            "42": {
+                "title": "CodeBERTScore: Evaluating code generation with pretrained models of code.",
+                "author": "Shuyan Zhou, Uri Alon, Sumit Agarwal, and Graham Neubig. 2023b.",
+                "venue": "In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing, pages 13921\u201313937, Singapore. Association for Computational Linguistics.",
+                "url": "https://aclanthology.org/2023.emnlp-main.859"
+            }
+        },
+        {
+            "43": {
+                "title": "Docprompting: Generating code by retrieving the docs.",
+                "author": "Shuyan Zhou, Uri Alon, Frank F. Xu, Zhengbao Jiang, and Graham Neubig. 2023c.",
+                "venue": "In The Eleventh International Conference on Learning Representations.",
+                "url": "https://openreview.net/forum?id=ZTCxT2t2Ru"
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.10575v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2"
+        ],
+        "methodology_sections": [
+            "3"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.1.1",
+            "4.1.2",
+            "4.1.3",
+            "4.2",
+            "4.2.1",
+            "4.2.2"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4",
+            "4.1",
+            "4.1.1",
+            "4.1.2",
+            "4.1.3",
+            "4.2",
+            "4.2.1",
+            "4.2.2"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.10575v1",
+        "paper_title": "Exploring Language Model\u2019s Code Generation Ability with Auxiliary Functions",
+        "research_background": "### Motivation\n\nThe motivation for this research is rooted in the growing interest in program synthesis, which involves generating function code based on natural language descriptions. The study aims to enhance code generation capabilities of Large Language Models (LLMs) by investigating their ability to utilize auxiliary functions. It seeks to address a gap in the systematic evaluation of how these auxiliary functions can be effectively leveraged in code synthesis processes.\n\n### Research Problem\n\nThe primary research problem addressed in this paper is the lack of a structured analysis to evaluate how LLMs utilize auxiliary functions in code generation. Despite the potential of auxiliary functions to improve the synthesis ability of LLMs, there has been no dedicated dataset or systematic examination to understand their effectiveness thoroughly. The study aims to fill this gap by constructing an evaluation dataset and conducting deep analyses to measure the impact of auxiliary functions on the code generation performance of LLMs.\n\n### Relevant Prior Work\n\n1. **Program Synthesis and Language Models**: \n   - Previous research has focused on program synthesis using natural language inputs and has seen contributions from researchers such as Yin and Neubig (2017), Rahit et al. (2020), Austin et al. (2021), and Li et al. (2022).\n   - Several studies have utilized code-pretrained LLMs to implement functions using prompts containing target function signatures. Notable works in this area include Fried et al. (2023), Nijkamp et al. (2023a, 2023b), Allal et al. (2023), Li et al. (2023), and Gunasekar et al. (2023).\n\n2. **Enhancing Model Prompts**:\n   - Researchers have explored the inclusion of additional code components in prompts to improve implementation, such as comment lines (Gao et al., 2023), documentation (Zhou et al., 2023c), and other function and class definitions across files (Ding et al., 2023).\n\n3. **Function Extension Concepts**:\n   - The design of the HumanExtension dataset was influenced by software design concepts related to function extension, including subtyping as discussed by Liskov and Wing (1994).\n\n4. **Robustness Evaluation**:\n   - To ensure the robustness of the dataset, the study takes cues from the methodology used by Wang et al. (2023a), which involves parsing curated examples into several components for thorough evaluation.\n\n5. **Implementation Style and Position Influence**:\n   - Prior investigations such as Liu et al. (2023b) that studied the influence of function position on code generation ability have been referenced to guide certain aspects of this research.\n\nIn summary, the paper's objective is to construct an evaluation framework to systematically analyze how LLMs utilize auxiliary functions in code generation and to understand the improvements and limitations in their existing synthesis capabilities.",
+        "methodology": "### Methodology: Exploring Language Model\u2019s Code Generation Ability with Auxiliary Functions\n\n#### Construction of Coding Examples:\nWe manually construct a variety of coding examples with corresponding auxiliary functions. Our approach begins with the HumanEval dataset, which contains Python examples. Using this as our foundation, we employ human experts to create an extended function for each example. The goal is to produce functions that offer additional functionalities beyond the given functions.\n\n#### Considerations for Functional Extension:\nTo remove ambiguity and enhance the quality of these extensions, we consider two types of extensions: black-box and white-box.\n\n1. **Black-box Extension:**\n   - Extends a function by calling the auxiliary function without considering its internal mechanism.\n   - This approach is recommended as it emphasizes reusing existing functions rather than rewriting the whole mechanism (Fowler, 2018).\n\n2. **White-box Extension:**\n   - Involves rewriting the function to improve its internal mechanism.\n   \n#### Principles and Guidelines:\nWe instruct labelers in the Liskov-substitution principle and the concept of subtyping (Liskov and Wing, 1994). This ensures that the curated functions are treated as extended versions of the given functions from a software engineering perspective.\n\n#### Dataset Curation:\nSome examples in the HumanEval dataset are filtered out because they do not lend themselves well to using auxiliary functions. Specifically:\n- Examples that duplicate built-in Python functionalities (e.g., sum_to_n) are excluded.\n- Semantically duplicated examples are removed to avoid redundancy. For instance, if two functions perform similar logic on different inputs (such as brackets vs. parentheses), one is excluded.\n\nAfter filtering, we compile 151 problems representing function pairs wherein one function extends the other. This curated dataset is named HumanExtension.\n\n#### Additional Component Parsing:\nWe mechanically parse these code snippets to create features for components, facilitating future research and analysis.\n\n### Key Components and Innovations:\n- **Manual Construction with Expert Involvement:** Human experts create extended functions to ensure high-quality extensions.\n- **Black-box and White-box Extensions:** Two types of extensions to balance reuse and internal improvements.\n- **Principles and Guidelines:** Teaching labelers software engineering principles like Liskov-substitution to maintain functional integrity.\n- **Dataset Curation:** Removal of semantically duplicate and built-in functionality examples to maintain clarity and uniqueness.\n- **Mechanical Parsing:** Parsing code snippets to generate features for future applications.\n\nThis methodology provides a structured and principled way to evaluate and expand language models' code generation abilities, specifically focusing on creating meaningful auxiliary functions.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results\n\n**Main Experiment Setup:**\n\n1. **Dataset:** The authors used a curated dataset called HumanExtension to comprehensively evaluate the large language models' (LLMs) ability to harness auxiliary functions. \n\n2. **Research Questions:**\n   - RQ1: Could LLMs properly and robustly utilize different types of auxiliary functions?\n   - RQ2: How do LLMs\u2019 implementations vary when they access relevant auxiliary functions?\n   - RQ3: Do current training methodologies enhance the ability to utilize auxiliary functions?\n\n3. **Models:**\n   - **Incoder (Fried et al., 2023):** An open-source decoder-only generative model pre-trained on public codes and StackOverflow.\n   - **CodeGen (Nijkamp et al., 2023b):** Pre-trained on public codes, with two versions: Multi (multiple programming languages) and Mono (Python-specific).\n   - **BigCode (Allal et al., 2023) and Li et al., 2023):** Releases SantaCoder and StarCoder, both pre-trained on public codes.\n   - **CodeLLaMA (Rozi\u00e8re et al., 2023):** LLaMA2 variant pre-trained on code corpus, with sub-variants CodeLLaMAPython and CodeLLaMAInstruct.\n\n4. **Decoding Strategy:**\n   - The models followed nucleus sampling with top-p 0.95 and low-temperature scaling of 0.2.\n   - Generation limits: up to 512 tokens per prompt, stopping at end-of-sequence token or specific stop sequences.\n\n5. **Evaluation Metric:**\n   - **Pass@1:** Proportion of functionally correct implementations among generated ones. To reduce variance, eight implementations were generated per problem.\n\n**Main Experimental Results:**\n\n- **Robust Utilization of Auxiliary Functions (RQ1 & RQ2):** \n  - All models showed notable improvement when provided with relevant human-written auxiliary functions, indicating they could utilize these appropriately.\n  - Significant improvements were also noted in advanced models like CodeLLaMAPython 34B, demonstrating that the inclusion of relevant auxiliary functions effectively aids code synthesis regardless of model size.\n  - Models like CodeLLaMA series, StarCoder, CodeGenMono series, and Incoder 6B successfully used their own generated auxiliary functions, suggesting that a two-step plan in the form of function signatures can enhance implementation.\n\n- **Effect of Additional Training on Auxiliary Function Utilization (RQ3):**\n  - Instruction-tuned models (CodeLLaMAInstruct) performed better without auxiliary functions but worse than base models when relevant auxiliary functions were provided.\n\n- **Style of Implementations:**\n  - The black-box implementation style (calling auxiliary functions) achieved higher pass@1 scores compared to the white-box style (direct implementation), corroborated by human preference for clarity and conciseness.\n  - The pass@1 score correlation with the proportion of black-box style implementations was high (>0.9), suggesting that generating black-box style implementations leads to higher pass@1 scores.\n\n- **Positioning of Auxiliary Functions:**\n  - CodeLLaMA models showed a U-shaped trend in pass@1 scores based on the position of auxiliary functions, either at the beginning or the end. For CodeLLaMAPython models, the score improved mainly when auxiliary functions were at the end.\n\nOverall, the results indicate that LLMs' performance in code generation could be significantly enhanced by leveraging relevant auxiliary functions. Training methodologies with an emphasis on using auxiliary functions, similar to tool utilization in general LLMs, could further improve their effectiveness."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "We measure the effectiveness of an auxiliary function in a code synthesis task by designing several prompts varying their existence and type.",
+            "experiment_process": "We designed prompts with several types of auxiliary functions: (1) no auxiliary function (Direct), (2) human-written irrelevant auxiliary function (Irrelevant), (3) model-written relevant auxiliary function (Step-by-step), and (4) human-written relevant auxiliary function (Oracle). We used various language models pre-trained on code such as Incoder, CodeGen, BigCode, and CodeLLaMA. The models followed a decoding strategy with nucleus sampling, generating at most 512 tokens. Functional correctness of generated implementations was evaluated using the pass@1 metric, with eight implementations generated per problem. The effectiveness and robustness were analyzed based on whether auxiliary functions were properly utilized and how they impacted the generated code's correctness.",
+            "result_discussion": "Models showed remarkable improvement when accessing human-written relevant auxiliary functions, indicating their potential to utilize such functions. Even recent models like CodeLLaMAPython 34B showed significant improvement. Model-written relevant auxiliary functions also contributed to improvement in models like CodeLLaMA series, StarCoder, and CodeGenMono, suggesting that models can self-improve with a two-step plan. Human-written irrelevant functions provided improvement in some cases by acting as few-shot prompts. Additional training on Python corpus enhanced models\u2019 ability to utilize auxiliary functions. Instruction-tuned models like CodeLLaMAInstruct showed better performance without auxiliary functions, but degraded performance with them, indicating weakened ability to utilize context functions during instruction tuning. The performance dropped due to perturbations like renaming functions or removing docstrings, emphasizing the need for robust learning methods.",
+            "ablation_id": "2403.10575v1.No1"
+        },
+        {
+            "research_objective": "We check whether the model could properly use the given relevant auxiliary function after some components inside the function have been perturbed.",
+            "experiment_process": "We perturbed auxiliary functions by (1) replacing the name of the auxiliary function with other function names from the HumanEval dataset, or (2) deleting the docstring included in the function. The prompt contained the target function along with the perturbed auxiliary function. The model's performance was measured using the pass@1 metric, examining whether the model could still correctly synthesize the target function.",
+            "result_discussion": "A performance drop was observed depending on the name change or absence of a docstring. The lack of a docstring had a greater impact, likely because docstrings provide detailed descriptions of functionality. The performance drop persisted regardless of model size or additional training, highlighting the need for robust learning methodologies to handle such perturbations effectively.",
+            "ablation_id": "2403.10575v1.No2"
+        },
+        {
+            "research_objective": "We analyze the generated implementation based on their style and compare preferences between them.",
+            "experiment_process": "We used implementations generated under the Oracle setting, categorizing them into black-box style (calling the auxiliary function) and white-box style (mimicking the auxiliary function\u2019s internal mechanism). The Python static parser was used to categorize the styles. Pass@1 scores and human pairwise preference evaluations were conducted, involving labelers with over five years of Python coding experience, to assess performance and readability preferences between generated implementations.",
+            "result_discussion": "All models could implement functions in both styles. Black-box style implementations had higher pass@1 scores, implying safer and more accurate results when calling auxiliary functions. However, only about 40% of model-generated implementations were in black-box style, despite human-written references favoring it. Human preference evaluations showed a preference for black-box implementations due to their clarity and conciseness, suggesting the need for models to delegate subroutines appropriately.",
+            "ablation_id": "2403.10575v1.No3"
+        },
+        {
+            "research_objective": "We provide several auxiliary functions in the prompt and study whether the model selectively utilizes the appropriate auxiliary function.",
+            "experiment_process": "We designed a prompt with nine auxiliary functions (one relevant, eight irrelevant) followed by the target function signature. The location of the relevant function was varied in the prompt. The pass@1 score and the proportion of black-box style implementations were measured to determine the model\u2019s ability to utilize the relevant auxiliary function.",
+            "result_discussion": "CodeLLaMA models exhibited a U-shape trend in pass@1 scores, performing better when the relevant function was at the beginning or end. For CodeLLaMAPython models, this trend weakened, with higher scores only when the relevant function was at the end. This suggests models learn from Python code patterns where related functions are adjacent. Higher pass@1 scores correlated with a greater proportion of black-box style implementations, especially when the relevant function was last. Additional training with Python marginally promoted black-box implementations, indicating the need for specialized training for function call abilities.",
+            "ablation_id": "2403.10575v1.No4"
+        }
+    ]
+}

@@ -1,0 +1,359 @@
+{
+    "title": "JORA: JAX Tensor-Parallel LoRA Library for Retrieval Augmented Fine-Tuning",
+    "abstract": "The scaling of Large Language Models (LLMs) for retrieval-based tasks, particularly in Retrieval Augmented Generation (RAG), faces significant memory constraints, especially when fine-tuning extensive prompt sequences. Current open-source libraries support full-model inference and fine-tuning across multiple GPUs but fall short of accommodating the efficient parameter distribution required for retrieved context. Addressing this gap, we introduce a novel framework for PEFT-compatible fine-tuning of Llama-2 models, leveraging distributed training. Our framework uniquely utilizes JAX\u2019s just-in-time (JIT) compilation and tensor-sharding for efficient resource management, thereby enabling accelerated fine-tuning with reduced memory requirements. This advancement significantly improves the scalability and feasibility of fine-tuning LLMs for complex RAG applications, even on systems with limited GPU resources. Our experiments show more than 12x improvement in runtime compared to Hugging Face/DeepSpeed implementation with four GPUs while consuming less than half the VRAM per GPU.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "Large Language Models (LLMs) like ChatGPT Achiam et al. (2023  ###reference_b1###) have revolutionized the field of natural language processing, paving the way for open-source alternatives that offer more flexibility in fine-tuning. Llama-2 Touvron et al. (2023  ###reference_b27###), a prominent LLM, exemplifies this trend, offering extensive customization at the architecture level. Alongside, Parameter Efficient Fine-Tuning (PEFT) Fu et al. (2023  ###reference_b6###) techniques like Low-Rank Adaptation have emerged, optimizing resource utilization in training these models.\nRetrieval Augmented Generation (RAG) Lewis et al. (2020a  ###reference_b15###) is a paradigm that leverages a corpus to enrich LLM prompts with relevant context. However, when fine-tuning on retrieval-based context, the quadratic memory scaling of transformer models with prompt length poses significant challenges, especially when integrating large context sizes. The training process, which employs teacher-forcing at each step of the sequence, exacerbates memory demands, creating a bottleneck for effective LLM utilization in RAG.\nCurrent machine learning frameworks facilitate LLM fine-tuning on distributed systems, employing model and pipeline parallelism strategies. However, these frameworks lack support for PEFT, specifically in the context of parallel training. While libraries such as DeepSpeed Rasley et al. (2020  ###reference_b22###) and Accelerate Gugger et al. (2022  ###reference_b8###) offer data parallelism for fine-tuning the entire model, these libraries lack support for tensor-parallel training in the PEFT setting. In addition, combining multiple libraries adds unnecessary boilerplate code to glue together dependencies required for parameter-efficient and distributed training. These libraries also require boilerplate code for configuration since they target multiple models.\nTo bridge this gap, we introduce JORA (JAX-based LORA), a library tailored for Llama-2 models, designed to enhance the fine-tuning process for RAG applications. Utilizing JAX\u2019s just-in-time (JIT) compilation and innovative tensor-sharding techniques, JORA not only accelerates the fine-tuning process but also significantly optimizes memory usage Bradbury et al. (2018  ###reference_b3###). Our evaluations across standard training GPUs demonstrate substantial improvements in training time and memory efficiency, addressing the critical challenges of PEFT in retrieval-based training. Our library also provides valuable helpers for using instruct format datasets, merging LORA parameters, and converting fine-tuned models to Hugging Face compatible formats.\nOur work makes PEFT more accessible and efficient for LLMs, particularly in resource-constrained environments. By enhancing the scalability and efficiency of LLMs in retrieval augmented fine-tuning (RAFT), JORA opens new avenues for advanced natural language processing applications."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Background",
+            "text": "JORA introduces the concept of RAFT. This workflow employs retrieved knowledge and outcomes to create context and expected outputs. The fine-tuning process encourages the model to learn a rationale to derive the output from the knowledge. Prior related work focuses on RAG, the inference counterpart of RAFT, whose bottleneck is the sequence length used for context in the prompt. Since RAFT shares the same bottleneck, our framework focuses on adding efficiency by providing a memory-efficient and distributed backend while exposing an intuitive API. We highlight the importance of RAG and the capabilities of other libraries which aim to solve related problems. We highlight how our library fills the gap."
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "Retrieval Augmented Generation",
+            "text": "RAG has gained significant attention in recent years, with various approaches exploring it to enhance LLM generation. The integration of dense and sparse retrievers with LLMs, as discussed in Robertson et al. (2009  ###reference_b23###); Seo et al. (2019  ###reference_b24###), highlights the diversity in retrieval techniques used for augmenting LMs.\nChen et al. (2017  ###reference_b4###), Clark and Gardner (2017  ###reference_b5###), and others have contributed to conditioning LMs on retrieved documents, demonstrating significant improvements in knowledge-intensive tasks Lee et al. (2019  ###reference_b14###); Guu et al. (2020  ###reference_b9###); Khandelwal et al. (2019  ###reference_b12###); Lewis et al. (2020b  ###reference_b16###); Izacard and Grave (2020  ###reference_b11###); Borgeaud et al. (2022  ###reference_b2###); Murez et al. (2020  ###reference_b18###). The concept of chain-of-thought prompting in combination with retrieval mechanisms, as proposed by Wei et al. (2022  ###reference_b28###), marks a novel approach in this domain.\nThe evolution of LMs into agent-like models, capable of generating queries and performing actions based on prompts, is evident in the works of Thoppilan et al. (2022  ###reference_b26###), who introduced models like LaMDA. Menick et al. (2022  ###reference_b17###), Komeili et al. (2021  ###reference_b13###), and Nakano et al. (2021  ###reference_b19###) further explored the generation of internet search queries by LMs."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "Parallel Training Libraries",
+            "text": "Several open-source libraries expose an interface for multi-GPU training for LLMs. Hugging Face implementation of Transformer models allows multi-GPU inference. The Transformers library also includes a trainer. Hugging Face\u2019s Accelerate Gugger et al. (2022  ###reference_b8###) library is a tool designed to simplify the process of running PyTorch training scripts on different devices, including CPU, single GPU, multiple GPUs, and TPUs while supporting mixed precision and distributed settings. It offers an easy-to-use API that allows users to run their PyTorch code across any distributed configuration with minimal changes, making training and inference at scale more straightforward. DeepSpeed Rasley et al. (2020  ###reference_b22###) is an open-source optimization library for PyTorch developed by Microsoft. It is designed to accelerate the training and inference of deep learning models, mainly focusing on large-scale models. The library addresses challenges such as memory constraints and slow training times, aiming to enhance deep learning workflows\u2019 performance and efficiency. Accelerate utilizes DeepSpeed for distributed training.\nJORA solves several issues with prior libraries: i) we target Llama-2 models to reduce the boilerplate required for the training process, ii) we utilize JAX\u2019s jit optimizations for training to improve training performance compared to PyTorch. iii) we provide a tensor-parallel, multi-GPU implementation of training, and iv) we provide utility functions to simplify the data loading experience, fine-tuning the model, and compatibility with the Hugging Face ecosystem."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "JORA Framework",
+            "text": "###figure_1### JORA is a library for RAFT. Its purpose is to make fine-tuning based on retrieved context more user-friendly. In addition, it is designed to make RAFT faster and more resource-efficient. Figure 1  ###reference_### gives a high-level overview of JORA."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": "We measure the improvement introduced by JORA in terms of memory utilization and computation speed, conducting experiments using Hugging Face/DeepSpeed for comparison. Our setup consists of a system with 4 x A100 with 40GB of VRAM each, an AMD EPYC 75F3 32-core Processor, and 512GB of RAM. The GPUs are cross-connected using NVLink. All experiments use brain floating point for parameter precision for a fair comparison."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Memory Utilization Analysis",
+            "text": "We compare the memory utilization of our implementation with that of the Hugging Face trainer using Accelerate and PEFT. Our implementation is adapted from the examples in the official Hugging Face PEFT library, which uses Accelerate and DeepSpeed for parallel computation. Through parallelization, several parameters are replicated across multiple GPUs. As such, the total memory utilized by parallel training is greater than that used in a single GPU setting. However, the advantage of multi-GPU training is that the memory used by each GPU individually is less than that used in single-GPU training. JAX pre-allocates memory to avoid fragmentation, which makes measuring active allocation a challenge. For memory utilization analysis, we override this behavior by setting the XLA_PYTHON_CLIENT_ALLOCATOR environment variable to \u2018platform.\u2019 This environment variable informs JAX to allocate and deallocate memory as needed but impacts performance. Thus, for the performance evaluation, we use the default configuration.\nFor parallel training, DeepSpeed distributes parameters using data parallelism. Thus, though a single sample cannot be distributed, multiple samples can be aggregated, improving performance. Thus, JORA is beneficial since it allows a single lengthy sequence to backpropagate across multiple GPUs. Table 1  ###reference_### shows that JORA uses less memory per resource as the number of resources increases. The only case where Hugging Face/DeepSpeed consumes lower memory is where only one GPU is available."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Computation Time Comparison",
+            "text": "We also measure computation time using the same RAFT dataset for the Hugging Face and JORA implementations over iterations of 1, 2, and 4 GPUs. Table 1  ###reference_### presents these results. JORA shows consistently better performance than Hugging Face implementation, with JORA implementation being over 12 times faster than the baseline with 4 GPUs. Since DeepSpeed used data parallelism, we observe a performance impact in multi-GPU settings, with the bottleneck being the slowest GPU/sample for backpropagation.\nIn addition to improved performance, since JORA uses JAX\u2019s jit functionality to run compiled computations, the performance of the implementation shows more consistency. We observe a computation performance drop between single and multiple GPUs. This drop could be attributed to cross-GPU communication overhead."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "An Example Usage Scenario",
+            "text": "JORA is designed to aid in RAFT. In this section, we demonstrate a RAFT use case by fine-tuning it on a social media dataset to help LLMs enable social-context understanding. The purpose of RAG is to add additional context to a prompt by searching for knowledge and adding additional information. For RAFT, data can be created based on retrieved knowledge. The LLM learns to generate the retrieved answer based on the context since the key rationale is held back. A simple example is a database query, which corresponds to a process that may be taken to produce an output by evaluating the database. If the query is not provided but rather a natural language equivalent is provided, the LLM must learn the heuristics represented by the hidden query.\nSince prompt tuning is insufficient for models to develop social-context understanding Gandhi et al. (2023  ###reference_b7###), we use a fine-tuning process consisting of two phases to add knowledge to an LLM. Both phases of fine-tuning use PEFT. For our problem setting, rather than just predicting the following words, we aim to gain an understanding of the relation across different comments in a social media session. For instance, a comment in a social media session may target the previous comment, the original post that spawned the session, or some comment in the middle of the discourse. To glean insight into the target of the comment in terms of its context, reasoning between the structure of the conversation is critical. Unfortunately, the LLM pre-training does not consider these relationships specifically, and there is no public data related to reasoning at the comment level in social media discourse. Thus, we rely on other general-purpose structured data as a surrogate to learn structure and reasoning. We use the MNIST dataset to infuse structural intelligence into the model. This dataset consists of a collection of handwritten digit images, where the task is to classify the digits from 0 to 9. To successfully execute this classification, understanding the variation in pixel patterns is essential. Some tasks may require aggregate reasoning over the pixel data.\nFor the directionality analysis task (which post is targeted by another comment in the same session), we leveraged a corpus of 4chan threads Papasavva et al. (2020  ###reference_b20###). This dataset consists of million threads and million posts. Because 4chan allows its users to tag whom they reply to, we use this data as the ground truth for directionality information. We examine whether our RAFT phases improve (i) the model\u2019s ability to detect the post we are targeting for behavior comprehension and (ii) the model\u2019s ability to distinguish who is being targeted by the poster. 4chan allows posters to mention more than one comment as the target of the reply. Here, we consider the model successful if one of the multiple comments is identified. Table 2  ###reference_### shows the result of our experiment. The RAFT model significantly improves performance over the pre-trained counterparts. This illustrates the application of RAFT to improve LLM performance in social media analysis. Social media conversation threads can provide important context but they can span large sequences. JORA helps in the training process here by splitting a discourse sequence\u2019s computation tensors across multiple GPUs. This is not possible using HuggingFace/Deepspeed because Data-Parallelism in these frameworks distributes the workload between different data instances rather than dividing the computation for a single data instance among multiple accelerators."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "This paper presents JORA, a JAX-based library for Retrieval Augment fine-tuning of Llama-2 models. JORA provides convenient functions for data manipulation and training. In addition, it implements best practices for memory efficient and performant training. By using a combination of LoRA, tensor-parallelism, and jit, JORA can significantly improve memory efficiency and computation time over a distributed environment compared to Hugging Face/DeepSpeed. Finally, JORA can export trained models to the popular Hugging Face model format for downstream usage with other Hugging Face-compatible libraries."
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T1\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T1.1\" style=\"width:346.9pt;height:143.2pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-49.0pt,20.2pt) scale(0.779835017433746,0.779835017433746) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T1.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_row\" id=\"S4.T1.1.1.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_th_row ltx_border_t\" id=\"S4.T1.1.1.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.1.1.2.1\">GPUs</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T1.1.1.1.1.3\">1</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T1.1.1.1.1.4\">2</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T1.1.1.1.1.5\">4</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_t\" id=\"S4.T1.1.1.2.1.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.1.1.2.1.1.1\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.2.1.1.1.1\">\n<span class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.2.1.1.1.1.1.1\">Hugging Face PEFT w/</span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.1.1.1.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.2.1.1.1.1.2.1\">Microsoft DeepSpeed ZeRO-3</span></span>\n</span></span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T1.1.1.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.2.1.2.1\">Mem (MB)</span></th>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T1.1.1.2.1.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.2.1.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.3.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.3.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.2.1.3.1.1.1.1\">20645.2</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.3.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.3.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.2.1.3.1.2.1.1\">(39.81)</span></td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T1.1.1.2.1.4\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.2.1.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.4.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.4.1.1.1\">23056 / 23024</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.4.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.4.1.2.1\">(14.63 / 29.29)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right ltx_border_t\" id=\"S4.T1.1.1.2.1.5\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.2.1.5.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.5.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.5.1.1.1\">23978 / 23921 / 23463 / 23397</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.2.1.5.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.2.1.5.1.2.1\">(47.87 / 50.39 / 31.96 / 17.46)</td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.1.3.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.3.2.1.1\">Performance (secs)</span></th>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.3.2.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.2.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.2.1.1.1\">4.56</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.2.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.2.1.2.1\">(0.04)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.3.2.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.3.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.3.1.1.1\">2.81</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.3.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.3.1.2.1\">(0.02)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.4\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.3.2.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.4.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.4.1.1.1\">5.45</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.3.2.4.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.3.2.4.1.2.1\">(0.09)</td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb ltx_border_t\" id=\"S4.T1.1.1.4.3.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.1.1.4.3.1.1\">JORA (Ours)</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T1.1.1.4.3.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.4.3.2.1\">Mem (MB)</span></th>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.4.3.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.3.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.3.1.1.1\">23102</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.3.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.3.1.2.1\">(0.00)</td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.4\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.4.3.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.4.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.4.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.4.3.4.1.1.1.1\">16068 / 16008</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.4.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.4.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.4.3.4.1.2.1.1\">(0.00 / 0.00)</span></td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.5\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.4.3.5.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.5.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.5.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.4.3.5.1.1.1.1\">11460 / 11448 / 11448 / 11400</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.4.3.5.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.4.3.5.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.4.3.5.1.2.1.1\">(0.0 / 0.00 / 0.00 / 0.00)</span></td>\n</tr>\n</table>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T1.1.1.5.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.1.1\">Performance (secs)</span></th>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T1.1.1.5.4.2\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.5.4.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.2.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.2.1.1.1.1\">0.19</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.2.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.2.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.2.1.2.1.1\">(0.00)</span></td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T1.1.1.5.4.3\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.5.4.3.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.3.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.3.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.3.1.1.1.1\">0.79</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.3.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.3.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.3.1.2.1.1\">(0.00)</span></td>\n</tr>\n</table>\n</td>\n<td class=\"ltx_td ltx_align_right ltx_border_bb\" id=\"S4.T1.1.1.5.4.4\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.1.1.5.4.4.1\">\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.4.1.1\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.4.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.4.1.1.1.1\">0.44</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.5.4.4.1.2\">\n<td class=\"ltx_td ltx_align_right\" id=\"S4.T1.1.1.5.4.4.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.5.4.4.1.2.1.1\">(0.00)</span></td>\n</tr>\n</table>\n</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>JORA shows significant improvement w.r.t. Hugging Face implementation of PEFT paired with DeepSpeed for parallelization. JORA uses tensor-parallelism to distribute memory allocation for parameters across GPU resources. The number in the brackets denotes the standard deviation across five runs.</figcaption>\n</figure>",
+            "capture": "Table 1: JORA shows significant improvement w.r.t. Hugging Face implementation of PEFT paired with DeepSpeed for parallelization. JORA uses tensor-parallelism to distribute memory allocation for parameters across GPU resources. The number in the brackets denotes the standard deviation across five runs."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T2\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S5.T2.1\" style=\"width:433.6pt;height:165.9pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(99.2pt,-37.9pt) scale(1.84279251766211,1.84279251766211) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S5.T2.1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T2.1.1.1.1\">\n<td class=\"ltx_td\" id=\"S5.T2.1.1.1.1.1\"></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S5.T2.1.1.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.1.1.2.1\">Target Post</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S5.T2.1.1.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.1.1.3.1\">Reply Post</span></td>\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S5.T2.1.1.1.1.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.1.1.4.1\">p(Reply | Target)</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.1.1.2.2\">\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T2.1.1.2.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.2.2.1.1\">7B</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T2.1.1.2.2.2\">0.082</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T2.1.1.2.2.3\">0.153</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T2.1.1.2.2.4\">0.643</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.1.1.3.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T2.1.1.3.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.3.3.1.1\">13B</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.3.3.2\">0.159</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.3.3.3\">0.200</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.3.3.4\">\n<span class=\"ltx_ERROR undefined\" id=\"S5.T2.1.1.3.3.4.1\">\\ul</span>0.815</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.1.1.4.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S5.T2.1.1.4.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.4.4.1.1\">7B-RAFT</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.4.4.2\">\n<span class=\"ltx_ERROR undefined\" id=\"S5.T2.1.1.4.4.2.1\">\\ul</span>0.865</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.4.4.3\">\n<span class=\"ltx_ERROR undefined\" id=\"S5.T2.1.1.4.4.3.1\">\\ul</span>0.541</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T2.1.1.4.4.4\">0.558</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T2.1.1.5.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S5.T2.1.1.5.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.5.5.1.1\">13B-RAFT</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T2.1.1.5.5.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.5.5.2.1\">0.971</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T2.1.1.5.5.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.5.5.3.1\">0.847</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T2.1.1.5.5.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T2.1.1.5.5.4.1\">0.855</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>The veracity of the directionality identification improves with the RAFT fine-tuning phases w.r.t. the baselines. Given the conversation as context, the values represent the accuracy of detecting the respective posts.</figcaption>\n</figure>",
+            "capture": "Table 2: The veracity of the directionality identification improves with the RAFT fine-tuning phases w.r.t. the baselines. Given the conversation as context, the values represent the accuracy of detecting the respective posts."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.11366v2_figure_1.png",
+            "caption": "Figure 1: JORA is a library that aids in Retrieval Augmented Fine-Tuning by eliminating unnecessary boilerplate and introducing memory efficient training through tensor-parallelism and LoRA."
+        },
+        "2": {
+            "figure_path": "2403.11366v2_figure_2.png",
+            "caption": "Figure 2: JORA provides a simple GUI for fine-tuning."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Gpt-4 technical report.",
+                "author": "Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal Anadkat, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2303.08774.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Improving language models by retrieving from trillions of tokens.",
+                "author": "Sebastian Borgeaud, Arthur Mensch, Jordan Hoffmann, Trevor Cai, Eliza Rutherford, Katie Millican, George Bm Van Den Driessche, Jean-Baptiste Lespiau, Bogdan Damoc, Aidan Clark, et al. 2022.",
+                "venue": "pages 2206\u20132240.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "JAX: composable transformations of Python+NumPy programs.",
+                "author": "James Bradbury, Roy Frostig, Peter Hawkins, Matthew James Johnson, Chris Leary, Dougal Maclaurin, George Necula, Adam Paszke, Jake VanderPlas, Skye Wanderman-Milne, and Qiao Zhang. 2018.",
+                "venue": null,
+                "url": "http://github.com/google/jax"
+            }
+        },
+        {
+            "4": {
+                "title": "Reading wikipedia to answer open-domain questions.",
+                "author": "Danqi Chen, Adam Fisch, Jason Weston, and Antoine Bordes. 2017.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Simple and effective multi-paragraph reading comprehension.",
+                "author": "Christopher Clark and Matt Gardner. 2017.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "On the effectiveness of parameter-efficient fine-tuning.",
+                "author": "Zihao Fu, Haoran Yang, Anthony Man-Cho So, Wai Lam, Lidong Bing, and Nigel Collier. 2023.",
+                "venue": "In Proceedings of the AAAI Conference on Artificial Intelligence, volume 37, pages 12799\u201312807.",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Understanding social reasoning in language models with language models.",
+                "author": "Kanishk Gandhi, Jan-Philipp Fr\u00e4nken, Tobias Gerstenberg, and Noah D Goodman. 2023.",
+                "venue": "arXiv preprint arXiv:2306.15448.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Accelerate: Training and inference at scale made simple, efficient and adaptable.",
+                "author": "Sylvain Gugger, Lysandre Debut, Thomas Wolf, Philipp Schmid, Zachary Mueller, Sourab Mangrulkar, Marc Sun, and Benjamin Bossan. 2022.",
+                "venue": "https://github.com/huggingface/accelerate.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Retrieval augmented language model pre-training.",
+                "author": "Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasupat, and Mingwei Chang. 2020.",
+                "venue": "pages 3929\u20133938.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Lora: Low-rank adaptation of large language models.",
+                "author": "Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. 2021.",
+                "venue": "arXiv preprint arXiv:2106.09685.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Leveraging passage retrieval with generative models for open domain question answering.",
+                "author": "Gautier Izacard and Edouard Grave. 2020.",
+                "venue": "arXiv preprint arXiv:2007.01282.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Generalization through memorization: Nearest neighbor language models.",
+                "author": "Urvashi Khandelwal, Omer Levy, Dan Jurafsky, Luke Zettlemoyer, and Mike Lewis. 2019.",
+                "venue": "arXiv preprint arXiv:1911.00172.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Internet-augmented dialogue generation.",
+                "author": "Mojtaba Komeili, Kurt Shuster, and Jason Weston. 2021.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Latent retrieval for weakly supervised open domain question answering.",
+                "author": "Kenton Lee, Ming-Wei Chang, and Kristina Toutanova. 2019.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Retrieval-augmented generation for knowledge-intensive nlp tasks.",
+                "author": "Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich K\u00fcttler, Mike Lewis, Wen-tau Yih, Tim Rockt\u00e4schel, et al. 2020a.",
+                "venue": "Advances in Neural Information Processing Systems, 33:9459\u20139474.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Retrieval-augmented generation for knowledge-intensive nlp tasks.",
+                "author": "Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich K\u00fcttler, Mike Lewis, Wen-tau Yih, Tim Rockt\u00e4schel, et al. 2020b.",
+                "venue": "volume 33, pages 9459\u20139474.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Teaching language models to support answers with verified quotes.",
+                "author": "Jacob Menick, Maja Trebacz, Vladimir Mikulik, John Aslanides, Francis Song, Martin Chadwick, Mia Glaese, Susannah Young, Lucy Campbell-Gillingham, Geoffrey Irving, et al. 2022.",
+                "venue": "arXiv preprint arXiv:2203.11147.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Atlas: End-to-end 3d scene reconstruction from posed images.",
+                "author": "Zak Murez, Tarrence Van As, James Bartolozzi, Ayan Sinha, Vijay Badrinarayanan, and Andrew Rabinovich. 2020.",
+                "venue": "In Computer Vision\u2013ECCV 2020: 16th European Conference, Glasgow, UK, August 23\u201328, 2020, Proceedings, Part VII 16, pages 414\u2013431. Springer.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Webgpt: Browser-assisted question-answering with human feedback.",
+                "author": "Reiichiro Nakano, Jacob Hilton, Suchir Balaji, Jeff Wu, Long Ouyang, Christina Kim, Christopher Hesse, Shantanu Jain, Vineet Kosaraju, William Saunders, et al. 2021.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Raiders of the lost kek: 3.5 years of augmented 4chan posts from the politically incorrect board.",
+                "author": "Antonis Papasavva, Savvas Zannettou, Emiliano De Cristofaro, Gianluca Stringhini, and Jeremy Blackburn. 2020.",
+                "venue": "In Proceedings of the international AAAI conference on web and social media, volume 14, pages 885\u2013894.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Compositional semantic parsing on semi-structured tables.",
+                "author": "Panupong Pasupat and Percy Liang. 2015.",
+                "venue": "arXiv preprint arXiv:1508.00305.",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Deepspeed: System optimizations enable training deep learning models with over 100 billion parameters.",
+                "author": "Jeff Rasley, Samyam Rajbhandari, Olatunji Ruwase, and Yuxiong He. 2020.",
+                "venue": "In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 3505\u20133506.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "The probabilistic relevance framework: Bm25 and beyond.",
+                "author": "Stephen Robertson, Hugo Zaragoza, et al. 2009.",
+                "venue": "Foundations and Trends\u00ae in Information Retrieval, 3(4):333\u2013389.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Real-time open-domain question answering with dense-sparse phrase index.",
+                "author": "Minjoon Seo, Jinhyuk Lee, Tom Kwiatkowski, Ankur P Parikh, Ali Farhadi, and Hannaneh Hajishirzi. 2019.",
+                "venue": "arXiv preprint arXiv:1906.05807.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Stanford alpaca: An instruction-following llama model.",
+                "author": "Rohan Taori, Ishaan Gulrajani, Tianyi Zhang, Yann Dubois, Xuechen Li, Carlos Guestrin, Percy Liang, and Tatsunori B. Hashimoto. 2023.",
+                "venue": "https://github.com/tatsu-lab/stanford_alpaca.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Lamda: Language models for dialog applications.",
+                "author": "Romal Thoppilan, Daniel De Freitas, Jamie Hall, Noam Shazeer, Apoorv Kulshreshtha, Heng-Tze Cheng, Alicia Jin, Taylor Bos, Leslie Baker, Yu Du, et al. 2022.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2307.09288.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Chain-of-thought prompting elicits reasoning in large language models.",
+                "author": "Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou, et al. 2022.",
+                "venue": "volume 35, pages 24824\u201324837.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.11366v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2"
+        ],
+        "methodology_sections": [
+            "3"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4",
+            "4.1",
+            "4.2"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.11366v2",
+        "paper_title": "JORA: JAX Tensor-Parallel LoRA Library for Retrieval Augmented Fine-Tuning",
+        "research_background": "**Motivation:**\nThe emergence of Large Language Models (LLMs) like ChatGPT has significantly impacted the field of natural language processing (NLP), demonstrating the potential of open-source alternatives like Llama-2, which provide greater flexibility in fine-tuning. Along with these advances, Parameter Efficient Fine-Tuning (PEFT) techniques, such as Low-Rank Adaptation (LoRA), are gaining traction for their ability to optimize resource usage during model training. However, integrating Retrieval Augmented Generation (RAG) with LLMs presents challenges, particularly in handling large context sizes due to the quadratic memory scaling of transformer models and the memory demands of the training process.\n\n**Research Problem:**\nThe main problem addressed in this paper is the lack of support for PEFT in parallel training settings within current machine learning frameworks. Although existing frameworks facilitate fine-tuning LLMs on distributed systems using model and pipeline parallelism, they do not support tensor-parallel training for PEFT. Additionally, the necessity to combine multiple libraries for parameter-efficient and distributed training introduces cumbersome boilerplate code. The paper aims to bridge this gap by developing a solution that enhances the fine-tuning process for RAG applications while optimizing memory usage and training time.\n\n**Relevant Prior Work:**\n1. **LLMs and Customization:**\n   - **ChatGPT**: Achiam et al. (2023) demonstrated the transformative impact of large language models in NLP.\n   - **Llama-2**: Touvron et al. (2023) highlighted Llama-2 as a prominent example of an LLM offering customizable architecture.\n\n2. **Parameter Efficient Fine-Tuning (PEFT):**\n   - **Low-Rank Adaptation (LoRA)**: Fu et al. (2023) discussed the emergence of LoRA as a technique optimizing resource utilization during model training.\n\n3. **Retrieval Augmented Generation (RAG):**\n   - **Lewis et al. (2020a)** explained how RAG leverages a corpus to provide relevant context to LLM prompts, posing challenges with memory scaling and training demands when large context sizes are integrated.\n\n4. **Machine Learning Frameworks and Parallelism:**\n   - **DeepSpeed** and **Accelerate**: Rasley et al. (2020) and Gugger et al. (2022) provided libraries supporting data parallelism but lacked support for tensor-parallel training in PEFT settings.\n\n5. **JAX\u2019s Capabilities:**\n   - **Bradbury et al. (2018)** discussed JAX\u2019s just-in-time (JIT) compilation and tensor-sharding techniques, highlighting their potential in optimizing training processes.\n\n**Contribution:**\nIntroducing JORA (JAX-based LORA), this paper presents a library specifically tailored for Llama-2 models that addresses the aforementioned challenges by leveraging JAX\u2019s capabilities. JORA optimizes the fine-tuning process for RAG applications, improving memory efficiency and training time on standard GPUs. The library also provides utilities for instruct format datasets, merging of LoRA parameters, and conversion to Hugging Face formats, thus making PEFT more accessible and efficient for LLMs, particularly in resource-constrained environments.",
+        "methodology": "The methodology centers on JORA, a library crafted for Retrieval Augmented Fine-Tuning (RAFT). This library is engineered to enhance the user-friendliness of fine-tuning processes that are based on retrieved context. Additionally, JORA aims to optimize RAFT by making it faster and more resource-efficient.\n\nKey components and innovations include:\n\n1. **User-Friendly Interface**: JORA is designed with a focus on ease of use, simplifying the integration of RAFT into various workflows.\n   \n2. **Efficiency**: The library emphasizes speed and resource efficiency, which are crucial for handling large-scale fine-tuning tasks in real-world applications.\n\nIn summary, JORA stands out for its dual focus on user accessibility and optimization of computational resources, providing an advanced toolset for efficient context-based fine-tuning in the domain of retrieval-augmented tasks.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results\n\n#### Experiment Setup\nWe perform our main experiments with the objective to evaluate JORA's effectiveness in terms of memory utilization and computation speed. The setup for these experiments is as follows:\n- **Hardware Configuration**:\n  - 4 x NVIDIA A100 GPUs, each with 40GB of VRAM.\n  - An AMD EPYC 75F3 32-core Processor.\n  - 512GB of RAM.\n  - GPUs are interconnected using NVLink.\n\n- **Software/Framework**:\n  - JORA: The proposed JAX Tensor-Parallel LoRA Library.\n  - Hugging Face/DeepSpeed: Used as the baseline for comparison.\n  \n- **Precision**:\n  - All experiments are conducted using brain floating point (likely BFloat16) for parameter precision to ensure fair comparison.\n\n#### Evaluation Metrics\nThe main metrics used to evaluate the experiments are:\n- **Memory Utilization**: The amount of VRAM consumed during the training process.\n- **Computation Speed**: The time spent to complete training tasks.\n\n#### Results\nThe experiments indicate that JORA provides significant improvements in both memory utilization and computation speed.\n\n- **Memory Utilization**: JORA demonstrates more efficient memory usage compared to Hugging Face/DeepSpeed.\n- **Computation Speed**: JORA achieves faster computation times when benchmarked against Hugging Face/DeepSpeed.\n\nThe results substantiate the effectiveness of JORA in enhancing retrieval-augmented fine-tuning through superior memory and computational efficiency."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To analyze the improvement in memory utilization achieved by the JORA implementation compared to the Hugging Face trainer using Accelerate and PEFT.",
+            "experiment_process": "The experiments were conducted on a system with 4 x A100 GPUs (40GB VRAM each), an AMD EPYC 75F3 32-core Processor, and 512GB of RAM, with GPUs cross-connected using NVLink. Both implementations used brain floating point precision for parameters. For memory utilization analysis, the JAX pre-allocation behavior was overridden by setting XLA_PYTHON_CLIENT_ALLOCATOR to 'platform', forcing allocation and deallocation as needed, impacting performance. DeepSpeed setup replicates parameters across multiple GPUs for parallel computation. JORA leverages tensor sharding for distributed parameter allocation.",
+            "result_discussion": "JORA shows less memory usage per resource as the number of GPUs increases. The only scenario where Hugging Face/DeepSpeed consumes lower memory is with a single GPU. This suggests JORA's tensor-sharding strategy is more memory-efficient for multi-GPU settings.",
+            "ablation_id": "2403.11366v2.No1"
+        },
+        {
+            "research_objective": "To compare the computation time performance of the JORA implementation against Hugging Face and DeepSpeed implementations over multiple GPU configurations.",
+            "experiment_process": "The comparative study executed on the RAFT dataset involved varying the number of GPUs (1, 2, and 4). Both implementations' computation times were recorded, with JORA utilizing JAX\u2019s just-in-time (JIT) compilation for running compiled computations. The experiments assessed the performance consistency and the impact of cross-GPU communication overhead.",
+            "result_discussion": "JORA demonstrated consistently better performance, being over 12 times faster than the Hugging Face/DeepSpeed baseline when using four GPUs. The improved consistency of computation performance is attributed to JAX's JIT functionality. However, there was a noted performance drop when scaling from a single GPU to multiple GPUs, likely due to the overhead from cross-GPU communication.",
+            "ablation_id": "2403.11366v2.No2"
+        }
+    ]
+}

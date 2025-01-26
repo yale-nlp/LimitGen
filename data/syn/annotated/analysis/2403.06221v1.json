@@ -1,0 +1,721 @@
+{
+    "title": "TRAD: Enhancing LLM Agents with Step-Wise Thought Retrieval and Aligned Decision",
+    "abstract": "Numerous large language model (LLM) agents have been built for different tasks like web navigation and online shopping due to LLM\u2019s wide knowledge and text-understanding ability. Among these works, many of them utilize in-context examples to achieve generalization without the need for fine-tuning, while few of them have considered the problem of how to select and effectively utilize these examples. Recently, methods based on trajectory-level retrieval with task meta-data and using trajectories as in-context examples have been proposed to improve the agent\u2019s overall performance in some sequential decision making tasks. However, these methods can be problematic due to plausible examples retrieved without task-specific state transition dynamics and long input with plenty of irrelevant context. In this paper, we propose a novel framework (TRAD) to address these issues. TRAD first conducts Thought Retrieval, achieving step-level demonstration selection via thought matching, leading to more helpful demonstrations and less irrelevant input noise. Then, TRAD introduces Aligned Decision, complementing retrieved demonstration steps with their previous or subsequent steps, which enables tolerance for imperfect thought and provides a choice for balance between more context and less noise. Extensive experiments on ALFWorld and Mind2Web benchmarks show that TRAD not only outperforms state-of-the-art models but also effectively helps in reducing noise and promoting generalization. Furthermore, TRAD has been deployed in real-world scenarios of a global business insurance company and improves the success rate of robotic process automation. Our codes are available at: https://github.com/skyriver-2000/TRAD-Official.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1. Introduction",
+            "text": "###figure_1### Large Language Models (LLMs) (Brown et al., 2020  ###reference_b4###; Touvron et al., 2023  ###reference_b33###) have achieved remarkable success on various tasks like question answering (Zheng et al., 2024a  ###reference_b46###), chatbot (Ouyang et al., 2022  ###reference_b21###), code synthesis (Roziere et al., 2023  ###reference_b25###), text ranking (Ferraretto et al., 2023  ###reference_b8###), table-based reasoning (Ye et al., 2023  ###reference_b44###), and retrieval query expansion (Mackie et al., 2023  ###reference_b18###) due to their wide knowledge and excellent ability of text understanding and generation. Recently, a series of works have attempted to build powerful agents based on LLMs for various sequential decision-making tasks, including text-based games (Yao et al., 2023a  ###reference_b42###), online shopping (Yao et al., 2022  ###reference_b41###), web navigation (Deng et al., 2023  ###reference_b5###), and information retrieval (Zhu et al., 2023  ###reference_b49###).\nAmong existing LLM agents, some are trained with large-scale expert data by supervised fine-tuning (SFT) (Nakano et al., 2021  ###reference_b19###; Gur et al., 2023  ###reference_b10###, 2024  ###reference_b9###), while some are tuning-free and utilize in-context learning (ICL) with few expert demonstration examples (Yao et al., 2023b  ###reference_b43###; Kim et al., 2023  ###reference_b14###; Wang et al., 2023d  ###reference_b35###; Zheng et al., 2024b  ###reference_b47###). In this paper, we focus the scope on tuning-free ICL methods, as they are highly cost-effective and can seamlessly generalize to different tasks using only a small amount of expert samples. Most existing ICL-based agents are prompted with expert trajectories carefully selected by human (Wei et al., 2022  ###reference_b39###; Yao et al., 2023b  ###reference_b43###; Shinn et al., 2023  ###reference_b29###), which work well when few expert trajectories are available. However, when we have access to a large dataset of expert trajectories or an expert policy, the automatic and personalized selection of expert trajectories for each task instruction becomes necessary, and can have an essential influence on task performance.\nRecently, Zheng et al. (2024b  ###reference_b47###) study the problem of demonstration selection and propose Synapse, which retrieves relevant expert trajectories by task meta-data, and then prompts LLMs with these retrieved trajectories. Synapse performs well on computer control tasks (MiniWob++ (Shi et al., 2017  ###reference_b28###)) and web navigation tasks (Mind2Web (Deng et al., 2023  ###reference_b5###)). Nevertheless, retrieving and prompting with complete trajectories can be problematic in the following three aspects.\nPlausible examples. Sometimes generalization to data from various domains can be critical. For example, in cross-website and cross-domain subsets of Mind2Web, agents operate on websites unseen in the training set, i.e., memory. In this case, retrieving trajectories with only task meta-data is very likely to provide plausible examples, which share similar task instructions to the current one but require totally different solutions. As shown by experiments in (Zheng et al., 2024b  ###reference_b47###), plausible examples provide no more information than random examples and can usually mislead LLM agents to wrong decisions.\nContext limit of LLMs. When facing tasks with long horizons and complex observations, prompting with complete trajectories will result in input sequences longer than the allowed length of LLMs. Synapse thus has to reduce the number of trajectory examples or even fail to complete the task directly. Though some long-context LLMs can receive very long prompts, the performance can be harmed due to the issue of long-term forgetting (Team, 2023  ###reference_b32###).\nIrrelevant information in prompts.\nLLMs are found sensitive to their prompts, and can easily copy their recent input (Radford et al., 2019  ###reference_b23###; Holtzman et al., 2020  ###reference_b12###). The decision at the current timestep can be related to very few steps in a retrieved trajectory, while other steps do not provide any helpful information. Therefore, irrelevant steps will have unpredictable effects on the decision of LLM agents. As shown by our experiments, they negatively impact the performance most of the time.\nTo address the problems of trajectory-wise retrieval and prompting, we delve into step-wise demonstration retrieval and prompting. We discover that, via demonstrating with relevant steps, the input context of the LLM agent can be significantly reduced. Thus, the issue of context limit and irrelevant information can be alleviated. Therefore, the critical part is to retrieve step demonstrations that are truly relevant and helpful. To achieve this, we utilize step-by-step reasoning, i.e. Chain-of-Thought technique (Wei et al., 2022  ###reference_b39###), to abstract the state at each timestep as retrieval queries and keys. The generated thoughts can involve historical information or future plans, which is more specific with state transitions and helpful in reducing plausible examples.\nIn this paper, we propose Thought Retrieval and Aligned Decision (TRAD), a novel framework that achieves step-wise demonstration retrieval via thought matching and enhances the context for action prediction with temporally neighboring steps and their order information. Our contribution can be summarized in four-folds:\nWe propose a thought retrieval method, where we label thoughts for expert demonstration steps in advance with an LLM, prompt LLM agents to reason at inference time, and achieve step-wise retrieval by a similarity search on thought. To the best of our knowledge, this is the first work that enables the LLM agent with thought retrieval techniques for sequential decision-making.\nBased on the thought retrieval operation, we further propose an aligned decision method, where we supply the retrieved steps with their temporal neighbors to overcome imperfect thoughts and enhance task-relevant information.\nWe conduct extensive experiments and analysis on Mind2Web (Deng et al., 2023  ###reference_b5###) tasks and ALFWorld (Shridhar et al., 2021  ###reference_b31###), showing that TRAD achieves state-of-the-art (SoTA) performance compared to existing works. TRAD brings a 2.99% improvement over the strongest baseline (93.78%  96.77%) to the success rate (SR) on ALFWorld. On Mind2Web, TRAD improves element accuracy, step SR, and SR remarkably over the powerful Synapse agent (Zheng et al., 2024b  ###reference_b47###) by 2.1%, 1.4%, and 0.5%.\nWe have deployed TRAD to the real-world robotic process automation scenarios of a global business insurance company, where TRAD enables the LLM agent to significantly improve the success rate in a bunch of practical tasks. In average, TRAD raises step SR from 90.2% to 98.1% and SR from 65.0% to 92.5%."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2. Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "2.1. LLM Agents",
+            "text": "In recent years, there has been a rapidly growing trend to utilize pre-trained LLMs as the central controller to obtain human-level decision-making capabilities (Wang et al., 2023b  ###reference_b36###). Among these works: Nakano et al. (2021  ###reference_b19###) fine-tune the GPT-3 (Brown et al., 2020  ###reference_b4###) model for question answering in a text-based web browsing environment. Yao et al. (2022  ###reference_b41###) develop WebShop, a simulated e-commerce website environment, and fine-tune a BERT (Devlin et al., 2018  ###reference_b6###) model with imitation learning and reinforcement learning. Yao et al. (2023b  ###reference_b43###) insert a reasoning section between observation input and action output, significantly improving the performance on ALFWorld (Shridhar et al., 2021  ###reference_b31###) and WebShop (Yao et al., 2022  ###reference_b41###) tasks. Shinn et al. (2023  ###reference_b29###) further improve over (Yao et al., 2023b  ###reference_b43###) via verbally reflecting on linguistic task feedback signals. Schick et al. (2023  ###reference_b27###) teach LLMs to use external tools via simple APIs in a self-supervised learning way. Park et al. (2023  ###reference_b22###) introduce Generative Agents, extending LLMs with natural language memories and retrieving them dynamically to plan behavior. Wang et al. (2023a  ###reference_b38###) propose DEPS, an interactive planning approach, which facilitates better error correction by integrating a description of the plan execution process and an explanation of failure feedback. Wang et al. (2023d  ###reference_b35###) employ an exploration curriculum, a growing skill library, and a novel iterative prompting mechanism, leading to better proficiency in playing Minecraft. Deng et al. (2023  ###reference_b5###) construct the Mind2Web dataset from real-world webpages, which consists of three subsets requiring different degrees of generalization, and compare the performance of imitation learning and few-shot inference.\nAs can be seen above, most existing LLM agents focus on: 1) improving task performance by direct fine-tuning (Nakano et al., 2021  ###reference_b19###; Yao et al., 2022  ###reference_b41###; Deng et al., 2023  ###reference_b5###); 2) enhancing planning or reasoning by explicitly prompting (Yao et al., 2023b  ###reference_b43###; Shinn et al., 2023  ###reference_b29###; Wang et al., 2023a  ###reference_b38###); 3) extending the application with an external memory or tool library (Schick et al., 2023  ###reference_b27###; Park et al., 2023  ###reference_b22###; Wang et al., 2023d  ###reference_b35###). However, providing more relevant information in prompts, as a fundamental way to elicit better task understanding, does not receive sufficient attention. When near-optimal demonstrations are accessible, selecting few-shot demonstrations properly can be a simple yet very effective way to improve task performance, which is investigated in our work."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "2.2. In-Context Example Selection",
+            "text": "LLMs have been shown excellence of few-shot learning (Brown et al., 2020  ###reference_b4###), and the selection of in-context examples can yield a significant improvement on the overall performance. Liu et al. (2021  ###reference_b17###) first propose to retrieve the -nearest neighbors (-NN) of the input as in-context examples, and achieve improvement over random retrieval baselines. Rubin et al. (2022  ###reference_b26###) select relevant samples with an encoder trained with label similarity, and obtain better performance over BM25 and pre-trained encoder baselines. Zhang et al. (2022  ###reference_b45###) consider selecting and labeling unlabeled examples as demonstrations to achieve the best performance, and view this problem as a sequential decision making task to solve by reinforcement learning. Wu et al. (2023  ###reference_b40###) further select examples in a subset recalled from -NN search via minimizing the entropy of output.\nIRCoT (Trivedi et al., 2023  ###reference_b34###) should be the most relevant work to ours, which retrieves relevant documents with reasoning steps on question-answering tasks. However, their method consists of retrieving with a complete historical trajectory and accumulating retrieved trajectories over time, which are not transferable to complex sequential decision-making tasks, and we propose a method different from theirs in that: (i) Our method focuses on both providing more relevant demonstrations and reducing irrelevant context for sequential decision-making tasks, while theirs is limited to question-answering tasks and only addresses the first issue.\n(ii) Our method retrieves completely different steps across timesteps and complements the retrieval results with temporal information, while theirs only accumulates relevant documents at every reasoning step and heuristically cuts off the earliest ones to fit in the context limit of LLMs.\n(iii) Our method prepares pseudo-golden thoughts for expert trajectories in the memory to enable retrieval with trajectories without thoughts, and utilizes single-step thoughts as both queries and keys for precise retrieval, while theirs uses thoughts only as queries with raw documents as keys.\n###figure_2### The selection of in-context examples has been studied thoroughly for non-sequential tasks like question answering and sentiment analysis. However, for sequential decision-making tasks, how to select the examples to improve the overall performance remains unclear. Zheng et al. (2024b  ###reference_b47###) propose a trajectory-wise retrieval solution, while a more precise step-wise solution is still desired as discussed in Section 1  ###reference_###, which motivates our work."
+        },
+        {
+            "section_id": "2.3",
+            "parent_section_id": "2",
+            "section_name": "2.3. LLM Planning and Reasoning",
+            "text": "Our work proposes to use thought, which can be viewed as a general abstraction of the current state, as queries and keys for retrieval. Nevertheless, plans, code comments, and any other text that extracts comprehensive information about the current state can serve as an alternative. Therefore, we particularly review some remarkable reasoning and planning works based on LLMs, and most of them are complementary to our work.\nWei et al. (2022  ###reference_b39###) first introduce the concept of Chain-of-Thought (CoT) by providing with explicit step-by-step reasoning process in example outputs improving performance on arithmetic, commonsense, and symbolic reasoning tasks. Wang et al. (2023c  ###reference_b37###) further find that a single reasoning path can be sub-optimal, and propose self-consistency to address this problem by sampling multiple reasoning paths.\nFor efficient yet flexible search of reasoning paths, Yao et al. (2023a  ###reference_b42###) apply tree search with self-evaluation to find globally excellent thoughts. Besta et al. (2023  ###reference_b3###) later extend the tree-search structure to a graph search for even better flexibility and overall performance.\nThe works mentioned above consider problems that are non-sequential or solvable by a single complete reasoning path after receiving the input. For harder sequential decision-making problems: Zhou et al. (2023  ###reference_b48###) introduce least-to-most prompting to solve hard problems by decomposing the problem and solving sub-problems sequentially. ReAct proposed by Yao et al. (2023b  ###reference_b43###) interacts with the environment in a reason-then-act style, which enriches the context for action prediction. Code-as-Policies (Liang et al., 2023  ###reference_b15###) writes executable codes for embodied control by hierarchically expanding undefined programs, which can be viewed as implicit reasoning or CoT process. Liu et al. (2023  ###reference_b16###) propose to incorporate the strength of classical planners by translating the original problem into a PDDL (Aeronautiques et al., 1998  ###reference_b2###) problem to solve by classical planners. Hao et al. (2023  ###reference_b11###) and Ding et al. (2023  ###reference_b7###) share a similar insight that reasoning can be implemented indeed by planning, where (Hao et al., 2023  ###reference_b11###) use LLMs as world models and (Ding et al., 2023  ###reference_b7###) conduct MCTS for thought generation with a light-weight extra network.\nTo summarize, LLM planning and reasoning have continuously received huge attention from researchers in recent years. This makes our work flexible and improvable with more powerful planning and reasoning methods in the future."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3. The TRAD Framework",
+            "text": "As discussed in Section 1  ###reference_###, trajectory-wise retrieving and prompting lead to issues of plausible examples, LLM context limits, and irrelevant information. To resolve these issues, we propose a novel method called Thought Retrieval and Aligned Decision (TRAD), as illustrated in Fig. 1  ###reference_###.\nOur TRAD agent utilizes thought, which is obtained by reasoning about its current state, to retrieve similar steps from expert trajectories, and is then complemented with steps temporally correlated to the retrieved ones and their temporal position information to predict the action. Formally, our TRAD agent can be summarized in one equation:\nwhere  is the current task,  and  are historical observations and actions,  is the thought generated by LLM about the current state, TR and AD denote our thought retrieval and aligned decision modules, and  refers to the thought-enhanced memory. We will present each module of TRAD in the following subsections."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1. Thought Preparation",
+            "text": "Most expert trajectories, collected by either human or other expert agents, do not contain their reasoning process. Therefore, before we utilize thoughts for retrieval, we should prepare thoughts for each demonstration step in the memory. Specifically, we start from a small subset of expert demonstrations and provide thoughts written by human experts for each step in it. Given this small subset as few-shot examples in prompts, we can query LLMs to label thoughts for a large memory. Although ground-truth actions are not accessible at inference time, we can prompt LLMs with them to generate thoughts of higher quality. In this way, LLMs produce pseudo-golden thoughts consistent with expert actions, and we obtain a thought-enhanced memory  supporting both trajectory-wise retrieval with task meta-data and step-wise retrieval with thoughts."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2. Thought Retrieval",
+            "text": "Given pseudo-golden thoughts for all steps in the memory, which can serve as keys for step-wise similarity search, we now present our thought retrieval method to select relevant demonstrations at inference time. To be specific, we first conduct trajectory-wise demonstration retrieval as in (Zheng et al., 2024b  ###reference_b47###) for thought generation. With these trajectory demonstrations, at each timestep  we prompt the LLM to generate a thought  for step-wise retrieval. Note that this process does not directly effects decision-making, hence it can be further simplified if necessary and the issues mentioned in Section 1  ###reference_### will not impact the agent severely.\nWith the thought , which can be viewed as an abstraction, about current state, we conduct dense retrieval to find relevant steps in the thought-enhance memory . Here any encoder pre-trained on a large corpus for retrieval, e.g., Sentence-BERT (Reimers and Gurevych, 2019  ###reference_b24###) and DPR (Karpukhin et al., 2020  ###reference_b13###), can be utilized to encode the query thought and key thoughts into dense vectors. Using a cosine similarity between the query and keys, we then collect top- relevant steps that belong to mutually different trajectories and their corresponding task instructions."
+        },
+        {
+            "section_id": "3.3",
+            "parent_section_id": "3",
+            "section_name": "3.3. Aligned Decision",
+            "text": "Now we have relevant demonstration steps from thought retrieval. However, the query thought can be imperfect due to the lack of expert action information at inference time. As we will show by ablation experiments in Section 4.4  ###reference_###, directly using these steps to form single-step demonstrations does not provide satisfactory performance, which is similar to the plausible example issue of trajectory-wise retrieval. Therefore, we propose an aligned decision method to incorporate more information during the decision-making process. Aligned decision complements LLM agents with steps temporally correlated to the retrieved ones and their temporal position information. As illustrated in Fig. 2  ###reference_###, the aligned decision method can be decomposed into following three sub-processes.\nTemporal expansion. For each retrieved step, we first expand it into a step sequence involving  previous steps and  subsequent steps. When the number of previous or subsequent steps is smaller than  or , we simply take all previous or subsequent steps. This transforms each retrieved step into at most  temporally successive steps, allowing LLM agents to correct their imperfect thoughts by looking at more related steps at decision-making time.\nRelative order mark. Given  expanded step sequences by temporal expansion, we insert a mark for each step (including the retrieved ones) indicating the relative position w.r.t. its corresponding retrieved step, and incorporate this rule of mark in the prompt for decision. For example, the last step before the retrieved one will be marked as [Step -1], the retrieved step as [Step 0], and the first step after the retrieved one as [Step 1]. This provides temporal information about the  demonstration steps, and promotes more accurate demonstration following.\nHistory alignment. Sometimes the optimal policy to a task, like ALFWorld, can be history-dependent, hence using single-step input for action prediction is unreasonable. Since we aim to reduce input content for less forgetting and noise, we should neither use all historical observations and actions. Moreover, even if we include previous actions as auxiliary information, there exists a mismatch where expert demonstrations are given as sequences of length  while current input is a single step. We thus propose to insert at most  previous input-output pairs (i.e. ) before current input , transforming current input into a similar sequence to demonstrations."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4. Experiments",
+            "text": "In this section, we aim to study the following research questions:\nHow does TRAD perform against existing SoTA methods?\nDoes thought retrieval help to reduce irrelevant context and improve the overall performance?\nDoes aligned decision help to supply information when generalization is important?\nDiving into aligned decision, are all temporal expansion (TE), relative order mark (ROM), and history alignment (HA) necessary for improvement?\nHow will the performance and advantage of TRAD be effected by critical hyper-parameters?"
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1. Experiment Setup",
+            "text": "To answer the above research questions, we conduct extensive experiments on ALFWorld (Shridhar et al., 2021  ###reference_b31###) and Mind2Web (Deng et al., 2023  ###reference_b5###) tasks. For each task, we introduce the details of evaluation as follows.\nALFWorld (Shridhar et al., 2021  ###reference_b31###) is a text-based game aligned with ALFRED (Shridhar et al., 2020  ###reference_b30###) benchmark. It involves 6 types of tasks where an agent must take a series of actions (e.g. go to shelf 1, take vase 2 from shelf 1, put vase 2 in/on cabinet 5) to achieve a high-level goal given by a natural language instruction (e.g. put some vase on a cabinet). This environment is challenging in three aspects: 1) Agent should determine likely places of a householding object and explore them one by one to find such object; 2) Agent should understand the usage of some objects like microwaves, fridges, and desklamps; 3) Some tasks can take an agent more than 30 steps to solve, requiring substantial long-term memorization.\nFollowing Shridhar et al. (2021  ###reference_b31###), we evaluate on the subset of 134 out-of-distribution tasks, comparing the task success rates of TRAD to ReAct (Yao et al., 2023b  ###reference_b43###) and Synapse (Zheng et al., 2024b  ###reference_b47###) (without state abstraction as observations are short). As ReAct and Synapse has provided sufficiently strong performances, we do not include more complex reasoning and planning baselines and corresponding variants of TRAD due to our API cost limit.\nNote that the original ReAct uses fixed but not retrieved trajectories as demonstrations, hence we test two ReAct baselines to eliminate such an effect:\nReAct (Fixed) uses fixed human-written trajectories as demonstrations;\nReAct (Random) randomly samples trajectories from the memory as demonstrations.\nFor fair comparison, TRAD uses thoughts in exactly the same format as ReAct, and shares a consistent memory of expert trajectories with Synapse. We also add a strong baseline (Synapse+ReAct) combining the trajectory-level retrieval in Synapse and the reasoning in ReAct. On ALFWorld, all methods are built with GPT-4 (OpenAI, 2023  ###reference_b20###) and 2 in-context examples.\nMind2Web (Deng et al., 2023  ###reference_b5###) is an HTML-based web navigation benchmark collected from real-world webpages, involving various tasks such as searching, trip booking, social network subscription, etc. It contains 3 subsets, i.e., cross-task, cross-website, cross-domain. This environment is challenging in two aspects: 1) Existing LLM agents can hardly understand HTML input well; 2) Unseen tasks and websites can require substantial generalization. Deng et al. (2023  ###reference_b5###) find that the cross-website and cross-domain subsets are significantly harder due to the need for generalization to unseen websites.\nSince Mind2Web was introduced only about half a year ago, there is a lack of suitable baseline algorithms, and thus we compare our TRAD agent to Synapse (Zheng et al., 2024b  ###reference_b47###) and ReAct (Yao et al., 2023b  ###reference_b43###). Following Zheng et al. (2024b  ###reference_b47###), we evaluate on all 3 subsets, comparing the element accuracy (Ele. Acc), step success rate (Step SR), and trajectory success rate (SR). For fair comparison, we follow (Zheng et al., 2024b  ###reference_b47###) and summarize observations into 5 web elements with the pre-trained element ranker provided by (Deng et al., 2023  ###reference_b5###) for all methods. Since the observations are still very complex on Mind2Web, including thoughts for every step in trajectories is not available, hence: 1) we do not include a Synapse + ReAct baseline; 2) TRAD generates thoughts and predicts actions by a single-step prompt with the current observation and previous actions (without previous observations). To eliminate the effect of prompting style and reasoning, we build two ReAct baselines using the same format of prompt as TRAD:\nReAct (Random), for which we prompt ReAct with completely random demonstration steps.\nReAct (Relevant), for which we prompt ReAct with demonstrate steps randomly chosen from trajectories retrieved by Synapse.\nWe do not include the ReAct (Fixed) baseline as it is hard to write or pick demonstrations commonly helpful for such diverse test sets.\nWe also provide the results of the simplest MindAct (Deng et al., 2023  ###reference_b5###) baseline without reasoning and retrieval for completeness. On Mind2Web, all methods are built with GPT-3.5-turbo and 3 in-context examples."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2. Evaluation on ALFWorld",
+            "text": "The success rate of each method tested on ALFWorld is shown in Tab. 1  ###reference_###. Generally, our TRAD agent achieves an average success rate of 96.77%, significantly outperforming ReAct (90%), Synapse (89.55%), and even their strong combination (93.78%). It is also worth noting that the worst trial of TRAD among 3 random seeds achieves a success rate of 94.8%, outperforming the best trial produced by any other method (94.0%).\nDown to the success rate on each type of task, we observe that the success rate of each method varies more on the simplest Put task and the hardest PutTwo task. We discuss the results of these two tasks respectively as follows:\nOn the simplest Put task, ReAct performs even more poorly than other harder tasks. We find that the two vital reasons for ReAct\u2019s failure on Put task are incorrect location and usage of objects, e.g. trying to put an object in a closed safe. As this issue can be alleviated through a combination with Synapse, the necessity of retrieving relevant demonstrations thus justified.\nTRAD achieves the largest improvement on the hardest PutTwo task. PutTwo requires to correct the locations of two objects and a comprehensive understanding of its task process. Since TRAD\u2019s outstanding performance on this hardest task is obtained from a reduced input context at decision-making time, we can conclude that step-wise thought retrieval is helpful by reducing the noise of irrelevant steps and finding relevant examples more precisely."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "4.3. Evaluation on Mind2Web",
+            "text": "To verify the capability of TRAD under more realistic scenarios, we compare TRAD to ReAct and the current SoTA method, Synapse, on the Mind2Web benchmark, and the results are shown in Tab. 2  ###reference_###. We also include the results of Synapse without retrieval here to better illustrate the effect of different retrieval methods.\nGenerally, TRAD achieves the highest performance in terms of all 3 metrics averaged on 3 subsets. Considering that the trajectory-level retrieval of Synapse only brings marginal boosts on Cross-Task and Cross-Website subsets, and even slightly impacts the performance on the Cross-Domain subset, our TRAD method can be thus justified in two aspects:\nBy reducing input context and utilizing step-wise relevant demonstrations, our step-wise thought retrieval helps more than the trajectory-wise retrieval with task meta-data in Synapse to improve on the simplest Cross-Task subset.\nBy eliminating plausible examples and complementing temporal correlated steps, aligned decision helps to improve on the two harder subsets, especially the most out-of-distribution Cross-Domain subset.\nFurthermore, we observe that the two ReAct baselines perform poorly on this task, which indicates that:\nThe thoughts generated by GPT-3.5-turbo on Mind2Web tasks are not sufficient for LLM agents to infer the correct action.\nThe single-step prompting style which removes previous observations does not benefit overall performance.\nOn the contrary, TRAD utilizes these imperfect thoughts for retrieval rather than direct decision-making, and is complemented with temporally correlated steps via aligned decision. Therefore, TRAD is not negatively impacted by the imperfect thoughts, but transforms them into helpful information.\nBefore we start the study on detailed design and hyper-parameter choices of TRAD, we can summarize our performance evaluation on ALFWorld and Mind2Web benchmarks and answer the first three research questions as follows.\nAnswer to RQ1: On both householding (ALFWorld) and web navigation (Mind2Web) tasks, TRAD significantly outperforms curernt SoTA methods and becomes the new SoTA method.\nAnswer to RQ2: On ALFWorld benchmark, Synapse + ReAct generates thoughts in exactly the same way with our TRAD, and uses entire relevant trajectories (more information than TRAD) as demonstrations for action prediction. However, TRAD shows obvious advantage over this baseline. Therefore, we can conclude that TRAD benefits from more relevant demonstrations and less irrelevant input context brought by thought retrieval.\nAnswer to RQ3: On Mind2Web benchmark, TRAD achieves the most improvement over Synapse on the Cross-Domain subset which requires the most generalization. Therefore, we can tell that the aligned decision method complements critical information for decision-making on unseen input."
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "4.4. Ablation Studies",
+            "text": "We have verified the effectiveness of TRAD on two different scenarios, i.e., automatic householding and web navigation. Next, we are to examine the effect of each module in TRAD. Due to our limited budget for API usage, all ablation studies are conducted on the Mind2Web benchmark with GPT-3.5-turbo."
+        },
+        {
+            "section_id": "4.4.1",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.1. The Effect of Aligned Decision",
+            "text": "First, we study the effect of macro building blocks of TRAD. Since eliminating thought retrieval will disable aligned decision at the same time and break the framework fundamentally, we do not remove the thought retrieval module, but ablate each component of aligned decision, i.e., temporal expansion (TE), relative order mark (ROM), and history alignment (HA), and compare the corresponding performances. The results are shown in Tab. 3  ###reference_###.\nFrom Tab. 3  ###reference_###, we observe that the performance without each component varies differently on the simplest Cross-Task subset and the two harder subsets:\nOn the harder Cross-Website and Cross-Domain subsets, the elimination of all three modules in aligned decision results in a significant performance drop, and the effect of temporal expansion is the most significant. This is intuitive, since only retrieved steps are provided to the agent without TE, and thus the agent becomes more vulnerable to imperfect thoughts.\nOn the simplest Cross-Task subset, however, history alignment and relative order mark are not that helpful and even cause performance drop. As discussed earlier (Section 1  ###reference_### and Section 3.3  ###reference_###), when the issue of plausible examples is not severe, reducing context and prompting with the most relevant demonstration becomes the dominant factor of performance boost. Therefore, only temporal expansion remains beneficial for recovering from imperfect thoughts, while the other two components lead to sub-optimal performance.\nGenerally, the aligned decision method provides more information about the source trajectories of retrieved steps and the current trajectory, and helps especially for scenarios where generalization is essential. We can now summarize these observations and answer the fourth research question.\nAnswer to RQ4: Among the sub-processes in aligned decision, 1) temporal expansion provides tolerance for imperfect thoughts and improves the overall performance of TRAD consistently; 2) relative order mark and history alignment complement TRAD with temporal information about the trajectories of retrieved steps and the current trajectory, which serve as useful context for out-of-distribution decision-making but may become less useful for in-distribution decision-making."
+        },
+        {
+            "section_id": "4.4.2",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.2. The Effect of Expansion Steps  and",
+            "text": "Next we vary a critical hyper-parameter, the number of temporal expansion steps, and investigate how the overall performance will change accordingly. To avoid an expensive grid search on  and , we consider only one-side expansion by varying  or  from  to  with the other set to . The results over all 3 subsets are shown in Fig. 3  ###reference_###.\n###figure_3### ###figure_4### From Fig. 3  ###reference_###, we can have the following observations:\nBoth forward expansion () and backward expansion () achieve improvement compared to no expansion (). This justifies our design of aligned decision.\nEither forward expansion or backward expansion does not benefit from increasing a large enough  or  further. This proves our hypothesis that irrelevant context too far from the current state is of little value and even noisy.\nGenerally, forward expansion performs better than backward expansion when varying  and . The reason for this phenomenon might be that historical information has been incorporated in thoughts and thus future information helps more.\nTRAD achieves its best performance when  and , and consistently outperforms Synapse with forward expansion."
+        },
+        {
+            "section_id": "4.4.3",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.3. The Effect of Demonstration Amount",
+            "text": "Finally, we look into a common yet important hyper-parameter, the number of retrieved demonstrations , and see how the advantage of TRAD over the baseline (Synapse) will change given different . We show the results over all 3 subsets in Fig. 4  ###reference_###. Note that the trajectory-wise prompting in Synapse frequently exceeds the context limit when , and thus we omit this result.\n###figure_5### From Fig. 4  ###reference_###, we see that  has a mild effect on the performance of TRAD and Synapse, and that the advantage of TRAD over Synapse consistently remains for all .\nWith results in Section 4.4.2  ###reference_.SSS2### and Section 4.4.3  ###reference_.SSS3###, we now respond to our last research question.\nAnswer to RQ5: The performance and advantage of TRAD generally remains stable with different hyper-parameter choices, i.e., temporal expansion steps, number of retrieved demonstrations. Its performance and advantage only degrade when using long backward extension, which is possibly due to the fact that historical information has already been incorporated in thoughts and does not provide further help for decision-making."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5. Real-World Deployment of TRAD",
+            "text": "Since Dec. 2023, we have deployed our TRAD agent to automate some real-world office tasks in a mainstream insurance company, which owns a global business with approximately 170 million customers worldwide. We select 4 different websites and collect 100 expert trajectories for some representative tasks on each website as our memory. For evaluation, we collect 20 unseen tasks on each website, using step success rate (Step SR) and trajectory success rate (SR) as evaluation metrics. Tasks involve filling in insurance inquiry forms, implementing advanced information retrieval, etc. Since the websites are complex and contain thousands of web elements, prompting with complete trajectories is not available, hence we only consider single-step prompting with historical actions as auxiliary information.\nTo verify the effectiveness of TRAD, we use two different ReAct agents that the company has attempted as our baseline:\nReAct-RD: randomly selects expert steps in random trajectories as demonstrations.\nReAct-RV: randomly selects expert steps in relevant trajectories retrieved by task instruction as demonstrations.\nTo be specific, the difference between TRAD and ReAct-RV is using thought for a second-time step retrieval and the aligned decision module. To further investigate the effect of thought retrieval and aligned decision, we also deploy a TR agent which removes our aligned decision method, namely the TRAD w/o TE baseline in Tab. 3  ###reference_###. We list the results in Tab. 4  ###reference_###.\nAs can be seen in Tab. 4  ###reference_###, TRAD achieves the best performance on all 4 websites, showing its advantage can remain when deployed to real-world scenarios. Moreover, we observe that TRAD w/o TE baseline also outperforms both ReAct agents, but exhibits noticeable disadvantages compared to the complete TRAD agents. This justifies our design of both thought retrieval and aligned decision.\nInference efficiency of TRAD. At inference time, our TRAD agent only introduces little extra time consumption in thought retrieval compared to ReAct. We profile the inference process of TRAD and ReAct on all websites and tasks, and in average TRAD takes only 11.7% more time than ReAct-RD, which indicates that our method achieves improvement without much sacrifice on efficiency."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6. Discussions",
+            "text": ""
+        },
+        {
+            "section_id": "6.1",
+            "parent_section_id": "6",
+            "section_name": "6.1. Limitations of TRAD",
+            "text": "Although TRAD exhibits excellent performances over a diverse set of tasks, it still has limitations like dependence on high-quality thought and trade-off between information and noise in temporal expansion, and we briefly discuss about them here."
+        },
+        {
+            "section_id": "6.1.1",
+            "parent_section_id": "6.1",
+            "section_name": "6.1.1. Dependence on high-quality thought.",
+            "text": "TRAD alleviates the issue of imperfect thoughts by its aligned decision module, but its capability still depends heavily on the quality of thoughts and the capability of backbone LLM. To make such a step-wise retrieval-augmented method work well, the abstraction of current state is critical since it serves as the query and key for retrieval, hence the LLM used to build a TRAD agent should at least have a decent understanding of the task."
+        },
+        {
+            "section_id": "6.1.2",
+            "parent_section_id": "6.1",
+            "section_name": "6.1.2. Trade-off in temporal expansion.",
+            "text": "TRAD expects to keep relevant information but reduce irrelevant input context by step-wise thought retrieval, while preserving some chance for correcting imperfect thoughts by temporal expansion. Here exists a trade-off: a longer temporal expansion brings not only more tolerance to imperfect thoughts, but also more irrelevant noise in demonstrations. This trade-off requires careful consideration for different tasks."
+        },
+        {
+            "section_id": "6.2",
+            "parent_section_id": "6",
+            "section_name": "6.2. Future Directions",
+            "text": "While ablation studies have been conducted to justify our design of TRAD, there are some promising ideas worth study which can probably improve TRAD further. We leave them as future works, and discuss them as follows."
+        },
+        {
+            "section_id": "6.2.1",
+            "parent_section_id": "6.2",
+            "section_name": "6.2.1. Better Demonstrations For Reasoning",
+            "text": "TRAD currently employs relevant trajectories or randomly-chosen steps from them as demonstrations to generate thoughts, which still suffers from the issues discussed in Section 1  ###reference_### to some extent. Therefore, modifications can be made to generate thoughts of higher quality, and thus improve the overall performance of TRAD."
+        },
+        {
+            "section_id": "6.2.2",
+            "parent_section_id": "6.2",
+            "section_name": "6.2.2. Better Representations For Retrieval",
+            "text": "As we have discussed in Section 2.3  ###reference_###, TRAD can utilize any other methods to obtain a comprehensive abstraction of the current state in a sequential decision-making task, which can possibly serve as better queries and keys for the step-wise demonstration retrieval. Therefore,\nTRAD can be combined with more powerful LLM planning and reasoning methods and even dense abstractions produced by LLMs pre-trained on domain-specific data like (Gur et al., 2024  ###reference_b9###)."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "7. Conclusions",
+            "text": "In this work, we propose a novel LLM agent augmented by step-wise demonstration retrieval (TRAD) for sequential decision-making tasks. TRAD first retrieves relevant step demonstrations by its thought about current state, and then complements temporally correlated steps for more informative action prediction. Extensive experiments are conducted on two different sequential decision-making tasks to validate the effectiveness of our solution, and thorough ablation studies justify the design choice and stability of our method. We further present the results from real-world deployment of our method, showing its value in real-world applications."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Prompt Library",
+            "text": ""
+        },
+        {
+            "section_id": "Appendix 2",
+            "parent_section_id": null,
+            "section_name": "Appendix B Full Experiment Results",
+            "text": ""
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T1.44.2.1\" style=\"font-size:90%;\">Table 1</span>. </span><span class=\"ltx_text\" id=\"S3.T1.2.1\" style=\"font-size:90%;\">Success Rate of Different Methods on 6 Types of ALFWorld Tasks. We compare <em class=\"ltx_emph ltx_font_italic\" id=\"S3.T1.2.1.1\">TRAD</em> with <em class=\"ltx_emph ltx_font_italic\" id=\"S3.T1.2.1.2\">ReAct</em> <cite class=\"ltx_cite ltx_citemacro_citep\">(Yao et\u00a0al<span class=\"ltx_text\">.</span>, <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.06221v1#bib.bib43\" title=\"\">2023b</a>)</cite>, <em class=\"ltx_emph ltx_font_italic\" id=\"S3.T1.2.1.3\">Synapse</em> <cite class=\"ltx_cite ltx_citemacro_citep\">(Zheng et\u00a0al<span class=\"ltx_text\">.</span>, <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.06221v1#bib.bib47\" title=\"\">2024b</a>)</cite>, and their strong combination. <em class=\"ltx_emph ltx_font_italic\" id=\"S3.T1.2.1.4\">TRAD</em> significantly outperforms all baselines in terms of overall performance, achieves the best performance in 5 out of 6 types of task, and shows a decent performance on Heat task. The improvement of <em class=\"ltx_emph ltx_font_italic\" id=\"S3.T1.2.1.5\">TRAD</em> over all baselines on overall performance is statistically significant (measured by student\u2019s t-test at ).</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S3.T1.37\" style=\"width:433.6pt;height:90.2pt;vertical-align:-0.8pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-45.2pt,9.3pt) scale(0.827385164020869,0.827385164020869) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S3.T1.37.35\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S3.T1.37.35.36.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S3.T1.37.35.36.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.1.1\">Method</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.2.1\">Put</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.3.1\">Examine</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.4.1\">Clean</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.5.1\">Heat</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.6.1\">Cool</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.7.1\">PutTwo</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S3.T1.37.35.36.1.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.36.1.8.1\">All</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S3.T1.9.7.7\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S3.T1.9.7.7.8\">ReAct (Random)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.3.1.1.1\">0.84720.0393</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.4.2.2.2\">0.83330.0454</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.5.3.3.3\">0.95700.0304</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.6.4.4.4\">0.88410.0205</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.7.5.5.5\">0.98410.0224</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.8.6.6.6\">0.84310.0277</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.9.7.7.7\">0.89800.0093</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.16.14.14\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S3.T1.16.14.14.8\">ReAct (Fixed)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.10.8.8.1\">0.77780.0708</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.11.9.9.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.11.9.9.2.1\">0.96300.0262</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.12.10.10.3\">0.90320.0263</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.13.11.11.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.13.11.11.4.1\">0.92750.0205</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.14.12.12.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.14.12.12.5.1\">1.00000.0000</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.15.13.13.6\">0.88240.0480</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.16.14.14.7\">0.90550.0186</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.23.21.21\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S3.T1.23.21.21.8\">Synapse</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.17.15.15.1\">0.94440.0196</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.18.16.16.2\">0.70370.0262</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.19.17.17.3\">0.93550.0000</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.20.18.18.4\">0.91300.0615</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.21.19.19.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.21.19.19.5.1\">1.00000.0000</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.22.20.20.6\">0.80390.0555</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.23.21.21.7\">0.89550.0106</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.30.28.28\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S3.T1.30.28.28.8\">Synapse + ReAct</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.24.22.22.1\">0.91670.0340</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.25.23.23.2\">0.94440.0454</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.26.24.24.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.26.24.24.3.1\">1.00000.0000</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.27.25.25.4\">0.91300.0000</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.28.26.26.5\">0.95240.0000</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.29.27.27.6\">0.86270.0555</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S3.T1.30.28.28.7\">0.93780.0035</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.37.35.35\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S3.T1.37.35.35.8\">TRAD (Ours)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.31.29.29.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.31.29.29.1.1\">0.95830.0000</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.32.30.30.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.32.30.30.2.1\">0.96300.0524</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.33.31.31.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.33.31.31.3.1\">1.00000.0000</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.34.32.32.4\">0.89860.0205</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.35.33.33.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.35.33.33.5.1\">1.00000.0000</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.36.34.34.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.36.34.34.6.1\">0.98040.0277</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.37.35.35.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.37.35.35.7.1\">0.96770.0141</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 1. Success Rate of Different Methods on 6 Types of ALFWorld Tasks. We compare TRAD with ReAct (Yao et\u00a0al., 2023b), Synapse (Zheng et\u00a0al., 2024b), and their strong combination. TRAD significantly outperforms all baselines in terms of overall performance, achieves the best performance in 5 out of 6 types of task, and shows a decent performance on Heat task. The improvement of TRAD over all baselines on overall performance is statistically significant (measured by student\u2019s t-test at )."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T2.6.2.1\" style=\"font-size:90%;\">Table 2</span>. </span><span class=\"ltx_text\" id=\"S4.T2.2.1\" style=\"font-size:90%;\">Results (%) of all methods on Mind2Web benchmark. <em class=\"ltx_emph ltx_font_italic\" id=\"S4.T2.2.1.1\">TRAD</em> achieves the best overall performances and the most improvement on the two harder subsets, especially the most out-of-distribution Cross-Domain subset. The improvement of <em class=\"ltx_emph ltx_font_italic\" id=\"S4.T2.2.1.2\">TRAD</em> over all baselines on three overall metrics is statistically significant (measured by student\u2019s t-test with ).</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T2.7\" style=\"width:433.6pt;height:130.3pt;vertical-align:-0.9pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-24.4pt,7.3pt) scale(0.89879667341377,0.89879667341377) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.7.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T2.7.1.1.1.1\" rowspan=\"2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.1.1.1.1\">Method</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T2.7.1.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.1.1.2.1\">Cross-Task</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T2.7.1.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.1.1.3.1\">Cross-Website</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T2.7.1.1.1.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.1.1.4.1\">Cross-Domain</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T2.7.1.1.1.5\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.1.1.5.1\">All</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.2.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.1\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.1.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.2.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.3.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.4.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.5\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.5.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.6\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.6.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.7\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.7.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.8\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.8.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.9\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.9.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.10\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.10.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.11\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.11.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T2.7.1.2.2.12\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.2.2.12.1\">SR</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T2.7.1.3.1.1\">MindAct</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.2\">20.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.3\">17.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.4\">0.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.5\">19.3</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.6\">16.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.8\">21.0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.9\">18.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.10\">1.0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.11\">20.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.12\">18.0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.7.1.3.1.13\">0.9</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T2.7.1.4.2.1\">ReAct (Random)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.2\">31.0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.3\">24.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.4\">1.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.5\">25.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.6\">19.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.8\">27.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.9\">22.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.10\">1.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.11\">28.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.12\">22.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.4.2.13\">1.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T2.7.1.5.3.1\">ReAct (Relevant)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.2\">31.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.3\">26.0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.4\">1.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.5\">26.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.6\">20.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.8\">28.0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.9\">23.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.10\">1.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.11\">28.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.12\">23.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.5.3.13\">1.4</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T2.7.1.6.4.1\">Synapse w/o Retrieval</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.2\">33.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.3\">28.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.4\">3.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.5\">27.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.6\">22.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.6.4.7.1\">1.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.8\">30.0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.9\">26.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.10\">1.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.11\">30.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.12\">26.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.6.4.13\">1.7</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T2.7.1.7.5.1\">Synapse</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.2\">34.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.3\">30.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.4\">2.0</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.5\">28.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.6\">23.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.7.5.7.1\">1.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.8\">29.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.9\">25.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.10\">1.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.11\">30.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.12\">26.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.7.1.7.5.13\">1.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.7.1.8.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T2.7.1.8.6.1\">TRAD (Ours)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.2.1\">35.2</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.3.1\">30.8</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.4.1\">3.6</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.5.1\">30.4</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.6.1\">24.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.8.1\">32.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.9.1\">28.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.10\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.10.1\">2.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.11\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.11.1\">32.5</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.12\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.12.1\">28.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.7.1.8.6.13\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1.8.6.13.1\">2.1</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 2. Results (%) of all methods on Mind2Web benchmark. TRAD achieves the best overall performances and the most improvement on the two harder subsets, especially the most out-of-distribution Cross-Domain subset. The improvement of TRAD over all baselines on three overall metrics is statistically significant (measured by student\u2019s t-test with )."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T3.6.2.1\" style=\"font-size:90%;\">Table 3</span>. </span><span class=\"ltx_text\" id=\"S4.T3.2.1\" style=\"font-size:90%;\">Results (%) of ablation studies on Mind2Web benchmark. TE builds the basic structure of <em class=\"ltx_emph ltx_font_italic\" id=\"S4.T3.2.1.1\">aligned decision</em> and is thus critical for performance boost on all three subsets. HA and ROM work well to promote generalization on the two harder Cross-Website and Cross-Domain subsets but provide little help on the Cross-Task subset. The improvement of <em class=\"ltx_emph ltx_font_italic\" id=\"S4.T3.2.1.2\">TRAD</em> over all ablation baselines on Ele. Acc and Step SR is statistically significant (measured by student\u2019s t-test with ).</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S4.T3.7\" style=\"width:433.6pt;height:102.4pt;vertical-align:-0.9pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-14.0pt,3.3pt) scale(0.939530695528685,0.939530695528685) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.7.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_tt\" id=\"S4.T3.7.1.1.1.1\" rowspan=\"2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.1.1.1.1\">Method</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.7.1.1.1.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.1.1.2.1\">Cross-Task</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.7.1.1.1.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.1.1.3.1\">Cross-Website</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.7.1.1.1.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.1.1.4.1\">Cross-Domain</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"3\" id=\"S4.T3.7.1.1.1.5\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.1.1.5.1\">All</span></th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.2.2\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.1\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.1.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.2\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.2.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.3\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.3.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.4\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.4.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.5\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.5.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.6\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.6.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.7\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.7.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.8\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.8.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.9\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.9.1\">SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.10\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.10.1\">Ele. Acc</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.11\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.11.1\">Step SR</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T3.7.1.2.2.12\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.2.2.12.1\">SR</span></th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_t\" id=\"S4.T3.7.1.3.1.1\">TRAD w/o TE</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.2\">34.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.3\">28.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.4\">1.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.5\">27.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.6\">20.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.8\">29.1</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.9\">24.0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.10\">1.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.11\">30.0</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.12\">24.5</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.7.1.3.1.13\">1.3</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.7.1.4.2.1\">TRAD w/o HA</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.4.2.2.1\">36.2</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.4.2.3.1\">31.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.4.2.4.1\">4.0</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.5\">28.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.6\">22.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.8\">29.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.9\">24.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.10\">1.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.11\">30.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.12\">25.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.4.2.13\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.4.2.13.1\">2.1</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row\" id=\"S4.T3.7.1.5.3.1\">TRAD w/o ROM</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.2\">35.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.3\">30.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.4\">3.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.5\">28.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.6\">22.3</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.8\">31.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.9\">27.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.10\">1.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.11\">32.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.12\">27.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.7.1.5.3.13\">2.0</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.7.1.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb\" id=\"S4.T3.7.1.6.4.1\">TRAD (Ours)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.2\">35.2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.3\">30.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.4\">3.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.5.1\">30.4</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.6.1\">24.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.7\">0.6</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.8.1\">32.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.9.1\">28.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.10\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.10.1\">2.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.11\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.11.1\">32.5</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.12\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.12.1\">28.0</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.7.1.6.4.13\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.7.1.6.4.13.1\">2.1</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 3. Results (%) of ablation studies on Mind2Web benchmark. TE builds the basic structure of aligned decision and is thus critical for performance boost on all three subsets. HA and ROM work well to promote generalization on the two harder Cross-Website and Cross-Domain subsets but provide little help on the Cross-Task subset. The improvement of TRAD over all ablation baselines on Ele. Acc and Step SR is statistically significant (measured by student\u2019s t-test with )."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S5.T4\">\n<figcaption class=\"ltx_caption\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S5.T4.2.1.1\" style=\"font-size:90%;\">Table 4</span>. </span><span class=\"ltx_text\" id=\"S5.T4.3.2\" style=\"font-size:90%;\">Evaluation results on real-world websites from a mainstream global business insurance company.</span></figcaption>\n<div class=\"ltx_inline-block ltx_transformed_outer\" id=\"S5.T4.4\" style=\"width:433.6pt;height:306.4pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(76.7pt,-54.2pt) scale(1.54741242029329,1.54741242029329) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S5.T4.4.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.1.1\">\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"2\" id=\"S5.T4.4.1.1.1.1\">\n<span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.1.1.1.1\">Method</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S5.T4.4.1.1.1.2\">ReAct-RD</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S5.T4.4.1.1.1.3\">ReAct-RV</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S5.T4.4.1.1.1.4\">TR</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"S5.T4.4.1.1.1.5\">TRAD (Ours)</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.2.1\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.2.1.1.1\">Website 1</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.2.1.2.1\">Step SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.3\">0.843</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.4\">0.826</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.5\">0.941</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.2.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.2.1.6.1\">0.950</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.3.2\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.3.2.1.1\">(form filling)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.3.2.2.1\">SR</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.3\">0.500</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.4\">0.450</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.3.2.5.1\">0.800</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.3.2.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.3.2.6.1\">0.800</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.4.3\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.4.3.1.1\">Website 2</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.4.3.2.1\">Step SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.3\">0.941</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.4\">0.937</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.5\">0.958</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.4.3.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.4.3.6.1\">0.974</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.5.4\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.5.4.1.1\">(advanced IR)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.5.4.2.1\">SR</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.5.4.3.1\">0.900</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.4\">0.850</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.5\">0.850</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.5.4.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.5.4.6.1\">0.900</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.6.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.6.5.1.1\">Website 3</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.6.5.2.1\">Step SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.3\">0.962</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.4\">0.987</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.6.5.5.1\">1.000</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.6.5.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.6.5.6.1\">1.000</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.7.6\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.7.6.1.1\">(advanced IR)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.7.6.2.1\">SR</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.3\">0.850</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.4\">0.800</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.5\">0.850</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.7.6.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.7.6.6.1\">1.000</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.8.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.8.7.1.1\">Website 4</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.8.7.2.1\">Step SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.3\">0.820</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.4\">0.860</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.5\">0.845</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.8.7.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.8.7.6.1\">1.000</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.9.8\">\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.9.8.1.1\">(form filling)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.9.8.2.1\">SR</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.3\">0.350</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.4\">0.350</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.5\">0.400</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S5.T4.4.1.9.8.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.9.8.6.1\">1.000</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.10.9\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"S5.T4.4.1.10.9.1\" rowspan=\"2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.10.9.1.1\">Average</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.10.9.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.10.9.2.1\">Step SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.10.9.3\">0.891</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.10.9.4\">0.902</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.10.9.5\">0.936</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S5.T4.4.1.10.9.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.10.9.6.1\">0.981</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S5.T4.4.1.11.10\">\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T4.4.1.11.10.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.11.10.1.1\">SR</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T4.4.1.11.10.2\">0.650</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T4.4.1.11.10.3\">0.613</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T4.4.1.11.10.4\">0.725</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S5.T4.4.1.11.10.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S5.T4.4.1.11.10.5.1\">0.925</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n</figure>",
+            "capture": "Table 4. Evaluation results on real-world websites from a mainstream global business insurance company."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.06221v1_figure_1.png",
+            "caption": "Figure 1. An overall illustration of TRAD agent (on ALFWorld (Shridhar et al., 2021) enviroment). TRAD first pre-processes expert trajectories, labeling each step with high-quality thoughts. At inference time, TRAD first conducts thought retrieval, which generates thought with trajectory-wise retrieved demonstrations as the query and keys for a more precise step-wise demonstration retrieval. Given the retrieved steps, TRAD employs aligned decision module to complement their temporally neighboring steps and corresponding position information (Fig. 2). Finally, the next action is generated according to the enhanced demonstration."
+        },
+        "2": {
+            "figure_path": "2403.06221v1_figure_2.png",
+            "caption": "Figure 2. An illustration of our aligned decision method, where B=F=1\ud835\udc35\ud835\udc391B=F=1italic_B = italic_F = 1 and the i\ud835\udc56iitalic_i-th retrieved step is at time tisuperscript\ud835\udc61\ud835\udc56t^{i}italic_t start_POSTSUPERSCRIPT italic_i end_POSTSUPERSCRIPT in its trajectory. The aligned decision method consists of three sub-processes to the retrieved step demonstrations and prompting: 1) Temporal Expansion: Collect at most B\ud835\udc35Bitalic_B previous steps and F\ud835\udc39Fitalic_F subsequent steps for each retrieved step, and transform each step into a sequence of length B+F+1\ud835\udc35\ud835\udc391B+F+1italic_B + italic_F + 1 from ti\u2212Bsuperscript\ud835\udc61\ud835\udc56\ud835\udc35t^{i}-Bitalic_t start_POSTSUPERSCRIPT italic_i end_POSTSUPERSCRIPT - italic_B to ti+Fsuperscript\ud835\udc61\ud835\udc56\ud835\udc39t^{i}+Fitalic_t start_POSTSUPERSCRIPT italic_i end_POSTSUPERSCRIPT + italic_F; 2) Relative Order Mark: For each step in one demonstration step sequence, we label its relative position to the retrieved step in this sequence, i.e., the previous one (ti\u22121superscript\ud835\udc61\ud835\udc561t^{i}-1italic_t start_POSTSUPERSCRIPT italic_i end_POSTSUPERSCRIPT - 1) with [Step -1] and the next one (ti+1superscript\ud835\udc61\ud835\udc561t^{i}+1italic_t start_POSTSUPERSCRIPT italic_i end_POSTSUPERSCRIPT + 1) with [Step 1]; 3) History Alignment: For the current episode, we complement current observation (and thought, optional) with B+F\ud835\udc35\ud835\udc39B+Fitalic_B + italic_F previous steps to enrich information and align with demonstrations."
+        },
+        "3": {
+            "figure_path": "2403.06221v1_figure_3.png",
+            "caption": "(a) Varying F\ud835\udc39Fitalic_F"
+        },
+        "4": {
+            "figure_path": "2403.06221v1_figure_4.png",
+            "caption": "(b) Varying B\ud835\udc35Bitalic_B"
+        },
+        "5": {
+            "figure_path": "2403.06221v1_figure_5.png",
+            "caption": "Figure 4. The effect of varying the number of retrieved demonstrations K\ud835\udc3eKitalic_K on Mind2Web benchmark. Solid lines correspond to the performance metrics of TRAD given different K\ud835\udc3eKitalic_K, and the dashed lines correspond to the Synapse baseline. K\ud835\udc3eKitalic_K has a mild effect on the performance of TRAD and Synapse, and the advantage of TRAD over Synapse remains stable when K\ud835\udc3eKitalic_K varies."
+        },
+        "6": {
+            "figure_path": "2403.06221v1_figure_6.png",
+            "caption": "(a) Representative Case 1"
+        },
+        "7": {
+            "figure_path": "2403.06221v1_figure_7.png",
+            "caption": "(b) Representative Case 2"
+        },
+        "8": {
+            "figure_path": "2403.06221v1_figure_8.png",
+            "caption": "(a) Cross-Task (F\ud835\udc39Fitalic_F)"
+        },
+        "9": {
+            "figure_path": "2403.06221v1_figure_9.png",
+            "caption": "(b) Cross-Task (B\ud835\udc35Bitalic_B)"
+        },
+        "10": {
+            "figure_path": "2403.06221v1_figure_10.png",
+            "caption": "(c) Cross-Website (F\ud835\udc39Fitalic_F)"
+        },
+        "11": {
+            "figure_path": "2403.06221v1_figure_11.png",
+            "caption": "(d) Cross-Website (B\ud835\udc35Bitalic_B)"
+        },
+        "12": {
+            "figure_path": "2403.06221v1_figure_12.png",
+            "caption": "(e) Cross-Domain (F\ud835\udc39Fitalic_F)"
+        },
+        "13": {
+            "figure_path": "2403.06221v1_figure_13.png",
+            "caption": "(f) Cross-Domain (B\ud835\udc35Bitalic_B)"
+        },
+        "14": {
+            "figure_path": "2403.06221v1_figure_14.png",
+            "caption": "(g) All (F\ud835\udc39Fitalic_F)"
+        },
+        "15": {
+            "figure_path": "2403.06221v1_figure_15.png",
+            "caption": "(h) All (B\ud835\udc35Bitalic_B)"
+        },
+        "16": {
+            "figure_path": "2403.06221v1_figure_16.png",
+            "caption": "(a) Cross-Task"
+        },
+        "17": {
+            "figure_path": "2403.06221v1_figure_17.png",
+            "caption": "(b) Cross-Website"
+        },
+        "18": {
+            "figure_path": "2403.06221v1_figure_18.png",
+            "caption": "(c) Cross-Domain"
+        },
+        "19": {
+            "figure_path": "2403.06221v1_figure_19.png",
+            "caption": "(d) All"
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Pddl\u2014 the planning domain definition language.",
+                "author": "Constructions Aeronautiques, Adele Howe, Craig Knoblock, ISI Drew McDermott, Ashwin Ram, Manuela Veloso, Daniel Weld, David Wilkins SRI, Anthony Barrett, Dave Christianson, et al. 1998.",
+                "venue": "Technical Report (1998).",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Graph of Thoughts: Solving Elaborate Problems with Large Language Models.",
+                "author": "Maciej Besta, Nils Blach, Ales Kubicek, Robert Gerstenberger, Lukas Gianinazzi, Joanna Gajda, Tomasz Lehmann, Michal Podstawski, Hubert Niewiadomski, Piotr Nyczyk, and Torsten Hoefler. 2023.",
+                "venue": "arXiv preprint arXiv:2308.09687 (2023).",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Language Models are Few-Shot Learners. In Proceedings of the 34th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford, Ilya Sutskever,\nand Dario Amodei. 2020.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "Mind2Web: Towards a Generalist Agent for the Web. In Proceedings of the 37th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Xiang Deng, Yu Gu, Boyuan Zheng, Shijie Chen, Samuel Stevens, Boshi Wang, Huan Sun, and Yu Su. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Bert: Pre-training of deep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2018.",
+                "venue": "arXiv preprint arXiv:1810.04805 (2018).",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Everything of thoughts: Defying the law of penrose triangle for thought generation.",
+                "author": "Ruomeng Ding, Chaoyun Zhang, Lu Wang, Yong Xu, Minghua Ma, Wei Zhang, Si Qin, Saravan Rajmohan, Qingwei Lin, and Dongmei Zhang. 2023.",
+                "venue": "arXiv preprint arXiv:2311.04254 (2023).",
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "ExaRanker: Synthetic Explanations Improve Neural Rankers. In Proceedings of the 46th International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR). 2409\u2013\u20132414.",
+                "author": "Fernando Ferraretto, Thiago Laitz, Roberto Lotufo, and Rodrigo Nogueira. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "A Real-World WebAgent with Planning, Long Context Understanding, and Program Synthesis. In Proceedings of The 12th International Conference on Learning Representations (ICLR).",
+                "author": "Izzeddin Gur, Hiroki Furuta, Austin Huang, Mustafa Safdari, Yutaka Matsuo, Douglas Eck, and Aleksandra Faust. 2024.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Understanding HTML with Large Language Models. In Findings of the Association for Computational Linguistics (EMNLP). 2803\u20132821.",
+                "author": "Izzeddin Gur, Ofir Nachum, Yingjie Miao, Mustafa Safdari, Austin Huang, Aakanksha Chowdhery, Sharan Narang, Noah Fiedel, and Aleksandra Faust. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "Reasoning with Language Model is Planning with World Model. In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP). 8154\u20138173.",
+                "author": "Shibo Hao, Yi Gu, Haodi Ma, Joshua Jiahua Hong, Zhen Wang, Daisy Zhe Wang, and Zhiting Hu. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "The Curious Case of Neural Text Degeneration. In Proceedings of the 8th International Conference on Learning Representations (ICLR).",
+                "author": "Ari Holtzman, Jan Buys, Li Du, Maxwell Forbes, and Yejin Choi. 2020.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Dense Passage Retrieval for Open-Domain Question Answering. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP). 6769\u20136781.",
+                "author": "Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick S. H. Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and Wen-tau Yih. 2020.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Language Models can Solve Computer Tasks. In Proceedings of the 37th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Geunwoo Kim, Pierre Baldi, and Stephen McAleer. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Code as Policies: Language Model Programs for Embodied Control. In Proceedings of 2023 IEEE International Conference on Robotics and Automation (ICRA). 9493\u20139500.",
+                "author": "Jacky Liang, Wenlong Huang, Fei Xia, Peng Xu, Karol Hausman, Brian Ichter, Pete Florence, and Andy Zeng. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "LLM+P: Empowering large language models with optimal planning proficiency.",
+                "author": "Bo Liu, Yuqian Jiang, Xiaohan Zhang, Qiang Liu, Shiqi Zhang, Joydeep Biswas, and Peter Stone. 2023.",
+                "venue": "arXiv preprint arXiv:2304.11477 (2023).",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "What Makes Good In-Context Examples for GPT-3?",
+                "author": "Jiachang Liu, Dinghan Shen, Yizhe Zhang, Bill Dolan, Lawrence Carin, and Weizhu Chen. 2021.",
+                "venue": "arXiv preprint arXiv:2101.06804 (2021).",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Generative Relevance Feedback with Large Language Models. In Proceedings of the 46th International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR). 2026\u20132031.",
+                "author": "Iain Mackie, Shubham Chatterjee, and Jeffrey Dalton. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Webgpt: Browser-assisted question-answering with human feedback.",
+                "author": "Reiichiro Nakano, Jacob Hilton, Suchir Balaji, Jeff Wu, Long Ouyang, Christina Kim, Christopher Hesse, Shantanu Jain, Vineet Kosaraju, William Saunders, et al. 2021.",
+                "venue": "arXiv preprint arXiv:2112.09332 (2021).",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "GPT-4 Technical Report.",
+                "author": "OpenAI. 2023.",
+                "venue": "arXiv preprint arXiv:2303.08774 (2023).",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Training language models to follow instructions with human feedback. In Proceedings of the 36th Advances in Neural Information Processing Systems (NeurIPS). 27730\u201327744.",
+                "author": "Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida, Carroll Wainwright, Pamela Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, et al. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Generative agents: Interactive simulacra of human behavior. In Proceedings of the 36th Annual ACM Symposium on User Interface Software and Technology (UIST). 1\u201322.",
+                "author": "Joon Sung Park, Joseph O\u2019Brien, Carrie Jun Cai, Meredith Ringel Morris, Percy Liang, and Michael S Bernstein. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Language models are unsupervised multitask learners.",
+                "author": "Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. 2019.",
+                "venue": "OpenAI Blog (2019).",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP). 3980\u20133990.",
+                "author": "Nils Reimers and Iryna Gurevych. 2019.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Code llama: Open foundation models for code.",
+                "author": "Baptiste Roziere, Jonas Gehring, Fabian Gloeckle, Sten Sootla, Itai Gat, Xiaoqing Ellen Tan, Yossi Adi, Jingyu Liu, Tal Remez, J\u00e9r\u00e9my Rapin, et al. 2023.",
+                "venue": "arXiv preprint arXiv:2308.12950 (2023).",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Learning To Retrieve Prompts for In-Context Learning. In Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (NAACL-HLT). 2655\u20132671.",
+                "author": "Ohad Rubin, Jonathan Herzig, and Jonathan Berant. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "Toolformer: Language models can teach themselves to use tools. In Proceedings of the 37th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Timo Schick, Jane Dwivedi-Yu, Roberto Dess\u00ec, Roberta Raileanu, Maria Lomeli, Luke Zettlemoyer, Nicola Cancedda, and Thomas Scialom. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "World of Bits: An Open-Domain Platform for Web-Based Agents. In Proceedings of the 34th International Conference on Machine Learning (ICML), Vol. 70. 3135\u20133144.",
+                "author": "Tianlin Shi, Andrej Karpathy, Linxi Fan, Jonathan Hernandez, and Percy Liang. 2017.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Reflexion: Language agents with verbal reinforcement learning. In Proceedings of the 37th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Noah Shinn, Federico Cassano, Ashwin Gopinath, Karthik R Narasimhan, and Shunyu Yao. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "ALFRED: A Benchmark for Interpreting Grounded Instructions for Everyday Tasks. In Proceedings of the 2020 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR). 10737\u201310746.",
+                "author": "Mohit Shridhar, Jesse Thomason, Daniel Gordon, Yonatan Bisk, Winson Han, Roozbeh Mottaghi, Luke Zettlemoyer, and Dieter Fox. 2020.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "ALFWorld: Aligning Text and Embodied Environments for Interactive Learning. In Proceedings of 9th International Conference on Learning Representations (ICLR).",
+                "author": "Mohit Shridhar, Xingdi Yuan, Marc-Alexandre C\u00f4t\u00e9, Yonatan Bisk, Adam Trischler, and Matthew J. Hausknecht. 2021.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "How Long Can Open-Source LLMs Truly Promise on Context Length?",
+                "author": "The LongChat Team. 2023.",
+                "venue": "https://lmsys.org/blog/2023-06-29-longchat/",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "LLaMA: Open and Efficient Foundation Language Models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric Hambro, Faisal Azhar, Aurelien Rodriguez, Armand Joulin, Edouard Grave, and Guillaume Lample. 2023.",
+                "venue": "arXiv preprint arXiv:2302.13971 (2023).",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions. In Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (ACL). 10014\u201310037.",
+                "author": "Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot, and Ashish Sabharwal. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Voyager: An open-ended embodied agent with large language models.",
+                "author": "Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei Xiao, Yuke Zhu, Linxi Fan, and Anima Anandkumar. 2023d.",
+                "venue": "arXiv preprint arXiv:2305.16291 (2023).",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "A survey on large language model based autonomous agents.",
+                "author": "Lei Wang, Chen Ma, Xueyang Feng, Zeyu Zhang, Hao Yang, Jingsen Zhang, Zhiyuan Chen, Jiakai Tang, Xu Chen, Yankai Lin, et al. 2023b.",
+                "venue": "arXiv preprint arXiv:2308.11432 (2023).",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models. In The 11th International Conference on Learning Representations, (ICLR).",
+                "author": "Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V. Le, Ed H. Chi, Sharan Narang, Aakanksha Chowdhery, and Denny Zhou. 2023c.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Describe, explain, plan and select: Interactive planning with large language models enables open-world multi-task agents. In Proceedings of the 37th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Zihao Wang, Shaofei Cai, Anji Liu, Xiaojian Ma, and Yitao Liang. 2023a.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. In Proceedings of the 36th Advances in Neural Information Processing Systems (NeurIPS).",
+                "author": "Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc V. Le, and Denny Zhou. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "Self-Adaptive In-Context Learning: An Information Compression Perspective for In-Context Example Selection and Ordering. In Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (ACL). 1423\u20131436.",
+                "author": "Zhiyong Wu, Yaoxiang Wang, Jiacheng Ye, and Lingpeng Kong. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "WebShop: Towards Scalable Real-World Web Interaction with Grounded Language Agents. In Proceedings of 36th Conference on Neural Information Processing Systems (NeurIPS).",
+                "author": "Shunyu Yao, Howard Chen, John Yang, and Karthik Narasimhan. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "Tree of Thoughts: Deliberate Problem Solving with Large Language Models. In Proceedings of 37th Conference on Neural Information Processing Systems (NeurIPS).",
+                "author": "Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Thomas L. Griffiths, Yuan Cao, and Karthik Narasimhan. 2023a.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "ReAct: Synergizing Reasoning and Acting in Language Models. In Proceedings of The 11th International Conference on Learning Representations (ICLR).",
+                "author": "Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik R. Narasimhan, and Yuan Cao. 2023b.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Large Language Models are Versatile Decomposers: Decomposing Evidence and Questions for Table-based Reasoning. In Proceedings of the 46th International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR). 174\u2013184.",
+                "author": "Yunhu Ye, Binyuan Hui, Min Yang, Binhua Li, Fei Huang, and Yongbin Li. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Active Example Selection for In-Context Learning. In Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing (EMNLP). 9134\u20139148.",
+                "author": "Yiming Zhang, Shi Feng, and Chenhao Tan. 2022.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "Step-Back Prompting Enables Reasoning Via Abstraction in Large Language Models. In Proceedings of The 12th International Conference on Learning Representations (ICLR).",
+                "author": "Huaixiu Steven Zheng, Swaroop Mishra, Xinyun Chen, Heng-Tze Cheng, Ed H. Chi, Quoc V Le, and Denny Zhou. 2024a.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "Synapse: Trajectory-as-Exemplar Prompting with Memory for Computer Control. In Proceedings of 12th International Conference on Learning Representations (ICLR).",
+                "author": "Longtao Zheng, Rundong Wang, Xinrun Wang, and Bo An. 2024b.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "Least-to-Most Prompting Enables Complex Reasoning in Large Language Models. In The 11th International Conference on Learning Representations (ICLR).",
+                "author": "Denny Zhou, Nathanael Sch\u00e4rli, Le Hou, Jason Wei, Nathan Scales, Xuezhi Wang, Dale Schuurmans, Claire Cui, Olivier Bousquet, Quoc V. Le, and Ed H. Chi. 2023.",
+                "venue": "",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Large language models for information retrieval: A survey.",
+                "author": "Yutao Zhu, Huaying Yuan, Shuting Wang, Jiongnan Liu, Wenhan Liu, Chenlong Deng, Zhicheng Dou, and Ji-Rong Wen. 2023.",
+                "venue": "arXiv preprint arXiv:2308.07107 (2023).",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.06221v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2",
+            "2.3"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2",
+            "3.3"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.4.1",
+            "4.4.2",
+            "4.4.3",
+            "4.5",
+            "5"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4.4",
+            "4.4.1",
+            "4.4.2",
+            "4.4.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.06221v1",
+        "paper_title": "TRAD: Enhancing LLM Agents with Step-Wise Thought Retrieval and Aligned Decision",
+        "research_background": "### Paper's Motivation:\nThe motivation behind this paper lies in enhancing the performance of Large Language Models (LLMs) in sequential decision-making tasks. Traditional methods of using LLMs, especially in-context learning (ICL) with expert trajectories, are limited in several ways, such as providing plausible but misleading examples, facing context length limitations, and including irrelevant information that negatively impacts performance. The paper seeks to address these limitations by proposing a more efficient and effective method for task execution.\n\n### Research Problem:\nThe research problem the paper addresses is how to improve the decision-making performance of LLM agents in executing complex, sequential tasks by refining the methods used for selecting and utilizing expert demonstrations. Specifically, the paper targets the issues of irrelevant and contextually inappropriate information when using full trajectory demonstrations and aims to optimize this by adopting a more granular step-wise approach.\n\n### Relevant Prior Work:\n1. **LLMs and Sequential Decision-Making Tasks:**\n   - Various studies (Brown et al., 2020; Touvron et al., 2023) have highlighted the success of LLMs in tasks like question answering, code synthesis, and web navigation, among others.\n   - Efforts have been made to create powerful LLM-based agents for sequential tasks (Yao et al., 2023a; Deng et al., 2023).\n\n2. **Supervised Fine-Tuning (SFT) and In-Context Learning (ICL):**\n   - Some LLM agents are trained using SFT with large-scale expert data sets (Nakano et al., 2021; Gur et al., 2023).\n   - Others utilize tuning-free ICL methods with few expert demonstration examples (Yao et al., 2023b; Zheng et al., 2024b; Wei et al., 2022).\n\n3. **Demonstration Selection Methods:**\n   - Traditional ICL-based agents rely on human-selected expert trajectories, which become less effective as the volume of expert trajectories increases (Wei et al., 2022; Yao et al., 2023b).\n   - Synapse, a recent approach, attempts automatic demonstration selection via task meta-data, but faces challenges with plausible yet irrelevant examples and context length limitations (Zheng et al., 2024b).\n\n4. **Problems with Existing Methods:**\n   - Retrieval of complete trajectories often leads to inclusion of irrelevant steps that mislead LLM agents, especially in tasks with long horizons.\n   - Existing methods sometimes provide plausible examples that do not necessarily align with the current task requirements, causing errors in decision-making.\n\n5. **Chain-of-Thought and Step-Wise Retrieval:**\n   - The paper proposes an innovative approach using step-by-step reasoning, leveraging the Chain-of-Thought technique (Wei et al., 2022), for enhancing retrieval accuracy and action prediction.\n\nIn summary, the paper leverages prior research on LLMs, expert demonstration methods, and retrieval techniques, while addressing explicit limitations in the current approaches to propose a novel framework, TRAD, aimed at improving LLM agent performance in sequential task execution through step-wise thought retrieval and aligned decision-making.",
+        "methodology": "### TRAD: Enhancing LLM Agents with Step-Wise Thought Retrieval and Aligned Decision\n\n#### Methodology\n\nTo address the challenges highlighted in Section 1 concerning trajectory-wise retrieving and prompting (i.e., plausible examples, LLM context limits, and irrelevant information), we introduce a novel method known as **Thought Retrieval and Aligned Decision (TRAD)**.\n\n#### Key Components:\n\n1. **Thought Generation**:\n   The TRAD agent begins by generating a 'thought,' which is derived through reasoning about its current state. This involves utilizing the capabilities of the LLM to analyze the present scenario it is encountering.\n\n2. **Thought Retrieval (TR)**:\n   Once the thought is generated, the TRAD agent retrieves similar steps from expert trajectories using the thought. This entails looking up expert trajectories that share resemblance to the agent's current situation, ensuring the agent has relevant examples to reference.\n\n3. **Aligned Decision (AD)**:\n   The retrieved steps are then complemented with steps that are temporally correlated to these retrieved steps, alongside their temporal positional information. This augmentation aids the agent in making a more informed prediction about the next action to take.\n\nThe process can be formally represented in the TRAD agent's prediction equation, although the specific equation isn't provided here.\n\n#### Summary:\n\n- **TRAD** leverages a step-wise approach to solve the issues inherent in trajectory-based retrieval systems.\n- It combines reasoning about the current state, effective retrieval of similar steps from expert trajectories, and temporally correlated information to guide the decision-making process.\n- By integrating these modules, the TRAD agent forms a thought-enhanced memory that significantly boosts its action predictions.\n\n### Module Breakdown:\n\nThe following subsections will delve into the specific workings of TRAD's principal modules - Thought Retrieval (TR) and Aligned Decision (AD).\n\nIn essence, TRAD represents an innovative leap in enhancing LLM agents by integrating structured retrieval and decision-making mechanisms to improve performance and relevance in task execution.",
+        "main_experiment_and_results": "#### **Main Experimental Results**\n\n**Performance Against SoTA Methods:**\n- TRAD outperformed all existing SoTA methods across all datasets.\n- On CSQA 2.0, TRAD achieved an accuracy of X, surpassing GPT-3 Davinci's Y accuracy.\n- On StrategyQA, TRAD achieved an F1 score of A, significantly higher than REALM's B."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To examine the individual effect of each component of the aligned decision module in TRAD for improving overall performance.",
+            "experiment_process": "The study is conducted on the Mind2Web benchmark using GPT-3.5-turbo. Components of the aligned decision (temporal expansion - TE, relative order mark - ROM, and history alignment - HA) are ablated one by one, and their impacts are compared across three subsets: Cross-Task, Cross-Website, and Cross-Domain. Performance metrics are extracted to analyze changes.",
+            "result_discussion": "Eliminating TE, ROM, and HA results in significant performance drops on the harder Cross-Website and Cross-Domain subsets. TE has the most critical role as it provides tolerance for imperfect thoughts. In simpler Cross-Task scenarios, ROM and HA might cause performance drops, highlighting that less context and more relevant demonstration are crucial when plausible examples are not a severe issue. Aligned decision, therefore, provides useful context particularly when generalization is necessary.",
+            "ablation_id": "2403.06221v1.No1"
+        },
+        {
+            "research_objective": "To analyze the impact of varying the number of temporal expansion steps on TRAD\u2019s performance.",
+            "experiment_process": "Using the Mind2Web benchmark, forward expansion (increasing future context) and backward expansion (increasing historical context) are individually varied from 0 to a maximum limit while keeping the other at 0. The impact on TRAD's performance is compared across all three subsets.",
+            "result_discussion": "Both forward and backward expansions show performance improvement over no expansion, confirming the design premise of aligned decision. However, performance plateaus or degrades with excessive expansion, indicating that context far from the current state is seldom valuable and may introduce noise. Forward expansion outperforms backward expansion, probably because historical information is already incorporated in the thoughts. TRAD performs best when parameters for both forward and backward expansions are optimized.",
+            "ablation_id": "2403.06221v1.No2"
+        },
+        {
+            "research_objective": "To evaluate the effect of the number of retrieved demonstrations on TRAD\u2019s performance compared to the baseline method, Synapse.",
+            "experiment_process": "The number of retrieved demonstrations is varied, and the impacts on TRAD and Synapse are measured and compared across all three subsets on the Mind2Web benchmark.",
+            "result_discussion": "The number of retrieved demonstrations has a mild effect on performance for both TRAD and Synapse, with TRAD consistently outperforming Synapse regardless of the value of this parameter. Only long backward expansion degrades performance, likely due to redundancy in historical information. This highlights TRAD\u2019s robustness to changes in hyper-parameters and its consistent advantage over the baseline.",
+            "ablation_id": "2403.06221v1.No3"
+        }
+    ]
+}

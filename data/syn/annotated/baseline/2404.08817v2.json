@@ -1,0 +1,140 @@
+{
+    "title": "Revisiting Code Similarity Evaluation with Abstract Syntax Tree Edit Distance",
+    "abstract": "This paper revisits recent code similarity evaluation metrics, particularly focusing on the application of Abstract Syntax Tree (AST) editing distance in diverse programming languages. In particular, we explore the usefulness of these metrics and compare them to traditional sequence similarity metrics. Our experiments showcase the effectiveness of AST editing distance in capturing intricate code structures, revealing a high correlation with established metrics. Furthermore, we explore the strengths and weaknesses of AST editing distance and prompt-based GPT similarity scores. We propose, optimize, and publish an adaptable metric that demonstrates effectiveness across all tested languages, representing an enhanced version of Tree Similarity of Edit Distance (TSED).",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction and Related Work",
+            "text": "In the fields of natural language processing and software engineering, code generation tasks are gaining more and more attention. Assessing the quality of generated code is now critically important, but we still lack evaluation methods other than traditional statistical sequence evaluation methods. \n\nRecent developments in the NLP field paved the way for novel evaluation metrics which we explore in this study. For one, the staggering number of powerful large language models (LLMs) such as GPT-3.5/4 have revolutionized the NLP landscape and led to noteworthy advancements in the realm of code review and evaluation. Another recent study introduced the novel TSED metric and used it to evaluate text-to-SQL tasks. For this study, we take advantage of these developments to (1) prompt the GPT-4 model to generate similarity scores for code, and (2) expand on the TSED metric.\n\nWe utilize these two different metrics (GPT and TSED) to evaluate the structural similarity of different programming languages. Furthermore, we address some limitations of these metrics by delving into the impact of TSED\u2019s penalty weight of tree operations on evaluation accuracy and exploring the stability of outputs from the GPT LLMs.\n\nAs a result, we have these three contributions from this research: (a) we propose and publish a new tool for 48 programming languages111https://github.com/Etamin/TSED, (b) we discuss two recent evaluation metrics and compare them via correlation coefficient, (c) we discuss the unstable nature of GPT similarity scoring and the ways to optimize TSED."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Approaches",
+            "text": ""
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "TSED on Programming Languages",
+            "text": "Applying the TSED evaluation method, initially designed for SQL analysis, we have undergone modifications to extend its applicability to various programming languages. The fundamental TSED approach, illustrated in Figure 1, encompasses AST parsing, AST Editing Distance Calculation, and normalization, closely resembling the methodology outlined in the original paper. However, we have made modifications to both the AST parsing and normalization.\n\nCode Parsing: Parsing in the domain of programming languages involves parsing raw code text into its associated AST. This parsing underscores the complexity of interpreting various programming constructs and converting them into a structured grammar tree representation. We use tree-sitter as our AST parser, which is based on GLR (generalized left-to-right rightmost), a powerful parsing algorithm commonly found in the literature.\n\nTree Distance Computation: For calculating tree edit distance, we utilize the same function as outlined in the TSED paper, which is the APTED (All Path Tree Edit Distance) algorithm. Considering predicted code\u2019s AST and AST from ground-truth, with a sequence of edit operations transforming one into the other, and a cost for each operation.\n\nNormalization: Normalization of tree edit distances accounts for the complexity of the code by considering the maximum number of nodes between two trees, and we add a ramp function to avoid some extreme situations. This provides a metric for structural similarity comparison of programming code, enabling a nuanced analysis beyond mere syntactic comparison."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "GPT Structure Similarity",
+            "text": "Between 2020 and 2023, OpenAI introduced the GPT-3/3.5 and GPT-4 models, showcasing remarkable reasoning capabilities and achieving state-of-the-art performance across numerous tasks Brown et al. (2020  ###reference_b3###). Our approach involves utilizing prompts to elicit the model\u2019s output regarding the structural similarity between two code segments, resulting in a score on a scale from 0 to 1. A score of 1 indicates identical structures, while 0 signifies complete dissimilarity. Despite its effectiveness, this metric operates as a black box, leaving us unaware of the specific calculations performed by GPT or whether it consistently employs the same metric. From various research papers, we\u2019ve observed that these LLMs tend to produce more unstable results with each iteration Tian et al. (2023  ###reference_b14###); Liu et al. (2023  ###reference_b8###).\n\nThis prompt above is designed to calculate and return a similarity score between two Java code snippets based on their grammatical structure. The similarity score ranges from 0 to 1, with three decimal places of precision. A score of 1 indicates identical grammatical structures, while a score of 0 indicates completely different structures. The output format [[0.777]] facilitates easy extraction and post-processing of the score."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Research Questions and Targets",
+            "text": "RQ1: Can TSED be used in more programming languages? We investigate the adaptability of AST Edit Distance which is a generalized version of TSED, exploring its effectiveness in languages like Python and Java to assess its applicability for code similarity analysis.\nRQ2: How are TSED and GPT similarity correlated to semantic similarity and execution match? We assess the correlation between these different metrics to understand their respective contributions in evaluating code similarity across multiple programming languages. \nRQ3: What are the limits of these metrics? We assess the stability of GPT-based similarity output and analyze how parameters, particularly operation weights (delete, insert, rename), influence TSED."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": ""
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "General Setup",
+            "text": "In this study, our primary objective is to apply the theoretical framework to a diverse range of programming languages. To achieve this, we aim to identify executable datasets and evaluate them using predefined metrics. The experimental setup comprises two key tasks: firstly, expanding the application of TSED and GPT similarity to additional programming languages, followed by exploring the correlation between these metrics. Subsequently, we seek to assess the stability of GPT scoring and examine the impact of various parameters on the TSED metric. This structured approach allows us to comprehensively investigate the adaptability, correlations, and stability of the chosen metrics across a spectrum of programming languages."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Evaluation Metrics",
+            "text": "GPT Similarity mentioned in the Section 2.2  ###reference_###  \nTSED mentioned in the Section 2.1  ###reference_###."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "Datasets",
+            "text": "Our comparative analysis involved assessing datasets from various papers, considering factors such as dataset sizes, programming languages, and executables. As highlighted in Table 1, the MBXP dataset encompasses 13 different languages, serving as a function-level benchmark that effectively evaluates programming paragraphs. However, the MBXP dataset includes ground-truth solutions for only 7 languages, with C# omitted due to compilation issues. Additionally, we consider the CoderEval dataset to facilitate a comparison between Python and Java code generation, leveraging its longer test samples, results are in the appendix.\n\nIn the Bash-Shell scenarios, we reproduce results and conduct a comparative analysis using the InterCode dataset. Notably, we identify the SPIDER dataset within InterCode and establish it as a baseline. SPIDER, previously evaluated in comparison to the TSED paper, is a substantial human-labeled dataset for the text-to-SQL task. This dataset encompasses databases with intricate join solutions across diverse domains."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Results",
+            "text": ""
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "Similarity Results",
+            "text": "As we analyze the results presented in Table 2, our experiment demonstrates the effective performance of TSED and GPT similarity in evaluating the MBXP dataset across all 6 programming languages. No instances of parsing or scoring generation failures were observed, confirming the robustness of these metrics across languages.\n\nTSED exhibits a strong correlation with GPT similarity, especially in Java and Python during the CoderEval test, as depicted in Figure 3, underscoring its sensitivity to code structure.\n\nWe employ thresholding to establish a prediction-to-execution match. If the metric value exceeds the threshold, we assign the prediction as 1; otherwise, it is set to 0. The optimal threshold values are determined through enumeration to achieve the best match results. Based on their F1/Accuracy match to the Execution match, both TSED and GPT similarity exhibit higher accuracy compared to semantic metrics in Table 3. Notably, GPT similarity demonstrates a slightly superior F1 score and TSED gives good results on accuracy."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "Stability of GPT Scoring",
+            "text": "To understand how unstable GPT scoring is, we execute the GPT-4 Similarity scoring five times on identical prediction sets, we establish the initial result as a baseline to assess differences through statistical indicators such as Mean Squared Error (MSE) or Mean Absolute Error (MAE) in comparison to the first scoring. Table 4 demonstrates that GPT scoring exhibits limited stability in the context of code similarity evaluation."
+        },
+        {
+            "section_id": "5.3",
+            "parent_section_id": "5",
+            "section_name": "Parameter optimization of TSED",
+            "text": "We can configure the penalty weight of 3 operations in tree distance computing: Delete, Insert, and Rename. Figure 4 from a test for the MBXP/Java dataset shows that 'Insert' has a sweet spot of 0.8. 'Delete' and 'Rename' operations are best kept at a penalty weight of 1.0. However, it is important to note that these values may vary across different programming languages."
+        },
+        {
+            "section_id": "5.4",
+            "parent_section_id": "5",
+            "section_name": "Efficiency",
+            "text": "The table 5 ###reference_### illustrates the computational time (in ms) required by each programming language tested, including TSED and GPT 3.5 Score. Our findings indicate that the performance of TSED has significantly lower computational time compared to GPT-3.5. This suggests that TSED is indeed efficient enough to be applied at scale."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "In this paper, we applied TSED to more programming languages and compared GPT similarity to semantic metrics. Then we discuss limitations about the stability of GPT scoring and the penalty parameters of TSED."
+        }
+    ],
+    "url": "http://arxiv.org/html/2404.08817v2",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "3"
+        ],
+        "methodology_sections": [
+            "2.1",
+            "2.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "4.1",
+            "4.2",
+            "4.3",
+            "5.1"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "5.2",
+            "5.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2404.08817v2",
+        "paper_title": "Revisiting Code Similarity Evaluation with Abstract Syntax Tree Edit Distance",
+        "research_background": "### Motivation:\nThe primary motivation of this paper arises from the critical need for robust evaluation methods in code generation tasks, an area that is gaining significant attention in both natural language processing (NLP) and software engineering. Traditional evaluation metrics such as the BLEU score and Jaccard similarity often fall short because they rely on statistical characteristics, thereby failing to adequately capture the intricate grammatical structures and logical relationships that are inherent in complex programming languages. This inadequacy underscores the need for more precise and semantically rich evaluation metrics that can better assess the quality of generated code.\n\n### Research Problem:\nThe research problem tackled in this paper is the development and evaluation of new metrics for assessing code similarity that go beyond traditional statistical methods. Specifically, the study focuses on leveraging large language models (LLMs) like GPT-4 and expanding on the recently introduced Tree-based Semantic Edit Distance (TSED) metric to evaluate the structural and semantic similarities in programming languages. The paper aims to explore how these metrics compare with traditional ones, such as BLEU, and to investigate their respective advantages and limitations.\n\n### Relevant Prior Work:\n1. **Large Language Models (LLMs)**: \n   - Achiam et al. (2023) and Tang et al. (2024) have documented the revolutionary impact of LLMs like GPT-3.5 and GPT-4 on the NLP landscape, notably in the realm of code review and evaluation.\n   - Wang et al. (2023) have similarly highlighted advancements due to these powerful models.\n\n2. **TSED Metric**:\n   - Song et al. (2023) introduced the TSED metric and used it to evaluate text-to-SQL tasks, presenting it as a novel approach that could go beyond traditional statistical sequence evaluation methods.\n\n3. **Traditional Metrics**:\n   - The paper discusses traditional semantic evaluation metrics like BLEU score and Jaccard similarity, pointing out their reliance on statistical characteristics.\n\n### Contributions:\n1. **Tool for Evaluating Programming Languages**:\n   - The study proposes and publishes a new tool designed to work across 48 different programming languages.\n\n2. **Evaluation of Metrics**:\n   - The research compares two recent evaluation metrics (the one prompted by GPT-4 and TSED) with two traditional metrics via correlation coefficient and recall to execution match.\n\n3. **Analysis of Metric Stability**:\n   - The paper delves into the unstable nature of GPT-4 similarity scoring and offers insights on how to optimize the TSED metric, especially focusing on the impact of TSED\u2019s penalty weight on tree operations and evaluation accuracy.\n\n### Summary:\nIn essence, this paper is driven by the need to improve code similarity evaluations beyond existing statistical methods by leveraging advanced language models and novel metrics. It evaluates structural and semantic similarities, comparing new approaches to traditional ones, and providing critical insights into the stability and optimization of these newer methods.",
+        "methodology": "**Revisiting Code Similarity Evaluation with Abstract Syntax Tree Edit Distance**\n\n**Methodology**\n\n**1. Applying the TSED Evaluation Method:**\nOur methodology is based on adapting the Tree Structure Edit Distance (TSED) evaluation method, which was originally crafted for SQL analysis, to handle various programming languages. While retaining the core TSED approach, which includes AST parsing, AST Edit Distance Calculation, and normalization, we have introduced critical modifications to both the AST parsing and normalization aspects to enhance its applicability across different programming languages.\n\n**2. Code Parsing:**\nThe process of parsing in the context of programming languages involves transforming raw code text into its corresponding Abstract Syntax Tree (AST). This transformation is essential for capturing the intricacies of various programming constructs and converting them into a structured grammar tree representation. For our AST parsing, we employ Tree-sitter, a robust parsing library based on the Generalized Left-to-right (GLR) algorithm. This powerful algorithm is well-documented in the literature.\n\n**3. Tree Distance Computation:**\nTo compute the tree edit distance, we leverage the same function as proposed in the original TSED paper, namely the All Path Tree Edit Distance (APTED) algorithm. This algorithm is utilized to calculate the edit distance between two ASTs\u2014one from the predicted code and one from the ground-truth code. Here is the process in detail:\n   - Let \\(\\mathcal{T}_p\\) represent the AST of the predicted code and \\(\\mathcal{T}_g\\) represent the AST from the ground-truth.\n   - The edit distance \\(\\mathcal{D}_{APT}(\\mathcal{T}_p, \\mathcal{T}_g)\\) is defined as a sequence of edit operations that transforms \\(\\mathcal{T}_p\\) into \\(\\mathcal{T}_g\\).\n   - A cost function, \\(c_{edit}\\), is assigned to each edit operation.\n\n**4. Normalization:**\nThe normalization of tree edit distances is crucial to account for the complexity inherent in the code. We achieve this by considering the maximum number of nodes between the two trees and adding a ramp function to mitigate extreme scenarios:\n\\[ \\text{Normalized Edit Distance} = \\frac{\\mathcal{D}_{APT}(\\mathcal{T}_p, \\mathcal{T}_g)}{\\max(|\\mathcal{T}_p|, |\\mathcal{T}_g|)} + \\text{ramp function} \\]\nThis normalization process provides a more refined metric for assessing structural similarity between different pieces of programming code, thus enabling a nuanced analysis that transcends basic syntactic comparison.\n\nIn conclusion, our modified method retains the robustness of the original TSED approach while extending its capabilities to a wider variety of programming languages through enhanced AST parsing and more sophisticated normalization techniques.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results:\n\n#### Dataset:\nThe study focuses on evaluating executable datasets across various programming languages. The datasets are designed to encompass a wide range of real-world programming scenarios to ensure a comprehensive analysis.\n\n#### Baselines:\nThe study evaluates the performance of two key metrics: \n1. **Tree-based Syntax Edit Distance (TSED)** \n2. **GPT-3 based similarity scoring (GPT similarity)**\n\nThese baselines are tested and compared across multiple programming languages to validate their general applicability and performance consistency.\n\n#### Evaluation Metrics:\nThe evaluation is conducted based on:\n1. **Correlation Analysis**: To determine the relationship between TSED and GPT similarity scores.\n2. **Stability Assessment**: To evaluate the consistency of GPT scoring over different conditions.\n\n#### Main Experimental Results:\nThe main findings from this comprehensive assessment across a spectrum of programming languages include:\n1. **Cross-Language Adaptability**: Both TSED and GPT similarity demonstrated the ability to be applied effectively across diverse programming languages.\n2. **Correlation**: A noticeable correlation between TSED and GPT similarity scores was observed, indicating that both metrics tend to converge in their assessment of code similarity.\n3. **Stability**: The GPT scoring exhibited consistent stability across different programming contexts, ensuring reliable performance.\n\nThe structured approach and thorough analysis enable a robust evaluation of the adaptability, correlation, and stability of TSED and GPT similarity metrics across multiple programming languages."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To understand how unstable GPT scoring is in the context of code similarity evaluation.",
+            "experiment_process": "We execute the GPT-4 Similarity scoring five times on identical prediction sets. We then establish the initial result as a baseline to assess differences through statistical indicators such as Mean Squared Error (MSE) or Mean Absolute Error (MAE) in comparison to the first scoring.",
+            "result_discussion": "Table 4 demonstrates that GPT scoring exhibits limited stability in the context of code similarity evaluation.",
+            "ablation_id": "2404.08817v2.No1"
+        },
+        {
+            "research_objective": "To optimize the penalty weight of tree distance computing operations (Delete, Insert, and Rename) for the Tree Similarity of Edit Distance (TSED) on the MBXP/Java dataset.",
+            "experiment_process": "We configure the penalty weight of 3 operations in tree distance computing: Delete, Insert, and Rename. The MBXP/Java dataset is used for testing. The penalty weights are adjusted, and their effectiveness is evaluated.",
+            "result_discussion": "Figure 4 from the test for the MBXP/Java dataset shows that the \u2018Insert\u2019 operation has a sweet spot of 0.8, while keeping the \u2018Delete\u2019 and \u2018Rename\u2019 operations at a 1.0 penalty weight as the best choice. However, it is noted that these parameters might differ for other programming languages.",
+            "ablation_id": "2404.08817v2.No2"
+        }
+    ]
+}

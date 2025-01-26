@@ -1,0 +1,923 @@
+{
+    "title": "Residual-based Language Models are Free Boosters for Biomedical Imaging Tasks",
+    "abstract": "In this study, we uncover the unexpected efficacy of residual-based large language models (LLMs) as part of encoders for biomedical imaging tasks, a domain traditionally devoid of language or textual data. The approach diverges from established methodologies by utilizing a frozen transformer block, extracted from pre-trained LLMs, as an innovative encoder layer for the direct processing of visual tokens. This strategy represents a significant departure from the standard multi-modal vision-language frameworks, which typically hinge on language-driven prompts and inputs. We found that these LLMs could boost performance across a spectrum of biomedical imaging applications, including both 2D and 3D visual classification tasks, serving as plug-and-play boosters. More interestingly, as a byproduct, we found that the proposed framework achieved superior performance, setting new state-of-the-art results on extensive, standardized datasets in MedMNIST-2D and 3D. Through this work, we aim to open new avenues for employing LLMs in biomedical imaging and enriching the understanding of their potential in this specialized domain. Our code is available at https://github.com/ZhixinLai/LLMBoostMedical",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "Modern healthcare research is multifaceted, integrating various disciplines and technologies to improve patient outcomes [12  ###reference_b12###], healthcare delivery [15  ###reference_b15###], and disease prevention [35  ###reference_b35###].\nOne of the most critical components is biomedical imaging. The ability to classify and segment medical images accurately and swiftly is essential for clinicians, reducing errors and improving patient care. Recent advancements in artificial intelligence (AI) for vision [71  ###reference_b71###, 73  ###reference_b73###, 26  ###reference_b26###, 67  ###reference_b67###], such as Vision Transformers (ViTs), have significantly contributed to these areas. These AI models enhance the accuracy and efficiency of medical image analysis, aiding in the development of computer-aided diagnostic systems in clinical applications. By learning from large volumes of medical data, AI technologies can produce accurate diagnostic results across a range of medical applications. Their performance is often comparable to that of experienced clinicians, highlighting the transformative impact of AI in healthcare and its growing role in improving diagnostic processes.\n###figure_1### Despite the promising capabilities of ViTs in biomedical imaging, we still face significant challenges that hinder further performance enhancements. First, the challenge lies in the data requirement for training these models. Effective training demands extensive, meticulously labeled datasets. Unlike other industries such as transportation [14  ###reference_b14###], energy [56  ###reference_b56###], manufacturing [72  ###reference_b72###, 13  ###reference_b13###, 16  ###reference_b16###, 63  ###reference_b63###], agriculture [70  ###reference_b70###, 59  ###reference_b59###], etc., where the data collection and labeling process can be easily standardized, in the realm of biomedical imaging, creating such datasets is particularly burdensome. The need for expert knowledge is paramount due to the fine-grained nature of medical images. This process is not only time-intensive but also incurs significant financial costs, making it a substantial barrier to progress. Second, the optimization of ViT presents a critical challenge similar to the broader computer vision domain. Achieving the best performance necessitates rigorous parameter tuning, a process that requires a deep understanding of the model architecture and consumes considerable computational resources. This level of optimization, while crucial for maximizing model efficacy, is a demanding task that often stretches beyond practical limits in terms of time and computational expense. Confronted with these two significant challenges, this research focuses on exploring strategies to enhance the performance of ViT in biomedical imaging without accumulating larger datasets or dramatically increasing computational demands.\n###figure_2### LLMs, trained on extensive textual data, have shown impressive versatility, applying their capabilities far beyond their initial linguistic applications. In computer vision, for instance, LLMs have demonstrated an intriguing capacity to engage with and interpret visual tokens, converting them into a structured, tokenized format. This integration often occurs within a multi-modal vision-language framework. Here, visual tokens are typically interfaced with LLMs through linear projection layers, or by employing cross-attention mechanisms that facilitate interaction between visual and linguistic tokens. As we delve deeper into the potential of LLMs in computer vision, a compelling question emerges: Can these models, originally designed for language processing, adeptly manage purely visual tasks, without any dependence on linguistic elements?\nIn pursuit of understanding the capability of LLMs in visual tasks, our research offers a novel and affirmative insight. We introduce an approach that has been largely unexplored until now: utilizing a residual-based LLM (R-LLM) block as an efficient encoder for visual data. This method is distinct in its simplicity and effectiveness, with a significant performance boost on biomedical imaging tasks, as shown in Figure 1  ###reference_###. Specifically, it involves three integral steps, as depicted in Figure 2  ###reference_###: Firstly, we integrate a frozen transformer block from an LLM into the visual encoder\u2019s architecture. Secondly, to ensure compatibility and effective information transfer, trainable linear layers are strategically positioned around the LLM block, enabling seamless feature dimension alignment. Third, a residual connection before and after the frozen LLM is introduced. Finally, while the transformer block remains frozen to retain its pre-trained characteristics, the other modules are unfrozen and undergo regular optimization during the training phase.\nRemarkably, the proposed straightforward approach yields significant performance improvements across a broad range of tasks in biomedical imaging, including both 2D and 3D classification tasks. This enhancement is consistently observed with various publicly available large language models, such as LLaMA, and across different transformer blocks within these LLMs. As shown in Figure 2  ###reference_###-(a), the methodology innovates by treating LLM transformers as a booster of biomedical encoders, deviating significantly from the traditional perspective in vision-language models. Three key features distinguish our application of LLM transformers: First, their operation is entirely independent of language components, such as prompts, inputs, or outputs, marking a significant departure from traditional usage. Second, our method is adaptable both with and without pre-training, providing flexibility and bypassing the reliance on pre-trained models. Third, we simplify using LLMs by treating transformer blocks as distinct, modular units. This innovative approach not only challenges but also reshapes the conventional application of LLMs, particularly in the complex field of biomedical imaging tasks. In summary, our paper makes the following primary contributions:\nWe introduce a novel residual-based framework that incorporates a frozen transformer block from pre-trained LLMs as a visual encoder layer, enhancing the learning of various biomedical imaging tasks. This innovative approach is tailored to adapt to the diverse and complex nature of biomedical images.\nExtensive experiments have been conducted across multiple datasets and scales, including BreastMNIST, DermaMNIST, FractureMNIST3D, etc. Surprisingly, the approach achieves state-of-the-art (SoTA) results, surpassing the performance of previous models. This underscores the effectiveness of our method in a wide array of medical imaging contexts.\nWe provide in-depth discussions and ablation studies to dissect and understand the components of our proposed framework. These studies offer insights into the functionality and efficacy of each module, providing a comprehensive understanding of why and how our approach achieves its superior performance."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "Vision Transformer",
+            "text": "The Vision Transformer introduced by [26  ###reference_b26###] exemplifies how a purely transformer-based model can achieve notable success in image classification. In ViT, images are divided into patches (tokens), and transformer layers are utilized to model the global interrelations among these patches for effective classification. Building upon this, the T2T-ViT [78  ###reference_b78###] refines the tokenization process by recursively aggregating neighboring tokens, thereby enriching the representation of local structures. Similarly, the Swin Transformer [48  ###reference_b48###] introduces a local window-based self-attention mechanism, with a shifted window scheme for comprehensive in-window and cross-window interaction modeling. The advent of Vision Transformers (ViT) has led to an increasing number of applications [81  ###reference_b81###, 76  ###reference_b76###]. In biomedical imaging, these technologies have also led to more accurate and efficient medical image segmentation and classification [27  ###reference_b27###, 20  ###reference_b20###, 62  ###reference_b62###], leveraging transformers to handle variable-length inputs and capture long-distance dependencies."
+        },
+        {
+            "section_id": "2.3",
+            "parent_section_id": "2",
+            "section_name": "Language Models for Visual and Biomedical Imaging Tasks",
+            "text": "In the general vision domain, the advent of large language models (LLMs) has catalyzed a wave of innovative applications due to their generative capabilities. Notably, LLMs are being utilized to merge vision algorithms with user queries, enabling more interactive and user-specific outcomes, as explored in recent studies [47  ###reference_b47###, 55  ###reference_b55###]. Another area of advancement is in visual programming, where LLMs play a central role in visual reasoning and in-context learning [29  ###reference_b29###, 46  ###reference_b46###]. Furthermore, the versatility of LLMs as decoders is increasingly recognized, with their ability to translate latent visual features into meaningful output tokens [64  ###reference_b64###, 83  ###reference_b83###]. Common methodologies in this domain involve projecting visual features directly onto the input layers of LLMs [28  ###reference_b28###, 44  ###reference_b44###, 50  ###reference_b50###], or leveraging latent bottleneck structures to encode visual tokens more effectively [37  ###reference_b37###, 3  ###reference_b3###, 43  ###reference_b43###, 64  ###reference_b64###].\nIn line with this advancement, image tasks, such as image classification [79  ###reference_b79###], image segmentation [22  ###reference_b22###], pattern recognition [34  ###reference_b34###], detection [25  ###reference_b25###], and AR/VR technology [57  ###reference_b57###], are following this trend of using language models. Researchers in the biomedical imaging field have developed datasets that bridge the gap between vision and language [36  ###reference_b36###, 65  ###reference_b65###]. Utilizing these specialized datasets, significant advancements have been made in applying general-domain vision-language models to biomedical imaging [7  ###reference_b7###, 82  ###reference_b82###, 33  ###reference_b33###]. A good example is utilizing vision-language pre-training (VLP) to incorporate domain knowledge from medicine into visual representation learning, as demonstrated in 2D and 3D image analysis [45  ###reference_b45###]. These models have shown promising results in enhancing the analysis and interpretation of medical images. However, they still require careful alignment between the visual and linguistic modalities or an additional mapping process to translate visual information into the language space.\nRecent advancements in the vision domain have illuminated the potential of using transformer blocks from LLMs as general-purpose encoder layers for visual data [51  ###reference_b51###]. This perspective marks a departure from their traditional roles, primarily confined to encoding textual data, decoding tokenized outputs, or facilitating alignment between modalities. Instead, the pre-trained blocks may discern informative visual tokens and amplify their impacts on feature representation. Inspired by this, we hypothesize that a similar idea could be effectively adapted to biomedical imaging tasks."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "Method",
+            "text": "In this section, we first introduce the overall framework of the proposed method in Section 3.1  ###reference_###. Following this, we highlight the key design and differences between the framework and previous methods in Section 3.2  ###reference_###."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "The Overall Framework",
+            "text": "We now formally introduce our comprehensive framework that harnesses the power of LLM as a free booster for biomedical imaging tasks. The entire workflow of this framework is delineated in Figure 2  ###reference_###. Traditionally, the framework begins by taking a biomedical image as input, denoted as . It then utilizes a vision transformer-based encoder, , to transform  into a feature embedding . This process is followed by a MLP-based classifier  for the final classification task, correlating with the corresponding label . For the supervised learning, we define it as\nFollowing the baseline framework, we incorporate a pre-trained block from LLM, specifically selecting a block from LLaMA [60  ###reference_b60###] in this study. We denote this LLM block as . To effectively integrate  into the vision-based pipeline, we introduce two additional adaptation layers:  and . The layer  is positioned before , while  follows it. These layers serve a critical function in aligning the dimensions between the vision data and the language model, ensuring seamless interoperability and efficient processing within our hybrid framework. Very importantly, we strategically implement a residual connection [30  ###reference_b30###], positioned both before and after the LLM block. This setup allows an efficient exchange of gradient information and the passage of visual embedding through a shortcut path. Such an architecture not only facilitates the learning process but also ensures that crucial information is effectively preserved and communicated across models with different modalities, i.e., vision and language. We formally formulate this as\nDuring training, we freeze all the parameters of , the LLM transformer block. Meanwhile, the rest of the modules, including two adaptation layers,  and , are trained simultaneously. Following the previous paradigm [51  ###reference_b51###], the approach modifies the behavior of LLM transformers to accommodate the stark differences between visual and textual data formats. Specifically, there are two critical adaptations. First, in LLMs, auto-regressive masks are typically used to simulate the sequential nature of text generation. However, in visual data, such as image tokens, the information is presented simultaneously rather than sequentially. Recognizing this, we forgo using auto-regressive attention masks in our framework. Instead, we employ attention masks solely to denote the presence of padded tokens in the visual data. Second, the positional embeddings utilized in LLMs, like the rotary positional embedding in LLaMA [60  ###reference_b60###], are not typically chosen for visual encoders. Hence, for the sake of simplicity and to maintain consistency with conventional visual backbones, we opted to remove the LLMs\u2019 positional embeddings from our system."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "Comparison with Previous Methods",
+            "text": "At first glance, the proposed methods may appear akin to those used in prior vision-language model research, such as in video language retrieval [44  ###reference_b44###], FROMAGe [39  ###reference_b39###], and LiMBeR [50  ###reference_b50###], where bridging the gap between vision and language spaces is achieved through linear layers. However, a distinctive aspect of our approach is the absence of an alignment between these two modalities\u2019 spaces. In essence,  is not constrained to map features directly from the vision to the language space, differing fundamentally from these previous methods. This conclusion and design are consistent with the previous results shown in [51  ###reference_b51###]. To be more specific, the method we propose distinguishes itself in several critical ways. Unlike prevailing approaches, it does not depend on a pre-trained encoder such as CLIP [53  ###reference_b53###], ALBEF [42  ###reference_b42###] and Coca [77  ###reference_b77###], enabling the model to be trained entirely from scratch. This independence from pre-existing models offers greater flexibility and adaptability.\nAdditionally, the method functions and operates autonomously from language-based inputs or prompts, which are applicable to general biomedical imaging Tasks. Most notably, our approach represents a pioneering attempt to employ a residual connection to facilitate information exchange among different modalities, a design particularly novel in biomedical imaging. These three aspects - independence from pre-trained models, autonomy from language-based inputs, and the innovative use of residual connections across modalities - collectively underscore the distinctiveness and innovation of our method in advancing biomedical imaging technology."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experinments and Results",
+            "text": "In this section, we conduct extensive empirical evaluations and experiments to validate the effectiveness of our proposed method as a cost-free, plug-and-play booster for biomedical imaging tasks. We begin by detailing the datasets utilized in our study in Section 4.1  ###reference_###. Subsequently, in Section 4.2  ###reference_###, we delve into the experiments conducted on 2D classification tasks. Following this, Section 4.3  ###reference_### will cover the 3D classification tasks, providing insights into the implementation details, experiments conducted, and the results derived from these tasks.\nLastly, we conduct a series of ablation studies to understand and explore variants of the proposed method in Section 4.4  ###reference_###."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Datasets",
+            "text": "We carefully selected datasets from MedMNIST V2 [75  ###reference_b75###], supplemented with other public datasets. Specifically, the chosen datasets encompass a broad spectrum of imaging types featuring both 2D and 3D images. Additionally, these datasets provide a diverse range of classification challenges, including both binary and multi-class tasks.\nWe commence our testing with a foundational 2D dataset, comprising 780 images, to carry out binary classification tasks. This initial phase is for a preliminary evaluation of our proposed approach. Progressing from there, we expand the scale of the datasets under investigation, transitioning from hundreds to over 100,000 images. Given the limited availability of 3D datasets, our selection for 3D image analysis includes four datasets, each containing thousands of images under similar scales. We described the details of the datasets as follows:\nBreastMNIST, drawing from a dataset of 780 breast ultrasound images [2  ###reference_b2###], classifies these images into three categories: benign, malignant, and normal. Given that the dataset comprises low-resolution images, the task has been simplified into a binary classification framework.\nRetinaMNIST is derived from the DeepDRiD (Deep Diabetic Retinopathy) dataset [11  ###reference_b11###], featuring data from 628 patients and encompassing 1600 retina fundus images.\nPneumoniaMNIST, adapted from an existing dataset [52  ###reference_b52###], is comprised of 5,856 pediatric chest X-ray images. This dataset is particularly focused on the classification of pneumonia and is structured into two binary classes: \u2018pneumonia\u2019 and \u2018normal.\u2019\nDermaMNIST is derived from the HAM10000 dataset [61  ###reference_b61###], a substantial compilation of multi-source dermatoscopic images showcasing common pigmented skin lesions. This dataset encompasses 10,015 dermatoscopic images, each with dimensions of 450 \u00d7 600 pixels.\nOCTMNIST is derived from a previously established dataset [21  ###reference_b21###], consisting of 109,309 valid optical coherence tomography (OCT) images collected specifically for the study of retinal diseases. The dataset encompasses four distinct types of retinal conditions, which form the basis for a multi-class classification task.\nOrganAMNIST originates from 3D computed tomography (CT) images utilized in the Liver Tumor Segmentation Benchmark (LiTS) [1  ###reference_b1###] with 58,850 images. To obtain organ labels for these images, bounding-box annotations of 11 body organs from a separate study were employed [49  ###reference_b49###].\nFractureMNIST3D is derived from the RibFrac Dataset [4  ###reference_b4###], featuring about 5,000 rib fractures from 660 CT scans. We adhere to the official dataset division for experiments.\nAdrenalMNIST3D, derived from Zhongshan Hospital affiliated with Fudan University, encompasses shape masks from 1,584 adrenal glands (792 patients). It includes 3D shapes of adrenal glands for binary classification. This dataset is randomly divided into training, validation, and test sets, with 1,188, 98, and 298 cases, respectively, ensuring a patient-level split.\nNoduleMNIST3D is developed from a substantial public lung nodule dataset derived from thoracic CT scans. The dataset is partitioned in a 7:1:2 ratio into training, validation, and test sets. The images, spatially normalized to a 1mm\u00d71mm\u00d71mm spacing, are center-cropped to a uniform size of 28\u00d728\u00d728 for analysis.\nVesselMNIST3D comprises 103 3D brain vessel models derived from reconstructed MRA images. From these models, 1,694 healthy vessel segments and 215 aneurysm segments have been generated. The source dataset has been divided into training, validation, and test sets in a 7:1:2 ratio, facilitating a comprehensive evaluation of the models across various samples.\n###table_1###"
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "2D Classification",
+            "text": "We now dive into the experiments of 2D classification tasks for biomedical images. We will first introduce the detailed implementation and then move to the corresponding results."
+        },
+        {
+            "section_id": "4.2.1",
+            "parent_section_id": "4.2",
+            "section_name": "4.2.1 Implementation Details",
+            "text": "For 2D classification experiments, all images are initially resized to a resolution of 224 x 224 pixels. We train each model using a batch size of 128, employing an AdamW optimizer for 100 epochs. The initial learning rate is set at 0.0005, coupled with a weight decay of 0.05. We utilize the ViT small model as the encoder pre-trained on ImageNet along with the llama-7b while keeping all parameters unfrozen for end-to-end training, except those in the LLaMA model. All these experiments are carried out on NVIDIA A6000 GPUs."
+        },
+        {
+            "section_id": "4.2.2",
+            "parent_section_id": "4.2",
+            "section_name": "4.2.2 Results",
+            "text": "In demonstrating the effectiveness of the R-LLM as a booster for 2D classification tasks, we primarily utilize Accuracy (ACC) and Area under the ROC Curve (AUC) as evaluation metrics. ACC, being a threshold-based metric, is particularly sensitive to class discrepancy as it evaluates discrete prediction labels. In contrast, AUC is a threshold-free metric suited for assessing continuous prediction scores. Given the diversity in dataset sizes and types in our experiments, employing both ACC and AUC provides a comprehensive assessment of our method\u2019s performance across varying conditions.\nThe results in Table 1  ###reference_### demonstrate that integrating the LM consistently enhances performance across various datasets and evaluation metrics. Notably, the most significant accuracy gains, approximately 1 to 3 percent, are observed in datasets such as RetinMNIST, OCTMNIST, and DermaMNIST. While improvements in other datasets are less pronounced, this could be attributed to our approach of applying a uniform set of hyperparameters across all experiments to showcase the LM\u2019s general applicability. The relatively modest enhancements in certain cases might result from this methodological choice, as it potentially limits the fine-tuning of hyperparameters tailored to each specific dataset\u2019s characteristics. Interestingly, we noticed that R-LLM did not contribute to improving the ACC metric in the PneumoniaMNIST dataset. This observation can be attributed to the dataset\u2019s imbalanced nature, with a pneumonia-to-normal ratio of approximately 3:1. Consequently, accuracy can be misleading in such an imbalanced setting, as the baseline may achieve better accuracy simply by predicting most samples as the majority class. As we switch from ACC to AUC, we can see a more fair comparison and consistently observe that R-LLM continues to benefit the classification tasks.\nMore surprisingly, when the LLM booster is integrated into the basic ViT model, it not only matches but, in some cases, even surpasses existing SoTA results. As outlined in Table 2  ###reference_###, this novel approach achieves unparalleled accuracy in datasets like BreastMNIST, RetinaMNIST, DermaMNIST, and OCTMNIST. Most notably, our method outperforms the SoTA on OCTMNIST by a remarkable margin of nearly 7 percent."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "3D Classification",
+            "text": "We now move to the experiments of 3D classification tasks for biomedical images. Similarly, we will first introduce the detailed implementation and then the corresponding results."
+        },
+        {
+            "section_id": "4.3.1",
+            "parent_section_id": "4.3",
+            "section_name": "4.3.1 Implementation Details",
+            "text": "For the 3D classification experiments, each model is trained using a batch size of 128, employing an AdamW optimizer across 100 epochs. The initial learning rate is . We adopt the ViViT [5  ###reference_b5###] and ViT3D [26  ###reference_b26###], both modified with three channels to accommodate the 3D input, alongside the llama-7b model. The ViT3D model comprises 130.3M parameters. For ViVit, we utilize two encoder sizes: ViVit-Small (ViViT-S) and ViT-Medium (ViViT-M), containing 49.2M and 258.6M parameters, respectively. All parameters, except for those in LLaMA, are kept unfrozen for end-to-end training. These experiments are conducted on NVIDIA A6000 GPUs."
+        },
+        {
+            "section_id": "4.3.2",
+            "parent_section_id": "4.3",
+            "section_name": "4.3.2 Results",
+            "text": "Similar to the 2D datasets, we present the results for 3D datasets, reinforcing the core assertion of this paper: that LMs serve as a free booster for general bioimaging tasks, including 3D analysis. As illustrated in Table 3  ###reference_###, the results are reported for various datasets with and without the R-LLM incorporated. These results are spread across different types and scales of encoders, specifically including ViT3D, ViViT-S, and ViViT-M. Crucially, in all scenarios and across both ACC and AUC evaluation metrics, we observe marked improvements in model performance. This consistent enhancement underscores the versatility and effectiveness of the LLM as a booster in the realm of 3D biomedical imaging tasks.\nFor the comprehensive experiments, we follow the 2D experiment settings to compare the proposed method with previous SoTA approaches. Remarkably, in Table 4  ###reference_###, our framework notched three SoTA results across four datasets, without any additional hyperparameter tuning. Meanwhile, even more favorable outcomes might be attainable with further optimization and customization of training parameters."
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "Ablation and Visualization",
+            "text": "To further prove the effectiveness of the proposed idea and the importance of the introduced LLM block, we conduct comprehensive experiments with models of varying capacities, detailed in Section 4.4.1  ###reference_.SSS1###. In these experiments, we assess how the models perform with different levels of complexity. Subsequently, in Section 4.4.2  ###reference_.SSS2###, we explore the potential benefits of unfreezing the LLM block. This step is aimed at fully leveraging the adaptability and fitting power of the LLM. Then, we highlight the importance of residual structure in Section 4.4.3  ###reference_.SSS3###. Lastly, Crad-CAM visualization is given in Secionn 4.4.4  ###reference_.SSS4###."
+        },
+        {
+            "section_id": "4.4.1",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.1 Model with Different Capacities",
+            "text": "In evaluating the broad effectiveness of frozen LLM transformers, we considered whether the improvements could be attributed more to the expanded capacity of the linear adaptation layers, namely  and , rather than the pre-trained weights of the LLM block, . To investigate this, we created a variant model, ViViT-M+MLP, which has a parameter count equivalent to that of ViViT+R-LLM. This variant omits the LLM block , and keeps  and .\nWe adhered to the same training procedure outlined in Section 4.3  ###reference_### to ensure a fair comparison, focusing our experiments on the FractureMNIST3D and AdrenalMNIST3D datasets. The results, summarized in Table 5  ###reference_###, show that ViViT-M+MLP, with its increased number of parameters, does outperform the baseline ViViT-M model. However, the improvement is relatively marginal. In contrast, the enhancement observed with ViViT-M+R-LLM is both robust and substantial across both metrics. These findings lead to a significant conclusion: the pre-trained weights of the LLM transformer are instrumental to the observed improvements, and the enhancements in our biomedical imaging tasks are not merely the result of increased model capacity."
+        },
+        {
+            "section_id": "4.4.2",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.2 End-to-end Fine-tuning",
+            "text": "In examining whether fine-tuning the language transformer in the ViViT-M+R-LLM(FT) model is advantageous compared to maintaining it in a frozen state, we found an unexpected outcome. The results, as shown in Table 5  ###reference_###, indicate a decline in performance with fine-tuning, in contrast to the consistent training of the ViViT-M+R-LLM. This suggests the difficulties in training large transformer models: there is a tendency to overfit with standard-scale datasets, and fine-tuning LLMs end-to-end is often time-intensive and complex. This observation reinforces our decision to keep the LLM transformers frozen within our framework. By doing so, we simplify the training process while also ensuring effectiveness, thereby avoiding the challenges associated with fine-tuning in complex transformer architectures.\n###figure_3###"
+        },
+        {
+            "section_id": "4.4.3",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.3 Importance of Residual Structure",
+            "text": "In this ablation study, the significance of the residual structure within our framework is meticulously examined. We found that incorporating such a structure in tandem with a Large Language Model (LLM) substantially enhances model performance. To elucidate this further, we introduce two variants of our Residual-based R-LLM: the \u2018Out R-LLM\u2019 and the Hybrid R-LLM. Out R-LLM is designed to incorporate the residual connection before the encoder  and externally to the decoder . This can be summarized as follows:\nHybrid R-LLM, blending the features of R-LLM and Out R-LLM, combines both internal and external residual structures. This approach offers an alternative method of integration. In line with our previous experiments, the performance of Hybrid R-LLM is evaluated on FractureMNIST3D and AdrenalMNIST3D datasets using the ACC and AUC metrics. The findings, presented in Table 6  ###reference_###, indicate that while R-LLM delivers the best results. However, any form of the residual structure consistently benefits the overall performance."
+        },
+        {
+            "section_id": "4.4.4",
+            "parent_section_id": "4.4",
+            "section_name": "4.4.4 Visual Inspection",
+            "text": "To validate the efficiency of LLM, we utilize Grad-CAM [54  ###reference_b54###] to qualitatively analyze the performance of ViT-S with R-LLM. We conduct training on the original OCTMNIST dataset [21  ###reference_b21###], encompassing diverse retinal conditions: Choroidal Neovascularization (CNV), Diabetic Macular Edema (DME), Drusen, and Normal cases.\nIn Figure 3  ###reference_###, significant regions are delineated by red rectangles, indicating areas crucial for medical diagnosis and analysis. Compared to the baseline, ViT-S enhanced with R-LLM demonstrates superior performance by closely aligning with these annotated red rectangles. This alignment enhances its ability to suppress attention toward extraneous background details effectively and to identify pivotal features essential for accurate diagnosis and analysis. This observation underscores the efficacy of our approach in medical image analysis tasks."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Discussion and Conclusion",
+            "text": ""
+        },
+        {
+            "section_id": "5.1",
+            "parent_section_id": "5",
+            "section_name": "Discussion",
+            "text": "This study was primarily focused on methodically exploring a relatively under-investigated domain: the utility of pre-trained, frozen, and residual-based language transformers in biomedical imaging tasks. We have successfully demonstrated that these transformers can indeed serve as a \u2019free lunch\u2019, significantly boosting performance across various tasks. The experiments were carefully structured to cover a broad range of datasets and learning tasks, ensuring fair and meaningful comparisons with established baselines. Our focus was not exclusively on achieving state-of-the-art performance for every task, although this emerged as an unintended but welcome byproduct of our work.\nThis research not only confirms the value of LLMs in enhancing biomedical visual tasks but also opens the door for further exploration in this field. We urge fellow researchers to expand upon our work, potentially by enlarging the scope of experiments with more diverse datasets and learning tasks, not only in vision and NLP, but also Tabular [58  ###reference_b58###, 74  ###reference_b74###, 17  ###reference_b17###], Graph [68  ###reference_b68###, 18  ###reference_b18###], etc., which could lead to more universally applicable models in the industry. Moreover, we also recognize that our approach has not yet fully harnessed the specific traits of biomedical images, such as their fine-grained structures. Delving into these aspects could yield more nuanced insights and improvements, representing a vital and promising direction for future studies."
+        },
+        {
+            "section_id": "5.2",
+            "parent_section_id": "5",
+            "section_name": "Conclusion",
+            "text": "In this research, we explored the unique potential of residual-based large language models, traditionally associated with text processing, as encoders for biomedical imaging tasks. This innovative application marks a significant shift from their usual text-centric roles. By integrating a frozen transformer block from pre-trained LLMs into visual encoders as a free booster, we discovered consistent enhancements in performance across a variety of 2D and 3D biomedical imaging tasks. These findings broaden the scope of LLM applications, suggesting their utility extends well beyond language processing. Our study aims to inspire further exploration in this nascent field, particularly in bridging the modality gap between vision and language and harnessing the full potential of LLMs within the biomedical imaging domain."
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S3.T1\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S3.T1.2\" style=\"width:390.3pt;height:73.4pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-44.1pt,8.3pt) scale(0.815822776028084,0.815822776028084) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S3.T1.2.1\">\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_tt ltx_border_t\" id=\"S3.T1.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.1.1\">Dataset</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.2.1\">BreastMNIST</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.3.1\">RetinaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.4.1\">PneumoniaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.5.1\">DermaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.6.1\">OCTMNIST</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.1.7.1\">OrganAMNIST</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.2.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.1.1\">Backbone</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.2.1\">ViT-S</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.3.1\">ViT-S</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.4.1\">ViT-S</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.5.1\">ViT-S</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.6.1\">ViT-S</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" colspan=\"2\" id=\"S3.T1.2.1.2.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.2.7.1\">ViT-S</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.2.1.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.3.1.1\">R-LLM</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.2\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.3\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.4\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.5\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.6\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.7\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.8\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.9\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.10\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.11\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.12\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.3.13\">\u2713</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S3.T1.2.1.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.1.1\">ACC</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.2.1\">87.17</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.3.1\">87.17</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.4\">54.25</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.5.1\">57.00</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.6.1\">94.23</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.7\">93.91</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.8\">78.95</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.9.1\">79.50</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.10\">83.60</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.11\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.11.1\">85.10</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.12\">95.19</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S3.T1.2.1.4.13\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.4.13.1\">95.22</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S3.T1.2.1.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S3.T1.2.1.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.1.1\">AUC</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.2\">86.17</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.3.1\">88.23</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.4\">74.09</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.5.1\">74.78</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.6\">97.83</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.7.1\">98.01</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.8\">94.27</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.9.1\">94.50</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.10\">96.93</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.11\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.11.1\">97.88</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.12\">99.75</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S3.T1.2.1.5.13\"><span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.2.1.5.13.1\">99.78</span></td>\n</tr>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S3.T1.4.1.1\" style=\"font-size:90%;\">Table 1</span>: </span><span class=\"ltx_text\" id=\"S3.T1.5.2\" style=\"font-size:90%;\">Performance comparison of 2D classification results of the proposed framework with and without the Residual-based LLM as a booster, evaluated using the AUC and ACC metrics. The highest-performing results are highlighted in <span class=\"ltx_text ltx_font_bold\" id=\"S3.T1.5.2.1\">bold</span> for clarity.</span></figcaption>\n</figure>",
+            "capture": "Table 1: Performance comparison of 2D classification results of the proposed framework with and without the Residual-based LLM as a booster, evaluated using the AUC and ACC metrics. The highest-performing results are highlighted in bold for clarity."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S4.T2.2\">\n<tr class=\"ltx_tr\" id=\"S4.T2.2.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.1.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\">\n<span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span><span class=\"ltx_text\" id=\"S4.T2.2.1.1.1\" style=\"font-size:90%;\">\n</span><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.1.2\" style=\"font-size:90%;\">Method \\Dataset</span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.2.1\" style=\"font-size:90%;\">BreastMNIST</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.3.1\" style=\"font-size:90%;\">RetinaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.4.1\" style=\"font-size:90%;\">PneumoniaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.5.1\" style=\"font-size:90%;\">DermaMNIST</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.6.1\" style=\"font-size:90%;\">OCTMNIST</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.1.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.1.7.1\" style=\"font-size:90%;\">OrganAMNIST</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_r ltx_border_t\" id=\"S4.T2.2.2.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.1.1\" style=\"font-size:90%;\">ResNet-18</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.2.1\" style=\"font-size:90%;\">83.3</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.3.1\" style=\"font-size:90%;\">49.3</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.4.1\" style=\"font-size:90%;\">86.4</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.5.1\" style=\"font-size:90%;\">75.4</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.6.1\" style=\"font-size:90%;\">76.3</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.2.7.1\" style=\"font-size:90%;\">93.5</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.3.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.1.1\" style=\"font-size:90%;\">ResNet-50</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.2.1\" style=\"font-size:90%;\">84.2</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.3.1\" style=\"font-size:90%;\">51.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.4.1\" style=\"font-size:90%;\">88.4</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.5.1\" style=\"font-size:90%;\">73.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.6.1\" style=\"font-size:90%;\">77.6</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.3.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.3.7.1\" style=\"font-size:90%;\">94.7</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.4\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.4.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.1.1\" style=\"font-size:90%;\">Auto-sklearn</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.2.1\" style=\"font-size:90%;\">80.3</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.3.1\" style=\"font-size:90%;\">51.5</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.4.1\" style=\"font-size:90%;\">85.5</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.5.1\" style=\"font-size:90%;\">71.9</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.6.1\" style=\"font-size:90%;\">60.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.4.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.4.7.1\" style=\"font-size:90%;\">76.2</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.5.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.1.1\" style=\"font-size:90%;\">AutoKeras</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.2.1\" style=\"font-size:90%;\">83.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.3.1\" style=\"font-size:90%;\">50.3</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.4.1\" style=\"font-size:90%;\">87.8</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.5.1\" style=\"font-size:90%;\">74.9</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.6.1\" style=\"font-size:90%;\">76.3</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.5.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.5.7.1\" style=\"font-size:90%;\">90.5</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.6\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.6.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.1.1\" style=\"font-size:90%;\">Google AutoML</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.2.1\" style=\"font-size:90%;\">86.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.3.1\" style=\"font-size:90%;\">53.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.4.1\" style=\"font-size:90%;\">94.6</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.5.1\" style=\"font-size:90%;\">76.8</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.6.1\" style=\"font-size:90%;\">77.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.6.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.6.7.1\" style=\"font-size:90%;\">88.6</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.7\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.7.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.7.1.1\" style=\"font-size:90%;\">MedVIT-S</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.7.2.1\" style=\"font-size:90%;\">89.7</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.7.3.1\" style=\"font-size:90%;\">56.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.7.4.1\" style=\"font-size:90%;\">96.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.7.5.1\" style=\"font-size:90%;\">78.0</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.7.6.1\" style=\"font-size:90%;\">78.2</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.7.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.7.7.1\" style=\"font-size:90%;\">92.8</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.8\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.8.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\">\n<span class=\"ltx_ERROR undefined\" id=\"S4.T2.2.8.1.1\">\\hdashline</span><span class=\"ltx_text\" id=\"S4.T2.2.8.1.2\" style=\"font-size:90%;\">ViT-S + R-LLM</span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.8.2.1\" style=\"font-size:90%;\">87.2</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.8.3.1\" style=\"font-size:90%;\">57.0</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text\" id=\"S4.T2.2.8.4.1\" style=\"font-size:90%;\">93.9</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.8.5.1\" style=\"font-size:90%;\">79.5</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.8.6.1\" style=\"font-size:90%;\">85.1</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.8.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.8.7.1\" style=\"font-size:90%;\">95.2</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.9\">\n<td class=\"ltx_td ltx_align_left ltx_border_r\" id=\"S4.T2.2.9.1\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"><span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.2\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.3\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.4\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.5\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.6\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n<td class=\"ltx_td\" id=\"S4.T2.2.9.7\" style=\"padding-left:4.0pt;padding-right:4.0pt;\"></td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\" style=\"font-size:90%;\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Performance comparison of 2D classification results(ACC) with the previous SoTA methods. The best values are shown in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.7.1\">bold</span>.</figcaption>\n</figure>",
+            "capture": "Table 2: Performance comparison of 2D classification results(ACC) with the previous SoTA methods. The best values are shown in bold."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T3.2\" style=\"width:216.8pt;height:84.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-76.7pt,29.8pt) scale(0.585620193309735,0.585620193309735) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T3.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.1\">\n<td class=\"ltx_td ltx_align_left ltx_border_tt ltx_border_t\" id=\"S4.T3.2.1.1.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.1.1\">Dataset</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S4.T3.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.2.1\">FractureMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S4.T3.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.3.1\">AdrenalMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S4.T3.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.4.1\">NoduleMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt ltx_border_t\" colspan=\"2\" id=\"S4.T3.2.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.1.5.1\">VesselMNIST3D</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.2.1.2.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.2.1.1\">R-LLM</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.2\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.3\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.4\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.5\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.6\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.7\">\u2713</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.8\">\u2717</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.2.9\">\u2713</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.3\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.2.1.3.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.1.1\">ACC (ViT-3D)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.2\">53.33</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.3.1\">54.58</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.4\">81.88</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.5.1\">82.89</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.6\">86.77</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.7.1\">89.68</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.8\">90.05</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.3.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.3.9.1\">91.10</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.2.1.4.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.1.1\">AUC (ViT-3D)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.2\">64.80</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.3.1\">65.15</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.4\">81.98</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.5.1\">83.86</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.6\">91.48</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.7.1\">92.39</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.8\">82.55</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.4.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.4.9.1\">83.71</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.5\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.2.1.5.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.5.1.1\">ACC (ViViT-S)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.2\">53.75</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.5.3.1\">55.00</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.4\">79.87</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.5.5.1\">81.21</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.6\">85.81</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.5.7.1\">86.45</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.8\">88.74</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.5.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.5.9.1\">90.31</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T3.2.1.6.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.1.1\">AUC (ViViT-S)</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.2\">65.54</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.3.1\">66.20</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.4\">81.04</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.5.1\">82.12</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.6\">86.55</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.7.1\">88.76</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.8\">83.88</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.1.6.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.6.9.1\">84.56</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.7\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T3.2.1.7.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.7.1.1\">ACC (ViViT-M)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.2\">53.33</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.7.3.1\">56.25</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.4\">81.54</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.7.5.1\">83.22</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.6\">85.81</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.7.7.1\">87.42</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.8\">89.27</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.1.7.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.7.9.1\">90.58</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.1.8\">\n<td class=\"ltx_td ltx_align_left ltx_border_bb\" id=\"S4.T3.2.1.8.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.8.1.1\">AUC (ViViT-M)</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.2\">65.21</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.8.3.1\">66.87</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.4\">81.70</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.8.5.1\">84.91</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.6\">88.10</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.8.7.1\">88.49</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.8\">82.31</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.1.8.9\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.1.8.9.1\">87.03</span></td>\n</tr>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T3.4.1.1\" style=\"font-size:90%;\">Table 3</span>: </span><span class=\"ltx_text\" id=\"S4.T3.5.2\" style=\"font-size:90%;\">Performance comparison of 3D classification results of the proposed framework with and without the Residual-based LLM as a booster, evaluated using the AUC and ACC metrics. The highest-performing results are highlighted in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.5.2.1\">bold</span> for clarity.</span></figcaption>\n</figure>",
+            "capture": "Table 3: Performance comparison of 3D classification results of the proposed framework with and without the Residual-based LLM as a booster, evaluated using the AUC and ACC metrics. The highest-performing results are highlighted in bold for clarity."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T4.2\" style=\"width:216.8pt;height:82.1pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-129.3pt,48.9pt) scale(0.456121316560975,0.456121316560975) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T4.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.1.1\">\n<span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span>\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.1.1.1\">Method \\Dataset</span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.1.2.1\">FractureMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.1.3.1\">AdrenalMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.1.4.1\">NoduleMNIST3D</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.1.5.1\">VesselMNIST3D</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T4.2.1.2.1\">ResNet-18 + 3D</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.2.1.2.2\">50.8</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.2.1.2.3\">72.1</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.2.1.2.4\">84.4</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.2.1.2.5\">87.7</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.3.1\">ResNet-18 + ACS</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.3.2\">49.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.3.3\">75.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.3.4\">84.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.3.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.3.5.1\">92.8</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.4.1\">ResNet-50 + 3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.4.2\">49.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.4.3\">74.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.4.4\">84.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.4.5\">91.8</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.5.1\">ResNet-50 + ACS</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.5.2\">49.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.5.3\">78.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.5.4\">84.1</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.5.5\">85.8</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.6.1\">Auto-sklearn</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.6.2\">51.7</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.6.3\">80.2</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.6.4\">87.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.6.5\">91.5</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.7\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.7.1\">AutoKeras</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.7.2\">45.8</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.7.3\">70.5</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.7.4\">83.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.7.5\">89.4</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.8\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.8.1\">\n<span class=\"ltx_ERROR undefined\" id=\"S4.T4.2.1.8.1.1\">\\hdashline</span>ViT3D-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.8.2\">54.6</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.8.3\">82.9</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.8.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.8.4.1\">89.7</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.8.5\">91.1</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.9\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.9.1\">ViViT-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.9.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.9.2.1\">56.3</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.9.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.2.1.9.3.1\">83.2</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.9.4\">87.4</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.2.1.9.5\">90.6</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.2.1.10\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T4.2.1.10.1\"><span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span></td>\n<td class=\"ltx_td\" id=\"S4.T4.2.1.10.2\"></td>\n<td class=\"ltx_td\" id=\"S4.T4.2.1.10.3\"></td>\n<td class=\"ltx_td\" id=\"S4.T4.2.1.10.4\"></td>\n<td class=\"ltx_td\" id=\"S4.T4.2.1.10.5\"></td>\n</tr>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T4.4.1.1\" style=\"font-size:90%;\">Table 4</span>: </span><span class=\"ltx_text\" id=\"S4.T4.5.2\" style=\"font-size:90%;\">Performance(ACC) comparison of 3D classification with the previous SoTA methods. The best values are shown in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.5.2.1\">bold</span>.</span></figcaption>\n</figure>",
+            "capture": "Table 4: Performance(ACC) comparison of 3D classification with the previous SoTA methods. The best values are shown in bold."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T5\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T5.2\" style=\"width:216.8pt;height:99.6pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-87.4pt,40.2pt) scale(0.553517280727339,0.553517280727339) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T5.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.1.1\">\n<span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span>\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.1.1.1\">Method</span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.1.2.1\">Dataset</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.1.3.1\">Num. of Parameters</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.1.4.1\">ACC</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.1.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.1.5.1\">AUC</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T5.2.1.2.1\">ViViT-M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.1.2.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.1.2.3\">258.6M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.1.2.4\">53.33</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.1.2.5\">65.21</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.3.1\">ViViT-M + MLP</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.3.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.3.3\">294.6M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.3.4\">54.17</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.3.5\">65.11</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.4.1\">ViViT-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.4.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.4.3\">294.6M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.4.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.4.4.1\">56.25</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.4.5.1\">66.87</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.5.1\">ViViT-M + R-LLM(FT)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.5.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.5.3\">1066.62M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.5.4\">53.57</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.5.5\">64.70</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.6.1\">\n<span class=\"ltx_ERROR undefined\" id=\"S4.T5.2.1.6.1.1\">\\hdashline</span>ViViT-M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.6.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.6.3\">258.4M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.6.4\">81.54</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.6.5\">81.70</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.7\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.7.1\">ViViT-M + MLP</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.7.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.7.3\">294.6M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.7.4\">81.88</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.7.5\">82.89</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.8\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.8.1\">ViViT-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.8.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.8.3\">294.6M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.8.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.8.4.1\">83.22</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.8.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.1.8.5.1\">84.91</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.9\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.9.1\">ViViT-M + R-LLM(FT)</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.9.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.9.3\">1066.62M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.9.4\">79.87</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.1.9.5\">81.10</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.1.10\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T5.2.1.10.1\"><span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span></td>\n<td class=\"ltx_td\" id=\"S4.T5.2.1.10.2\"></td>\n<td class=\"ltx_td\" id=\"S4.T5.2.1.10.3\"></td>\n<td class=\"ltx_td\" id=\"S4.T5.2.1.10.4\"></td>\n<td class=\"ltx_td\" id=\"S4.T5.2.1.10.5\"></td>\n</tr>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T5.4.1.1\" style=\"font-size:90%;\">Table 5</span>: </span><span class=\"ltx_text\" id=\"S4.T5.5.2\" style=\"font-size:90%;\">Ablation study on model capacity and fine-tuning. The best values are shown in <span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.5.2.1\">bold</span>.</span></figcaption>\n</figure>",
+            "capture": "Table 5: Ablation study on model capacity and fine-tuning. The best values are shown in bold."
+        },
+        "6": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T6\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T6.2\" style=\"width:216.8pt;height:128.5pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-43.5pt,25.8pt) scale(0.713711333997341,0.713711333997341) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"S4.T6.2.1\">\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.1\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.1.1\">\n<span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span>\n<span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.1.1.1\">Method</span>\n</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.1.2.1\">Dataset</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.1.3.1\">ACC</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.1.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.1.4.1\">AUC</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.2\">\n<td class=\"ltx_td ltx_align_left ltx_border_t\" id=\"S4.T6.2.1.2.1\">ViViT-M</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.2.1.2.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.2.1.2.3\">53.33</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T6.2.1.2.4\">65.21</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.3\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.3.1\">ViViT-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.3.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.3.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.3.3.1\">56.25</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.3.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.3.4.1\">66.87</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.4\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.4.1\">ViViT-M + Out R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.4.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.4.3\">55.83</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.4.4\">65.60</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.5\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.5.1\">ViViT-M + Hybrid R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.5.2\">FractureMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.5.3\">55.00</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.5.4\">65.50</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.6\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.6.1\">\n<span class=\"ltx_ERROR undefined\" id=\"S4.T6.2.1.6.1.1\">\\hdashline</span>ViViT-M</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.6.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.6.3\">81.54</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.6.4\">81.70</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.7\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.7.1\">ViViT-M + R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.7.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.7.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.7.3.1\">83.22</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.7.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T6.2.1.7.4.1\">84.91</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.8\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.8.1\">ViViT-M + Out R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.8.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.8.3\">82.55</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.8.4\">82.96</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.9\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.9.1\">ViViT-M + Hybrid R-LLM</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.9.2\">AdrenalMNIST3D</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.9.3\">82.55</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T6.2.1.9.4\">82.68</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T6.2.1.10\">\n<td class=\"ltx_td ltx_align_left\" id=\"S4.T6.2.1.10.1\"><span class=\"ltx_rule\" style=\"width:100%;height:1.0pt;background:black;display:inline-block;\">\u00a0</span></td>\n<td class=\"ltx_td\" id=\"S4.T6.2.1.10.2\"></td>\n<td class=\"ltx_td\" id=\"S4.T6.2.1.10.3\"></td>\n<td class=\"ltx_td\" id=\"S4.T6.2.1.10.4\"></td>\n</tr>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\"><span class=\"ltx_text\" id=\"S4.T6.3.1.1\" style=\"font-size:90%;\">Table 6</span>: </span><span class=\"ltx_text\" id=\"S4.T6.4.2\" style=\"font-size:90%;\">Ablation study on the importance of residual structure.</span></figcaption>\n</figure>",
+            "capture": "Table 6: Ablation study on the importance of residual structure."
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.17343v3_figure_1.png",
+            "caption": "Figure 1: R-LLM benefits baseline models on a broad range of datasets in biomedical imaging tasks under the AUC metric."
+        },
+        "2": {
+            "figure_path": "2403.17343v3_figure_2.png",
+            "caption": "Figure 2: The proposed framework of applying language models as a booster for biomedical imaging classification task. We use Vision Transformer (ViT) from [26] for demonstration."
+        },
+        "3": {
+            "figure_path": "2403.17343v3_figure_3.png",
+            "caption": "Figure 3: Visual inspection of ViT-S and ViT-S with R-LLM using Grad-CAM on original OCTMNIST dataset."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "A dataset of microscopic peripheral blood cell images for development of automatic recognition systems.",
+                "author": "Andrea Acevedo, Anna Merino, Santiago Alf\u00e9rez, \u00c1ngel Molina, Laura Bold\u00fa, and Jos\u00e9 Rodellar.",
+                "venue": "Data in brief, 30, 2020.",
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Dataset of breast ultrasound images.",
+                "author": "Walid Al-Dhabyani, Mohammed Gomaa, Hussien Khaled, and Aly Fahmy.",
+                "venue": "Data in brief, 28:104863, 2020.",
+                "url": null
+            }
+        },
+        {
+            "3": {
+                "title": "Flamingo: a visual language model for few-shot learning.",
+                "author": "Jean-Baptiste Alayrac, Jeff Donahue, Pauline Luc, Antoine Miech, Iain Barr, Yana Hasson, Karel Lenc, Arthur Mensch, Katherine Millican, Malcolm Reynolds, et al.",
+                "venue": "Advances in Neural Information Processing Systems, 35:23716\u201323736, 2022.",
+                "url": null
+            }
+        },
+        {
+            "4": {
+                "title": "A completed reference database of lung nodules on ct scans.",
+                "author": "Samuel G Armato, RY Roberts, and MF Mcnitt-Gray.",
+                "venue": "Academic Radiology, 14(12):1455\u20131463, 2007.",
+                "url": null
+            }
+        },
+        {
+            "5": {
+                "title": "Vivit: A video vision transformer.",
+                "author": "Anurag Arnab, Mostafa Dehghani, Georg Heigold, Chen Sun, Mario Lu\u010di\u0107, and Cordelia Schmid.",
+                "venue": "In Proceedings of the IEEE/CVF international conference on computer vision, pages 6836\u20136846, 2021.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "A survey of heterogeneous transfer learning, 2023.",
+                "author": "Runxue Bao, Yiming Sun, Yuhe Gao, Jindong Wang, Qiang Yang, Haifeng Chen, Zhi-Hong Mao, and Ye Ye.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "7": {
+                "title": "Making the most of text semantics to improve biomedical vision\u2013language processing.",
+                "author": "Benedikt Boecking, Naoto Usuyama, Shruthi Bannur, Daniel C Castro, Anton Schwaighofer, Stephanie Hyland, Maria Wetscherek, Tristan Naumann, Aditya Nori, Javier Alvarez-Valle, et al.",
+                "venue": "In European conference on computer vision, pages 1\u201321. Springer, 2022.",
+                "url": null
+            }
+        },
+        {
+            "8": {
+                "title": "Language models are few-shot learners.",
+                "author": "Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al.",
+                "venue": "Advances in neural information processing systems, 33:1877\u20131901, 2020.",
+                "url": null
+            }
+        },
+        {
+            "9": {
+                "title": "Automated data curation for robust language model fine-tuning.",
+                "author": "Jiuhai Chen and Jonas Mueller.",
+                "venue": "arXiv preprint arXiv:2403.12776, 2024.",
+                "url": null
+            }
+        },
+        {
+            "10": {
+                "title": "When do you need chain-of-thought prompting for chatgpt?",
+                "author": "Jiuhai Chen, Lichang Chen, Heng Huang, and Tianyi Zhou.",
+                "venue": "arXiv preprint arXiv:2304.03262, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Alleviating data imbalance issue with perturbed input during inference.",
+                "author": "Kanghao Chen, Yifan Mao, Huijuan Lu, Chenghua Zeng, Ruixuan Wang, and Wei-Shi Zheng.",
+                "venue": "In Medical Image Computing and Computer Assisted Intervention\u2013MICCAI 2021: 24th International Conference, Strasbourg, France, September 27\u2013October 1, 2021, Proceedings, Part V 24, pages 407\u2013417. Springer, 2021.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Personalized fall risk assessment for long-term care services improvement.",
+                "author": "Suiyao Chen, William D Kearns, James L Fozard, and Mingyang Li.",
+                "venue": "In 2017 Annual Reliability and Maintainability Symposium (RAMS), pages 1\u20137. IEEE, 2017a.",
+                "url": null
+            }
+        },
+        {
+            "13": {
+                "title": "Multi-state reliability demonstration tests.",
+                "author": "Suiyao Chen, Lu Lu, and Mingyang Li.",
+                "venue": "Quality Engineering, 29(3):431\u2013445, 2017b.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "A data heterogeneity modeling and quantification approach for field pre-assessment of chloride-induced corrosion in aging infrastructures.",
+                "author": "Suiyao Chen, Lu Lu, Yisha Xiang, Qing Lu, and Mingyang Li.",
+                "venue": "Reliability Engineering & System Safety, 171:123\u2013135, 2018.",
+                "url": null
+            }
+        },
+        {
+            "15": {
+                "title": "Claims data-driven modeling of hospital time-to-readmission risk with latent heterogeneity.",
+                "author": "Suiyao Chen, Nan Kong, Xuxue Sun, Hongdao Meng, and Mingyang Li.",
+                "venue": "Health care management science, 22:156\u2013179, 2019.",
+                "url": null
+            }
+        },
+        {
+            "16": {
+                "title": "Optimal binomial reliability demonstration tests design under acceptance decision uncertainty.",
+                "author": "Suiyao Chen, Lu Lu, Qiong Zhang, and Mingyang Li.",
+                "venue": "Quality Engineering, 32(3):492\u2013508, 2020.",
+                "url": null
+            }
+        },
+        {
+            "17": {
+                "title": "Recontab: Regularized contrastive representation learning for tabular data.",
+                "author": "Suiyao Chen, Jing Wu, Naira Hovakimyan, and Handong Yao.",
+                "venue": "arXiv preprint arXiv:2310.18541, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Graph meets llm: A novel approach to collaborative filtering for robust conversational understanding.",
+                "author": "Zheng Chen, Ziyan Jiang, and Fan Yang.",
+                "venue": "arXiv preprint arXiv:2305.14449, 2023c.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Palm: Scaling language modeling with pathways.",
+                "author": "Aakanksha Chowdhery, Sharan Narang, Jacob Devlin, Maarten Bosma, Gaurav Mishra, Adam Roberts, Paul Barham, Hyung Won Chung, Charles Sutton, Sebastian Gehrmann, et al.",
+                "venue": "Journal of Machine Learning Research, 24(240):1\u2013113, 2023.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "Transmed: Transformers advance multi-modal medical image classification.",
+                "author": "Yin Dai, Yifan Gao, and Fayu Liu.",
+                "venue": "Diagnostics, 11(8):1384, 2021.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "The 2nd diabetic retinopathy\u2013grading and image quality estimation challenge, 2020.",
+                "author": "DC Dataset.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "22": {
+                "title": "Weakly and semi-supervised deep level set network for automated skin lesion segmentation.",
+                "author": "Zhuofu Deng, Yi Xin, Xiaolin Qiu, and Yeda Chen.",
+                "venue": "In Innovation in Medicine and Healthcare: Proceedings of 8th KES-InMed 2020, pages 145\u2013155. Springer, 2020.",
+                "url": null
+            }
+        },
+        {
+            "23": {
+                "title": "Qlora: Efficient finetuning of quantized llms.",
+                "author": "Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.",
+                "venue": "Advances in Neural Information Processing Systems, 36, 2024.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Bert: Pre-training of deep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.",
+                "venue": "arXiv preprint arXiv:1810.04805, 2018.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "Confidence trigger detection: an approach to build real-time tracking-by-detection system.",
+                "author": "Zhicheng Ding and Edward Wong.",
+                "venue": "arXiv preprint arXiv:1902.00615, 2019.",
+                "url": null
+            }
+        },
+        {
+            "26": {
+                "title": "An image is worth 16x16 words: Transformers for image recognition at scale.",
+                "author": "Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et al.",
+                "venue": "arXiv preprint arXiv:2010.11929, 2020.",
+                "url": null
+            }
+        },
+        {
+            "27": {
+                "title": "Utnet: a hybrid transformer architecture for medical image segmentation.",
+                "author": "Yunhe Gao, Mu Zhou, and Dimitris N Metaxas.",
+                "venue": "In Medical Image Computing and Computer Assisted Intervention\u2013MICCAI 2021: 24th International Conference, Strasbourg, France, September 27\u2013October 1, 2021, Proceedings, Part III 24, pages 61\u201371. Springer, 2021.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "From images to textual prompts: Zero-shot visual question answering with frozen large language models.",
+                "author": "Jiaxian Guo, Junnan Li, Dongxu Li, Anthony Meng Huat Tiong, Boyang Li, Dacheng Tao, and Steven Hoi.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 10867\u201310877, 2023.",
+                "url": null
+            }
+        },
+        {
+            "29": {
+                "title": "Visual programming: Compositional visual reasoning without training.",
+                "author": "Tanmay Gupta and Aniruddha Kembhavi.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 14953\u201314962, 2023.",
+                "url": null
+            }
+        },
+        {
+            "30": {
+                "title": "Deep residual learning for image recognition.",
+                "author": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.",
+                "venue": "In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 770\u2013778, 2016.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Lora: Low-rank adaptation of large language models.",
+                "author": "Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen.",
+                "venue": "arXiv preprint arXiv:2106.09685, 2021.",
+                "url": null
+            }
+        },
+        {
+            "32": {
+                "title": "How many validation labels do you need? exploring the design space of label-efficient model ranking, 2024.",
+                "author": "Zhengyu Hu, Jieyu Zhang, Yue Yu, Yuchen Zhuang, and Hui Xiong.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Gloria: A multimodal global-local representation learning framework for label-efficient medical image recognition.",
+                "author": "Shih-Cheng Huang, Liyue Shen, Matthew P Lungren, and Serena Yeung.",
+                "venue": "In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 3942\u20133951, 2021.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "Analyzing entropy features in time-series data for pattern recognition in neurological conditions.",
+                "author": "Yushan Huang, Yuchen Zhao, Alexander Capstick, Francesca Palermo, Hamed Haddadi, and Payam Barnaghi.",
+                "venue": "Artificial Intelligence in Medicine, page 102821, 2024.",
+                "url": null
+            }
+        },
+        {
+            "35": {
+                "title": "Machine learning and predictive analytics: Advancing disease prevention in healthcare.",
+                "author": "Mohamed Said Ibrahim and Sameh Saber.",
+                "venue": "Journal of Contemporary Healthcare Analytics, 7(1):53\u201371, 2023.",
+                "url": null
+            }
+        },
+        {
+            "36": {
+                "title": "Chexpert: A large chest radiograph dataset with uncertainty labels and expert comparison.",
+                "author": "Jeremy Irvin, Pranav Rajpurkar, Michael Ko, Yifan Yu, Silviana Ciurea-Ilcus, Chris Chute, Henrik Marklund, Behzad Haghgoo, Robyn Ball, Katie Shpanskaya, et al.",
+                "venue": "In Proceedings of the AAAI conference on artificial intelligence, pages 590\u2013597, 2019.",
+                "url": null
+            }
+        },
+        {
+            "37": {
+                "title": "Perceiver: General perception with iterative attention.",
+                "author": "Andrew Jaegle, Felix Gimeno, Andy Brock, Oriol Vinyals, Andrew Zisserman, and Joao Carreira.",
+                "venue": "In International conference on machine learning, pages 4651\u20134664. PMLR, 2021.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Scaling laws for neural language models.",
+                "author": "Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei.",
+                "venue": "arXiv preprint arXiv:2001.08361, 2020.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "Grounding language models to images for multimodal inputs and outputs.",
+                "author": "Jing Yu Koh, Ruslan Salakhutdinov, and Daniel Fried.",
+                "venue": "2023.",
+                "url": null
+            }
+        },
+        {
+            "40": {
+                "title": "Adaptive ensembles of fine-tuned transformers for llm-generated text detection.",
+                "author": "Zhixin Lai, Xuesheng Zhang, and Suiyao Chen.",
+                "venue": "arXiv preprint arXiv:2403.13335, 2024.",
+                "url": null
+            }
+        },
+        {
+            "41": {
+                "title": "A-tip: attribute-aware text infilling via pre-trained language model.",
+                "author": "Dongyuan Li, Jingyi You, Kotaro Funakoshi, and Manabu Okumura.",
+                "venue": "In Proceedings of the 29th International Conference on Computational Linguistics, pages 5857\u20135869, 2022a.",
+                "url": null
+            }
+        },
+        {
+            "42": {
+                "title": "Align before fuse: Vision and language representation learning with momentum distillation.",
+                "author": "Junnan Li, Ramprasaath Selvaraju, Akhilesh Gotmare, Shafiq Joty, Caiming Xiong, and Steven Chu Hong Hoi.",
+                "venue": "Advances in neural information processing systems, 34:9694\u20139705, 2021.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Blip: Bootstrapping language-image pre-training for unified vision-language understanding and generation.",
+                "author": "Junnan Li, Dongxu Li, Caiming Xiong, and Steven Hoi.",
+                "venue": "In International Conference on Machine Learning, pages 12888\u201312900. PMLR, 2022b.",
+                "url": null
+            }
+        },
+        {
+            "44": {
+                "title": "Towards fast adaptation of pretrained contrastive models for multi-channel video-language retrieval.",
+                "author": "Xudong Lin, Simran Tiwari, Shiyuan Huang, Manling Li, Mike Zheng Shou, Heng Ji, and Shih-Fu Chang.",
+                "venue": "In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 14846\u201314855, 2023.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "T3d: Towards 3d medical image understanding through vision-language pre-training.",
+                "author": "Che Liu, Cheng Ouyang, Yinda Chen, Cesar C\u00e9sar Quilodr\u00e1n-Casas, Lei Ma, Jie Fu, Yike Guo, Anand Shah, Wenjia Bai, and Rossella Arcucci.",
+                "venue": "arXiv preprint arXiv:2312.01529, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "Parameter-efficient transfer learning for medical visual question answering.",
+                "author": "Jiaxiang Liu, Tianxiang Hu, Yan Zhang, Yang Feng, Jin Hao, Junhui Lv, and Zuozhu Liu.",
+                "venue": "IEEE Transactions on Emerging Topics in Computational Intelligence, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "47": {
+                "title": "A chatgpt aided explainable framework for zero-shot medical image diagnosis.",
+                "author": "Jiaxiang Liu, Tianxiang Hu, Yan Zhang, Xiaotang Gai, Yang Feng, and Zuozhu Liu.",
+                "venue": "arXiv preprint arXiv:2307.01981, 2023c.",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "Swin transformer: Hierarchical vision transformer using shifted windows.",
+                "author": "Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo.",
+                "venue": "In Proceedings of the IEEE/CVF international conference on computer vision, pages 10012\u201310022, 2021.",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Annotated high-throughput microscopy image sets for validation.",
+                "author": "Vebjorn Ljosa, Katherine L Sokolnicki, and Anne E Carpenter.",
+                "venue": "Nature methods, 9(7):637\u2013637, 2012.",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "Linearly mapping from image to text space.",
+                "author": "Jack Merullo, Louis Castricato, Carsten Eickhoff, and Ellie Pavlick.",
+                "venue": "arXiv preprint arXiv:2209.15162, 2022.",
+                "url": null
+            }
+        },
+        {
+            "51": {
+                "title": "Frozen transformers in language models are effective visual encoder layers.",
+                "author": "Ziqi Pang, Ziyang Xie, Yunze Man, and Yu-Xiong Wang.",
+                "venue": "arXiv preprint arXiv:2310.12973, 2023.",
+                "url": null
+            }
+        },
+        {
+            "52": {
+                "title": "Elastic net nonparallel hyperplane support vector machine and its geometrical rationality.",
+                "author": "Kai Qi and Hu Yang.",
+                "venue": "IEEE Transactions on Neural Networks and Learning Systems, 33(12):7199\u20137209, 2021.",
+                "url": null
+            }
+        },
+        {
+            "53": {
+                "title": "Learning transferable visual models from natural language supervision.",
+                "author": "Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al.",
+                "venue": "In International conference on machine learning, pages 8748\u20138763. PMLR, 2021.",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "Grad-cam: Visual explanations from deep networks via gradient-based localization.",
+                "author": "Ramprasaath R Selvaraju, Michael Cogswell, Abhishek Das, Ramakrishna Vedantam, Devi Parikh, and Dhruv Batra.",
+                "venue": "In Proceedings of the IEEE international conference on computer vision, pages 618\u2013626, 2017.",
+                "url": null
+            }
+        },
+        {
+            "55": {
+                "title": "Hugginggpt: Solving ai tasks with chatgpt and its friends in hugging face.",
+                "author": "Yongliang Shen, Kaitao Song, Xu Tan, Dongsheng Li, Weiming Lu, and Yueting Zhuang.",
+                "venue": "Advances in Neural Information Processing Systems, 36, 2024.",
+                "url": null
+            }
+        },
+        {
+            "56": {
+                "title": "Combining incremental conductance and firefly algorithm for tracking the global mpp of pv arrays.",
+                "author": "Ji-Ying Shi, Le-Tao Ling, Fei Xue, Zi-Jian Qin, Ya-Jing Li, Zhi-Xin Lai, and Ting Yang.",
+                "venue": "Journal of Renewable and Sustainable Energy, 9(2), 2017.",
+                "url": null
+            }
+        },
+        {
+            "57": {
+                "title": "Going through the motions: AR/VR keylogging from user head motions.",
+                "author": "Carter Slocum, Yicheng Zhang, Nael Abu-Ghazaleh, and Jiasi Chen.",
+                "venue": "In 32nd USENIX Security Symposium (USENIX Security 23), pages 159\u2013174, Anaheim, CA, 2023. USENIX Association.",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Table meets llm: Can large language models understand structured table data? a benchmark and empirical study.",
+                "author": "Yuan Sui, Mengyu Zhou, Mingjie Zhou, Shi Han, and Dongmei Zhang.",
+                "venue": "In Proceedings of the 17th ACM International Conference on Web Search and Data Mining, pages 645\u2013654, 2024.",
+                "url": null
+            }
+        },
+        {
+            "59": {
+                "title": "Optimizing crop management with reinforcement learning and imitation learning.",
+                "author": "Ran Tao, Pan Zhao, Jing Wu, Nicolas F Martin, Matthew T Harrison, Carla Ferreira, Zahra Kalantari, and Naira Hovakimyan.",
+                "venue": "arXiv preprint arXiv:2209.09991, 2022.",
+                "url": null
+            }
+        },
+        {
+            "60": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric Hambro, Faisal Azhar, et al.",
+                "venue": "arXiv preprint arXiv:2302.13971, 2023.",
+                "url": null
+            }
+        },
+        {
+            "61": {
+                "title": "The ham10000 dataset, a large collection of multi-source dermatoscopic images of common pigmented skin lesions.",
+                "author": "Philipp Tschandl, Cliff Rosendahl, and Harald Kittler.",
+                "venue": "Scientific data, 5(1):1\u20139, 2018.",
+                "url": null
+            }
+        },
+        {
+            "62": {
+                "title": "Medical transformer: Gated axial-attention for medical image segmentation.",
+                "author": "Jeya Maria Jose Valanarasu, Poojan Oza, Ilker Hacihaliloglu, and Vishal M Patel.",
+                "venue": "In Medical Image Computing and Computer Assisted Intervention\u2013MICCAI 2021: 24th International Conference, Strasbourg, France, September 27\u2013October 1, 2021, Proceedings, Part I 24, pages 36\u201346. Springer, 2021.",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "Optimal test design for reliability demonstration under multi-stage acceptance uncertainties.",
+                "author": "Bingjie Wang, Lu Lu, Suiyao Chen, and Mingyang Li.",
+                "venue": "Quality Engineering, 0(0):1\u201314, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "64": {
+                "title": "Visionllm: Large language model is also an open-ended decoder for vision-centric tasks.",
+                "author": "Wenhai Wang, Zhe Chen, Xiaokang Chen, Jiannan Wu, Xizhou Zhu, Gang Zeng, Ping Luo, Tong Lu, Jie Zhou, Yu Qiao, et al.",
+                "venue": "Advances in Neural Information Processing Systems, 36, 2024.",
+                "url": null
+            }
+        },
+        {
+            "65": {
+                "title": "Chestx-ray8: Hospital-scale chest x-ray database and benchmarks on weakly-supervised classification and localization of common thorax diseases.",
+                "author": "Xiaosong Wang, Yifan Peng, Le Lu, Zhiyong Lu, Mohammadhadi Bagheri, and Ronald M Summers.",
+                "venue": "In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 2097\u20132106, 2017.",
+                "url": null
+            }
+        },
+        {
+            "66": {
+                "title": "Emp: emotion-guided multi-modal fusion and contrastive learning for personality traits recognition.",
+                "author": "Yusong Wang, Dongyuan Li, Kotaro Funakoshi, and Manabu Okumura.",
+                "venue": "In Proceedings of the 2023 ACM International Conference on Multimedia Retrieval, pages 243\u2013252, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "67": {
+                "title": "Balanced training for sparse gans.",
+                "author": "Yite Wang, Jing Wu, Naira Hovakimyan, and Ruoyu Sun.",
+                "venue": "In Thirty-seventh Conference on Neural Information Processing Systems, 2023c.",
+                "url": null
+            }
+        },
+        {
+            "68": {
+                "title": "Unleashing the power of graph learning through llm-based autonomous agents.",
+                "author": "Lanning Wei, Zhiqiang He, Huan Zhao, and Quanming Yao.",
+                "venue": "arXiv preprint arXiv:2309.04565, 2023.",
+                "url": null
+            }
+        },
+        {
+            "69": {
+                "title": "Bloom: A 176b-parameter open-access multilingual language model.",
+                "author": "BigScience Workshop, Teven Le Scao, Angela Fan, Christopher Akiki, Ellie Pavlick, Suzana Ili\u0107, Daniel Hesslow, Roman Castagn\u00e9, Alexandra Sasha Luccioni, Fran\u00e7ois Yvon, et al.",
+                "venue": "arXiv preprint arXiv:2211.05100, 2022.",
+                "url": null
+            }
+        },
+        {
+            "70": {
+                "title": "Optimizing nitrogen management with deep reinforcement learning and crop simulations.",
+                "author": "Jing Wu, Ran Tao, Pan Zhao, Nicolas F Martin, and Naira Hovakimyan.",
+                "venue": "In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 1712\u20131720, 2022.",
+                "url": null
+            }
+        },
+        {
+            "71": {
+                "title": "Hallucination improves the performance of unsupervised visual representation learning.",
+                "author": "Jing Wu, Jennifer Hobbs, and Naira Hovakimyan.",
+                "venue": "In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 16132\u201316143, 2023a.",
+                "url": null
+            }
+        },
+        {
+            "72": {
+                "title": "Genco: An auxiliary generator from contrastive learning for enhanced few-shot learning in remote sensing.",
+                "author": "Jing Wu, Naira Hovakimyan, and Jennifer Hobbs.",
+                "venue": "arXiv preprint arXiv:2307.14612, 2023b.",
+                "url": null
+            }
+        },
+        {
+            "73": {
+                "title": "Extended agriculture-vision: An extension of a large aerial image dataset for agricultural pattern analysis.",
+                "author": "Jing Wu, David Pichler, Daniel Marley, David Wilson, Naira Hovakimyan, and Jennifer Hobbs.",
+                "venue": "arXiv preprint arXiv:2303.02460, 2023c.",
+                "url": null
+            }
+        },
+        {
+            "74": {
+                "title": "Switchtab: Switched autoencoders are effective tabular learners.",
+                "author": "Jing Wu, Suiyao Chen, Qi Zhao, Renat Sergazinov, Chen Li, Shengjie Liu, Chongchao Zhao, Tianpei Xie, Hanqing Guo, Cheng Ji, et al.",
+                "venue": "arXiv preprint arXiv:2401.02013, 2024.",
+                "url": null
+            }
+        },
+        {
+            "75": {
+                "title": "Medmnist v2-a large-scale lightweight benchmark for 2d and 3d biomedical image classification.",
+                "author": "Jiancheng Yang, Rui Shi, Donglai Wei, Zequan Liu, Lin Zhao, Bilian Ke, Hanspeter Pfister, and Bingbing Ni.",
+                "venue": "Scientific Data, 10(1):41, 2023.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Improving depth gradient continuity in transformers: A comparative study on monocular depth estimation with cnn, 2023.",
+                "author": "Jiawei Yao, Tong Wu, and Xiaofeng Zhang.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "Coca: Contrastive captioners are image-text foundation models.",
+                "author": "Jiahui Yu, Zirui Wang, Vijay Vasudevan, Legg Yeung, Mojtaba Seyedhosseini, and Yonghui Wu.",
+                "venue": "arXiv preprint arXiv:2205.01917, 2022.",
+                "url": null
+            }
+        },
+        {
+            "78": {
+                "title": "Tokens-to-token vit: Training vision transformers from scratch on imagenet.",
+                "author": "Li Yuan, Yunpeng Chen, Tao Wang, Weihao Yu, Yujun Shi, Zi-Hang Jiang, Francis EH Tay, Jiashi Feng, and Shuicheng Yan.",
+                "venue": "In Proceedings of the IEEE/CVF international conference on computer vision, pages 558\u2013567, 2021.",
+                "url": null
+            }
+        },
+        {
+            "79": {
+                "title": "Medical image classification using synergic deep learning.",
+                "author": "Jianpeng Zhang, Yutong Xie, Qi Wu, and Yong Xia.",
+                "venue": "Medical Image Analysis, 54:10\u201319, 2019.",
+                "url": null
+            }
+        },
+        {
+            "80": {
+                "title": "Opt: Open pre-trained transformer language models.",
+                "author": "Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya Chen, Shuohui Chen, Christopher Dewan, Mona Diab, Xian Li, Xi Victoria Lin, et al.",
+                "venue": "arXiv preprint arXiv:2205.01068, 2022a.",
+                "url": null
+            }
+        },
+        {
+            "81": {
+                "title": "Patch-level contrastive learning via positional query for visual pre-training.",
+                "author": "Shaofeng Zhang, Qiang Zhou, Zhibin Wang, Fan Wang, and Junchi Yan.",
+                "venue": "In International Conference on Machine Learning, pages 41990\u201341999. PMLR, 2023.",
+                "url": null
+            }
+        },
+        {
+            "82": {
+                "title": "Contrastive learning of medical visual representations from paired images and text.",
+                "author": "Yuhao Zhang, Hang Jiang, Yasuhide Miura, Christopher D Manning, and Curtis P Langlotz.",
+                "venue": "In Machine Learning for Healthcare Conference, pages 2\u201325. PMLR, 2022b.",
+                "url": null
+            }
+        },
+        {
+            "83": {
+                "title": "Visual in-context learning for large vision-language models.",
+                "author": "Yucheng Zhou, Xiang Li, Qianning Wang, and Jianbing Shen.",
+                "venue": "arXiv preprint arXiv:2402.11574, 2024.",
+                "url": null
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.17343v3",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2.1",
+            "2.2",
+            "2.3"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.2.1",
+            "4.2.2",
+            "4.3",
+            "4.3.1",
+            "4.3.2",
+            "4.4",
+            "4.4.1",
+            "4.4.2",
+            "4.4.3",
+            "4.4.4"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "1",
+            "4.4",
+            "4.4.1",
+            "4.4.2",
+            "4.4.3",
+            "4.4.4"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.17343v3",
+        "paper_title": "Residual-based Language Models are Free Boosters for Biomedical Imaging Tasks",
+        "research_background": "### Motivation:\nThe primary motivation behind this paper is the desire to enhance the performance of Vision Transformers (ViTs) in biomedical imaging tasks without requiring larger datasets or significantly increasing computational demands. The authors recognize the transformative impact of AI technologies on healthcare but point out existing challenges, particularly regarding the extensive data requirements and optimization intricacies of ViTs. \n\n### Research Problem:\nThe main research problem addressed in this paper is how to overcome the significant data requirements and optimization challenges in training Vision Transformers for biomedical imaging tasks, and whether pre-trained Large Language Models (LLMs), which have shown impressive versatility in various applications, can be utilized to improve these tasks without additional linguistic elements. Specifically, the research seeks to determine if incorporating a residual-based LLM block into the visual encoder architecture can lead to improved performance in biomedical imaging.\n\n### Relevant Prior Work:\n1. **Integration of AI in Healthcare:**\n   - AI\u2019s role in modern healthcare research is highlighted, with specific mentions of various fields like patient outcomes [12], healthcare delivery [15], and disease prevention [35].\n   - The development of computer-aided diagnostic systems supported by AI is discussed, emphasizing how AI\u2019s performance in medical imaging tasks can be on par with experienced clinicians.\n\n2. **Vision Transformers (ViTs):**\n   - Recent advancements in AI for vision, particularly the contribution of Vision Transformers (ViTs) to medical image analysis, have been noted [71, 73, 26, 67]. These advancements enhance accuracy and efficiency in creating diagnostic systems for clinical applications.\n\n3. **Challenges in AI for Medical Imaging:**\n   - Data requirements: A major challenge in training ViTs for biomedical tasks is the need for extensive and meticulously labeled datasets. Unlike other fields like transportation [14], energy [56], manufacturing [72], and agriculture [70] where data collection can be standardized, biomedical imaging data requires expert knowledge and is costly and time-intensive to gather.\n   - Optimization challenges: The necessity for rigorous parameter tuning to achieve optimal performance in ViTs entails significant computational resources and deep understanding of the model architecture, making it a demanding task.\n\n4. **Large Language Models (LLMs):**\n   - The capabilities of LLMs, which have been trained on extensive textual data, extend beyond linguistic applications to engaging with visual tokens. This interaction is typically realized through linear projection layers or cross-attention mechanisms within a multi-modal vision-language framework.\n   - Mention is made of leveraging LLMs for purely visual tasks, raising the question of their effectiveness in managing visual data without linguistic elements.\n\nBy positioning their novel approach of using residual-based LLM blocks within this context, the authors aim to address these significant challenges and propose a promising solution to enhance the effectiveness of biomedical imaging tasks.",
+        "methodology": "Methodology: \nIn this section, we first introduce the overall framework of the proposed method in Section 3.1. Following this, we highlight the key design and differences between the framework and previous methods in Section 3.2.\n\n**3.1 Overall Framework**\n\nThe proposed method, Residual-based Language Models (RLMs), leverages the power of language models to enhance biomedical imaging tasks. The framework integrates a residual-based architecture within the language model, facilitating the capturing and assimilation of contextual information from biomedical texts to aid imaging tasks.\n\n**3.2 Key Design and Differences**\n\nOne significant innovation of the proposed method is the integration of residual connections within the language model structure. This design choice allows for more efficient information flow and reduces the risk of vanishing gradients, a common problem in deep learning models. By implementing these residuals, the language model can better retain and utilize information from earlier layers, effectively boosting the performance on biomedical imaging tasks.\n\nAdditionally, the framework's ability to blend linguistic information with imaging data distinguishes it from previous methods. Traditional models often segregate linguistic processing and imaging analysis, leading to suboptimal performance due to the lack of integrated learning. In contrast, the proposed method seamlessly combines both modalities, resulting in a more robust model capable of improved diagnostic and analytical capabilities in biomedical applications.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results:\n\n#### Datasets:\nIn our main experiment, we utilized a variety of datasets to empirically validate the effectiveness of our proposed method as a cost-free, plug-and-play booster for biomedical imaging tasks. The details regarding the specific datasets used can be found in Section 4.1.\n\n#### 2D Classification Tasks:\nFor the 2D classification tasks, detailed in Section 4.2, we conducted experiments using well-known biomedical image datasets. The main focus was on evaluating the performance improvements brought by our method when applied to existing 2D classification models. The specific experimental setup, including the datasets and implementation details, are elaborated in the mentioned section.\n\n#### 3D Classification Tasks:\nIn Section 4.3, we explored the 3D classification tasks. Similar to the 2D classification experiments, we evaluated how the proposed method enhances the performance of baseline 3D classification models. We provided detailed insights into the experimental setup, the various biomedical imaging datasets used, and the specific implementation details for these tasks.\n\n#### Evaluation Metrics:\nThe effectiveness of our proposed method was assessed using standard evaluation metrics relevant to classification tasks. These typically include metrics such as accuracy, precision, recall, and F1-score, although the precise metrics used were detailed in the respective sections for 2D and 3D tasks.\n\n#### Main Experimental Results:\nThe experimental results indicate a significant performance boost for both 2D and 3D classification tasks when our method is applied. These improvements were consistent across different datasets and models, showcasing the robustness and effectiveness of our approach. Specific numerical results and comparative analyses with baseline models are provided in Section 4.2 for 2D tasks and Section 4.3 for 3D tasks.\n\nBy focusing on these two primary types of classification tasks, 2D and 3D, our experiments clearly demonstrated the versatility and applicability of the proposed method as a universal booster in the field of biomedical imaging."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Evaluate whether the observed performance improvement is due to the pre-trained weights of the LLM block or simply the increased capacity of the linear adaptation layers.",
+            "experiment_process": "The study compares a variant model, ViViT-M+MLP, which matches the parameter count of ViViT+R-LLM but omits the LLM block while retaining the linear adaptation layers. The experiment adheres to the same training procedure as Section 4.3 and focuses on the FractureMNIST3D and AdrenalMNIST3D datasets.",
+            "result_discussion": "Results show that ViViT-M+MLP outperforms the baseline ViViT-M model but only marginally. In contrast, ViViT-M+R-LLM demonstrates robust and substantial improvement, indicating that the pre-trained weights of the LLM transformer are crucial for the observed performance gains.",
+            "ablation_id": "2403.17343v3.No1"
+        },
+        {
+            "research_objective": "Determine if fine-tuning the language transformer in ViViT+R-LLM (FT) yields better performance than keeping it in a frozen state.",
+            "experiment_process": "The performance of the fine-tuned ViViT-M+R-LLM(FT) model is compared to the frozen ViViT-M+R-LLM model, with results summarized in Table 5.",
+            "result_discussion": "The results indicate a decline in performance with fine-tuning compared to consistent training of the frozen ViViT-M+R-LLM. This suggests that fine-tuning large transformer models can lead to overfitting with standard-scale datasets, reinforcing the decision to keep the LLM transformers frozen.",
+            "ablation_id": "2403.17343v3.No2"
+        },
+        {
+            "research_objective": "Assess the importance of the residual structure within the proposed framework.",
+            "experiment_process": "Two variants of the Residual-based R-LLM are introduced: Out R-LLM, incorporating a residual connection externally to the encoder and decoder, and Hybrid R-LLM, blending features of R-LLM and Out R-LLM. These variants are evaluated on FractureMNIST3D and AdrenalMNIST3D datasets using ACC and AUC metrics.",
+            "result_discussion": "Results in Table 6 show that while R-LLM delivers the best results, any residual structure consistently enhances performance, underscoring the significance of the residual connection in the framework.",
+            "ablation_id": "2403.17343v3.No3"
+        },
+        {
+            "research_objective": "Validate the efficiency of LLM in medical image analysis tasks using qualitative analysis.",
+            "experiment_process": "Grad-CAM is employed to analyze ViT-S with R-LLM on the OCTMNIST dataset, which includes CNV, DME, Drusen, and Normal cases. Significant regions for medical diagnosis are marked with red rectangles.",
+            "result_discussion": "Figure 3 shows that ViT-S enhanced with R-LLM aligns closely with annotated significant regions, effectively suppressing background details and identifying pivotal diagnostic features. This demonstrates the enhanced performance and efficacy of the approach in medical image analysis tasks.",
+            "ablation_id": "2403.17343v3.No4"
+        }
+    ]
+}

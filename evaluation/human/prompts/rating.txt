@@ -1,0 +1,10 @@
+Compare the following pair of limitations of a scientific paper: one generated and one from the ground truth. Assess the degree of relatedness and specificity of the generated limitation compared to the ground truth limitation. Provide a brief explanation, then assign a rating (1-5).
+
+Your response should be in the format of a JSON object, as follows: {"explanation": <a brief explanation>, "rating": <an integer between 1 and 5>}
+
+Rating Criteria:
+- 5 points: The generated limitation discusses exactly the same content as the ground truth and provides a similar level of detail.
+- 4 points: The generated limitation discusses exactly the same content as the ground truth, but it is less detailed than the ground truth.
+- 3 points: The generated limitation is related to the ground truth, but not identical.
+- 2 points: The generated limitation is only loosely related to the ground truth.
+- 1 point: There is no connection between the generated limitation and the ground truth.

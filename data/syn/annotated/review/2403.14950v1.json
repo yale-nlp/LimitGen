@@ -1,0 +1,746 @@
+{
+    "title": "KnowLA: Enhancing Parameter-efficient Finetuning with Knowledgeable Adaptation",
+    "abstract": "Parameter-efficient finetuning (PEFT) is a key technique for adapting large language models (LLMs) to downstream tasks.\nIn this paper, we study leveraging knowledge graph embeddings to improve the effectiveness of PEFT.\nWe propose a knowledgeable adaptation method called KnowLA.\nIt inserts an adaptation layer into an LLM to integrate the embeddings of entities appearing in the input text.\nThe adaptation layer is trained in combination with LoRA on instruction data.\nExperiments on six benchmarks with two popular LLMs and three knowledge graphs demonstrate the effectiveness and robustness of KnowLA.\nWe show that KnowLA can help activate the relevant parameterized knowledge in an LLM to answer a question without changing its parameters or input prompts.",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "Introduction",
+            "text": "In the era of large language models (LLMs) with billions and possibly trillions of parameters Du et al. (2022  ###reference_b8###); OpenAI (2023  ###reference_b27###); Touvron et al. (2023a  ###reference_b43###), parameter-efficient finetuning (PEFT) stands out as a crucial technique enabling the necessary adaptation of LLMs to downstream tasks.\nIt freezes most or even all parameters of LLMs and only finetunes a small number of parameters using limited instruction data.\nLoRA Hu et al. (2022  ###reference_b11###) is a widely-used PEFT method that trains small low-rank adapters to approximate the large layers in LLMs.\nFollow-up work improves the efficiency of LoRA by using quantized weights Dettmers et al. (2023  ###reference_b6###).\nIn this work, we seek to improve the effectiveness of LoRA while preserving comparable efficiency.\nInspired by knowledge-injected pre-trained language models (PLMs), e.g., ERNIE Zhang et al. (2019  ###reference_b55###),\nwe explore knowledge graphs (KGs) to enhance the PEFT of LLMs with LoRA.\nA KG is a large-scale structured knowledge base containing a massive amount of trustworthy knowledge.\nThe typical way of injecting KGs into PLMs in the past few years is incorporating pre-trained entity embeddings at the input layer of a PLM and finetuning the full model on NLP tasks  Lauscher et al. (2019  ###reference_b15###); Peters et al. (2019  ###reference_b28###); Yang et al. (2019  ###reference_b50###); Zhang et al. (2019  ###reference_b55###); Levine et al. (2020  ###reference_b16###); Liu et al. (2021  ###reference_b22###); Lu et al. (2021  ###reference_b23###); Wang et al. (2022  ###reference_b49###).\nKnowledge injection has improved many PLMs, e.g., BERT Devlin et al. (2019  ###reference_b7###) and RoBERTa Zhuang et al. (2021  ###reference_b56###).\nHowever, previous knowledge injection methods require fully tuning PLMs, which is inapplicable to LLMs.\nFurthermore, these methods are founded on the encoder-based architecture of PLMs, and their effectiveness for recent decoder-based LLMs remains unknown.\nThe following questions thereby arise: Can knowledge injection still enhance the PEFT of LLMs? Also, how can knowledge injection be used to enhance PEFT?\nTo answer these questions, in this paper, we propose a knowledgeable adaptation method for PEFT, particularly for LoRA, called KnowLA.\nIt inserts an adaptation layer into a pre-trained LLM.\nThe layer integrates external KG embeddings of entities appearing in the input text of the LLM.\nEntity embeddings and parameters of the LLM are frozen in PEFT.\nThe proposed adaptation layer is trained combined with LoRA on instruction data.\nThe parameters in our adaptation layer are significantly fewer than those in the LLM and even fewer than those in LoRA.\nThus, our KnowLA is also a parameter-efficient method without changing the original parameters of the LLM.\nWe evaluate KnowLA on six datasets, including commonsense reasoning on CommonsenseQA Talmor et al. (2019  ###reference_b40###), social interaction reasoning on SIQA Sap et al. (2019  ###reference_b29###) and BIG-Bench Hard Suzgun et al. (2023  ###reference_b39###), single-hop reasoning of KBQA on WebQuestionSP Yih et al. (2016  ###reference_b51###), and close-book QA on TriviaQA Joshi et al. (2017  ###reference_b14###) and TruthfulQA Lin et al. (2022  ###reference_b19###).\nExperimental results show that KnowLA can enhance the effectiveness of LoRA at the expense of a limited number of additional parameters.\nEven when compared to Alpaca2 Taori et al. (2023  ###reference_b42###), which has a larger LoRA with a similar number of parameters, KnowLA with a smaller LoRA achieves better results.\nWe assess the robustness of KnowLA with two popular foundation models (i.e., LLaMA 1 Touvron et al. (2023a  ###reference_b43###) and Llama 2 Touvron et al. (2023b  ###reference_b44###)), different instruction data (i.e., instruction-following demonstrations in Alpaca2 and Vicuna2 Chiang et al. (2023  ###reference_b4###)), various KGs (i.e., WordNet Miller (1995  ###reference_b25###), ConceptNet Speer et al. (2017  ###reference_b34###), and Wikidata Vrandecic and Kr\u00f6tzsch (2014  ###reference_b45###)), and typical embedding learning models (i.e., RESCAL Nickel et al. (2011  ###reference_b26###), TransE Bordes et al. (2013  ###reference_b2###), and RotatE Sun et al. (2019  ###reference_b38###)), combined with two PEFT methods (i.e., LoRA Hu et al. (2022  ###reference_b11###) and AdaLoRA Zhang et al. (2023  ###reference_b54###)).\nExperiments show that KnowLA can offer stable improvements.\nTo understand how KnowLA changes the output of an LLM, we analyze the results from two perspectives, which show several interesting findings:\n(i) KnowLA with LoRA can align the space of the LLM with the space of KG embeddings, and\n(ii) KnowLA can activate the parameterized potential knowledge that originally exists in the LLM, even though the used KG does not contain such knowledge.\nAccording to our findings, in some cases, the LLM outputs incorrect answers not because it does not know the answers, but because its relevant knowledge is not activated by the input prompts.\nKnowLA can help activate its relevant knowledge without changing its parameters or input prompts."
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "Related Work",
+            "text": ""
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "Parameter-efficient Finetuning",
+            "text": "PEFT methods aim to optimize LLMs while minimizing the computational resources and data required.\nAdapter Tuning Houlsby et al. (2019  ###reference_b10###) is a lightweight alternative that inserts a small neural module called adapter in each layer of a PLM while keeping the majority of the pre-trained parameters frozen.\nInspired by the prompt engineering methods, Prefix Tuning Li and Liang (2021  ###reference_b17###) sets trainable prefix tokens in the input or hidden layers, and only these soft prompts are trained.\nLoRA Hu et al. (2022  ###reference_b11###) is a low-rank adaptive method that allows training dense layers indirectly by optimizing low-rank factorized matrices that capture changes in dense layers during the adaptation process while keeping the pre-trained weights unchanged.\nQLoRA Dettmers et al. (2023  ###reference_b6###) improves LoRA by using NF4 quantization and double quantization techniques.\nAdalora Zhang et al. (2023  ###reference_b54###) is an improvement on LoRA, addressing the limitation of the fixed incremental matrix rank in LoRA.\nAdalora introduces a method that dynamically allocates ranks for downstream tasks, yielding promising results.\nOur KnowLA follows the mainstream research of LLMs and achieves PEFT with fewer parameters combined with LoRA.\nDuring the finetuning process, the parameters of LLMs and entity embeddings are fixed, allowing only gradient backpropagation through the parameters of adapters.\nThis enables the use of external knowledge to unleash the potential of LLMs."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "KnowLA",
+            "text": "Considering that the hidden states in Transformer layers encapsulate the parameterized knowledge of an LLM Li et al. (2023  ###reference_b18###),\nwe propose fusing entity embeddings in a KG with the hidden states of an LLM during PEFT.\nKnowLA inserts an adaptation layer into an LLM, as shown in Figure 1  ###reference_###.\nGiven a KG, we adopt a representation learning model, e.g., TransE Bordes et al. (2013  ###reference_b2###), to train its entity embeddings.\nThe pre-trained embedding of entity  is denoted by .\nFor an input question  to an LLM, each token  may be linked to a set of entities  in the KG.\nOur key idea is to enhance PEFT by injecting the embedding  for each  into the representation in the LLM.\nThis method can be divided into three modules:\n(i) Entity linking, which links the tokens in a question to entities in the KG.\n(ii) Knowledge mapping and injection, which maps the KG embedding space to the LLM\u2019s representation space and infuses the entity embeddings corresponding to a specific token in the question.\n(iii) Knowledge fusion, which integrates each token representation with its entity embedding.\nGiven the powerful abilities, popularity, and open-source nature of the LLaMA family Touvron et al. (2023a  ###reference_b43###, b  ###reference_b44###), we consider it the foundation to build our KnowLA."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "Entity Linking",
+            "text": "Given an input text, we return its synsets as candidate entities in a KG.\nWe use the text-rank algorithm to recognize important tokens and link the recognized tokens to the KG by string matching.\nWe also collect a set of synonyms for each related entity.\nBased on the byte pair encoding (BPE) algorithm Sennrich et al. (2016  ###reference_b30###), each token is divided into multiple subwords sharing the same entity candidate.\nAfter this step, we obtain relevant entities in the KG for the important tokens in the text.\nEach entity is associated with a pre-trained embedding."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "LLM Encoding",
+            "text": "Given an LLM, e.g., Llama 2, it first encodes the input text to get embeddings for prompts and questions.\nSpecifically, for a prompt , the LLM first converts it into  = .\nThe decoder of the LLM tokenizes  with the BPE algorithm.\nAfter tokenization,  turns into , which is taken as input to the LLM."
+        },
+        {
+            "section_id": "3.3",
+            "parent_section_id": "3",
+            "section_name": "Knowledge Mapping and Injection",
+            "text": "The text representation of the -th decoder layer in the LLM is denoted by .\nIn the knowledge mapping module, to align with the pre-norm mode adopted by the decoder and mitigate the issues of gradient vanishing or exploding, we apply RMSNorm Zhang and Sennrich (2019  ###reference_b53###) to the input  received by the decoder.\nWe also map the semantic space of entity embeddings to the semantic space of the LLM for transformation, aiming to improve knowledge injection and fusion.\nThe BPE encoding method employed by many LLMs would let each token have multiple sub-tokens after encoding.\nLet  denote the sub-token embeddings, where  is the number.\nTo better calculate the relevance between different entities and the given word, we unify the representations of the  sub-tokens as  using mean pooling:\nAs LLMs are employed for handling complex natural language tasks, it is essential to have input dimensions sufficiently large to accommodate the intricacies.\nTo enhance the expressive ability of entity representation  and align with the semantic space of the LLM, we expand its dimension to enrich the representation of :\nwhere , , and  are trainable weights.\nSwiGLU Shazeer (2020  ###reference_b31###) is an activation function."
+        },
+        {
+            "section_id": "3.4",
+            "parent_section_id": "3",
+            "section_name": "Knowledge Fusion",
+            "text": "To mitigate the risk of the LLM encountering unfamiliar entities during finetuning in downstream tasks, as well as to ensure the extracted entities are relevant to the input tokens, we follow Yang et al. (2019  ###reference_b50###) and introduce a knowledge sentinel .\nFirst, we calculate the similarities of each token with its relevant entities and the knowledge sentinel:\nwhere  represents the relevance between the -th token and the -th entity.\n represents the relevance between the -th token and the knowledge sentinel.\nHere, we constrain that .\nThen, we fuse  with its relevant entities:\nwhere  serves as a trainable balancing factor to equalize the impact of KG and text.  and  are trainable weights.\nDuring knowledge fusion, all the  sub-token embeddings  share the same .\n denotes the final representation of knowledge injection and serves as the output of the current adapter, which is passed as input to the next layer of the decoder.\nSimilar to other parameter-efficient modules like LoRA Hu et al. (2022  ###reference_b11###), KnowLA achieves the alignment between KG knowledge and textual semantics by freezing the LLM during finetuning.\nIt can also be used in conjunction with LoRA to achieve efficient learning of the LLM with a limited number of parameters.\nThe effectiveness of this module is shortly assessed in the experiments."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "Experiments",
+            "text": "Our KnowLA incorporates pre-trained KG embeddings into a pre-trained LLM for instruction tuning with LoRA.\nWe hereby investigate whether the two heterogeneous representation spaces of the KG and the LLM are aligned, to understand how KnowLA works.\nThe results are illustrated in Figure 3  ###reference_###, where the last column represents the \u201csentinel\u201d entity.\nWe first acquire the representations of the input tokens in a specific layer, e.g., the 32nd layer.\nThen, we retrieve the top five similar entity embeddings in the KG for each token.\nNext, to establish the relevance of each token and its corresponding entities, we calculate the attention weights between them. A larger weight suggests a stronger semantic correlation between the token and the mapped entity.\nIn the case of Llama 2 (depicted in the left part of Figure 3  ###reference_###), the similarities between entity embeddings and token representations appear to be random, lacking any discernible patterns.\nHowever, after applying KnowLA,\nthe results show improved accuracy specifically for the most relevant entities (i.e.,  on the x-axis).\nFor token \u201cunderrated\u201d, the relevant entities in ConceptNet are \u201cunderrated\u201d, \u201cunderrate\u201d, etc.\nAfter finetuning, the token \u201cunderrated\u201d exhibits the highest correlation with the entity \u201cunderrated\u201d.\nThis observation indicates that KnowLA can effectively align the KG and the LLM through instruction tuning with LoRA.\n###figure_2### We study the role of KnowLA in activating an LLM\u2019s knowledge.\nAccording to Li et al. (2023  ###reference_b18###); Geva et al. (2021  ###reference_b9###); Meng et al. (2022  ###reference_b24###), the feed-forward network (FFN) layers, which constitute two-thirds of an LLM\u2019s parameters, primarily capture its own knowledge.\nSo, we explore the impact of KnowLA on the FFN layers to see how KnowLA affects these layers in activating knowledge stored in the LLM.\n###figure_3### We compute the differences between the hidden state representations of the last token before and after each FFN layer in the LLM.\nWe analyze the trends in differences of all 32 layers after inserting KnowLA.\nWe use the 100 questions from TriviaQA as queries to explore the knowledge stored in the FFN layers of Llama 2 (7B).\nThe last token representation in each input aggregates information from all tokens.\nAccording to Li et al. (2023  ###reference_b18###), there is a positive correlation between the similarity of hidden states and the consistency of knowledge.\nIntuitively, we believe that higher differences in representations indicate the model\u2019s ability to capture more information from the FFN layers.\nTherefore, we extract the representations of the last token before and after each FFN layer and compute the cosine similarities for Llama 2, KnowLA, and Alpaca2, which are denoted by , , and , respectively.\nGiven the token similarities, we further evaluate the capacities of KnowLA and Llama 2 in capturing hidden knowledge.\nThe capacities are measured by  and .\nThe results are shown in Figure 4  ###reference_###.\nThe red color indicates that the representation of the last token, after introducing KnowLA and undergoing the FFN layers, exhibits a greater change compared to that of Alpaca2.\nThe blue color shows the opposite.\nWe think the representations with greater changes capture more internal knowledge.\nAfter introducing entity embeddings, KnowLA enables the LLM to activate richer knowledge at the FFN layers.\nIn contrast, Llama 2 captures less knowledge than Alpaca2.\nAccording to the work Geva et al. (2021  ###reference_b9###), lower FFN layers tend to capture shallow knowledge patterns, while higher FFN layers learn more semantic patterns.\nOur KnowLA demonstrates enhanced knowledge activation capabilities at the higher layers,\nand thus achieves superior results over Alpaca2.\nBy examining the differences in similarity across the last 16 layers, we find that KnowLA (ConceptNet) shows the greatest similarity difference in the three KGs and performs best on TriviaQA.\nThis further emphasizes that the introduction of ConceptNet substantially activates more knowledge stored internally in Llama 2."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "Baselines and Implementation",
+            "text": "We consider the following LLMs with 7B parameters as foundation models in our main experiments:\nLlama 2 is a collection of open-source LLMs trained on public datasets with trillions of tokens.\nWe use the Llama 2-7B model.\nAlpaca2 Taori et al. (2023  ###reference_b42###) is a Llama 2 variant finetuned with 52,000 instruction-following demonstrations using LoRA.\nGiven that there are currently no knowledge injection methods for PEFT, we choose retrieval augmented generation (RAG) methods as baselines:\nContriever Izacard et al. (2022  ###reference_b13###) is pre-trained using English Wikipedia.\nWe use it to retrieve triples from KGs and passages from Wikipedia to augment the input of the LLM.\nKAPING Baek et al. (2023  ###reference_b1###) retrieves relevant triples from KGs to improve the KBQA task.\nWe use KAPING to enhance LLMs on knowledge-relevant tasks.\nIn our main experiments, we use the official hyperparameters and instruction data of Alpaca2 to finetune Llama 2-7B with LoRA and KnowLA.\nOur layer is inserted after the 32nd layer of Llama 2.\nWe also consider LLaMA 1 and the instruction data of Vicuna2 Chiang et al. (2023  ###reference_b4###) in Sect. (4.10  ###reference_0###).\nDuring the training process, we set the batch size to 128 and the learning rate to 3e-4, and use the AdamW optimizer to train 3 epochs.\nWe keep the hyperparameters the same for different models to ensure the fairness of the experiment.\nWe also keep the input prompts the same in the experiments.\nTo study the impact of the number of trainable parameters, we train two LoRA models with different ranks:  and .\nThey both perform better than ranks  on most datasets.\nAll models are finetuned on A800 GPUs.\nThe code is publicly available at our GitHub repository.111https://github.com/nju-websoft/KnowLA  ###reference_###"
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "Datasets and Settings",
+            "text": "We consider three types of tasks: multi-choice QA, closed-book QA, and truthful QA.\nWe pick CommonsenseQA Talmor et al. (2019  ###reference_b40###) and SIQA Sap et al. (2019  ###reference_b29###) as the multiple-choice QA datasets, and choose 15 challenging multi-choice tasks from BIG-Bench Hard (BBH) Suzgun et al. (2023  ###reference_b39###).\nWe use WebQuestionSP Yih et al. (2016  ###reference_b51###) and TriviaQA Joshi et al. (2017  ###reference_b14###) for closed-book QA evaluation.\nWe also use TruthfulQA Lin et al. (2022  ###reference_b19###) to evaluate whether KnowLA is truthful in generating answers to questions.\nAppendix A  ###reference_### complements more details.\nTo assess the direct improvement of our KnowLA to enhance PEFT, we employ zero-shot settings for all tasks."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "KGs and Configurations",
+            "text": "We select WordNet Miller (1995  ###reference_b25###), ConceptNet Speer et al. (2017  ###reference_b34###), and Wikidata Vrandecic and Kr\u00f6tzsch (2014  ###reference_b45###) as the KGs in our method.\nSee Appendix A  ###reference_### for more descriptions.\nFor RAG methods, we consider the overlap between questions and knowledge sources.\nFor multi-choice QA, we use ConceptNet and WordNet.\nFor TriviaQA, we use Wikidata and Wikipedia.\nFor KG embeddings, we follow Zhang et al. (2019  ###reference_b55###) and pre-train entity embeddings with TransE Bordes et al. (2013  ###reference_b2###) as the external knowledge.\nThe maximum number of relevant entities selected for each textual token in a question is set to 5.\nFurthermore, we evaluate the side effects and additional latency of KnowLA. See Appendix B  ###reference_### and Appendix C  ###reference_### for more details."
+        },
+        {
+            "section_id": "4.4",
+            "parent_section_id": "4",
+            "section_name": "Experiments on Multi-choice QA",
+            "text": "To evaluate the effectiveness and robustness of KnowLA, we compare it to Llama 2 and Alpaca2 () on multi-choice QA.\nIn addition to accuracy, we follow Shwartz et al. (2020  ###reference_b33###) and compute scores using cross entropy, which indicate the confidence of a model for correct answers.\nWe use three KGs: WordNet, ConceptNet, and Wikidata.\nWe also consider randomly initialized vectors as a baseline of KG embeddings.\nTable 1  ###reference_### presents the results.\nOur KnowLA variants show the best performance across the three datasets.\nFurthermore, Alpaca2 () outperforms Alpaca2 (), because more trainable parameters usually lead to better performance.\nKAPING generally performs better than Contriever on CommonsenseQA.\nThis indicates that the RAG methods rely on the quality of prompts retrieved from the knowledge sources.\nBoth KAPING and Contriever are inferior to Alpaca2 () on CommonsenseQA and SIQA, as invalid prompts may cause damage to the performance.\nKnowLA is different from RAG methods.\nRAG methods retrieve text information to augment the input of LLMs, while KnowLA uses KG embeddings to improve the effectiveness of PEFT.\nKnowLA works in the finetuning phase of LLMs and does not change the input of LLMs.\nOur method with LoRA () achieves better performance than all baselines, indicating that it can effectively work with PEFT to inject knowledge.\nSpecifically, when combined with ConceptNet, it achieves an accuracy increase from  to  on CommonsenseQA, from  to  on SIQA, and from  to  on BBH.\nSince ConceptNet stores rich conceptual knowledge and more relation types compared to WordNet, its entity embeddings can better enhance Llama 2\u2019s reasoning ability.\nFurthermore, ConceptNet recognizes more relevant entities in the question than Wikidata.\nThis suggests that extensive entity coverage in KnowLA brings a significant performance increase.\nAdditionally, the performance of KnowLA (random) is inferior to that of KnowLA with KGs, highlighting the greater utility of entity knowledge for LLMs.\nBased on the scores of each model on the correct answers, it can be seen that after incorporating KnowLA, all models assign higher confidence to the correct answers.\nTherefore, KnowLA can offer a certain degree of improvement for LLMs in commonsense reasoning.\n###figure_4###"
+        },
+        {
+            "section_id": "4.5",
+            "parent_section_id": "4",
+            "section_name": "Experiments on Closed-book QA",
+            "text": "We evaluate KnowLA using WebQuestionSP and TriviaQA.\nFollowing the answer matching strategy in Tan et al. (2023  ###reference_b41###), we use the subtree labels provided by the constituent tree to extract all noun phrases from the textual answers, calculate their similarities, and determine the correctness of answers exceeding a certain threshold (e.g., 0.5).\nThe accuracy results are shown in Table 2  ###reference_###.\nWe find that Alpaca2 () obtains better performance than Alpaca2 ().\nThe reason may be that more parameters in LoRA are prone to overfitting in the closed-book QA tasks.\nMoreover, Contriever (Wikipedia) only slightly exceeds Alpaca2 () and performs better than KAPING.\nThis is because KAPING cannot guarantee the correctness of the extracted triples.\nAccording to the results, KnowLA combined with WordNet improves the results from  to  on TriviaQA, while combined with ConceptNet, the performance is further enhanced to .\nThis indicates that the parameterized entity embeddings can enrich the textual representations.\nThe experimental results demonstrate that the knowledge-enhanced textual representations after finetuning with LoRA can help mitigate the hallucination problem of Llama 2 to some extent.\nOn WebQuestionSP, KnowLA (WordNet) and KnowLA (Wikidata) produce similar results.\nAlso, the two Alpaca2 models with different ranks perform similarly.\nThis suggests that the reasoning ability of Alpaca2 is good on this task, and the performance does not change significantly after knowledge enhancement with KnowLA.\nWe attribute this bottleneck to the model size and the training data of Llama 2 and Alpaca2."
+        },
+        {
+            "section_id": "4.6",
+            "parent_section_id": "4",
+            "section_name": "Experiments on TruthfulQA",
+            "text": "We use TruthfulQA to measure whether KnowLA is truthful in generating answers to questions.\nHere, we evaluate the content generated by the models based on the best answer provided by TruthfulQA, using the commonly used metrics BLEU, Rouge-1, Rouge-2, and Rouge-L.\nTable 3  ###reference_### shows the results.\nAlpaca2 () still underperforms Alpaca2 ().\nThis further substantiates our conclusion that larger parameters do not necessarily guarantee the accuracy and reliability of the model\u2019s output.\nKnowLA (ConceptNet) performs best among these models, which indicates that the integration of our KnowLA with LoRA can mitigate the hallucination problem of Llama 2 to some extent and generate content of better quality.\nBesides, we observe that KnowLA (ConceptNet) outperforms KnowLA (WordNet) in all evaluation tasks, and KnowLA (WordNet), in turn, surpasses KnowLA (Wikidata).\nThis further indicates that the commonsense knowledge within ConceptNet is more suitable for both LoRA and Llama 2."
+        },
+        {
+            "section_id": "4.7",
+            "parent_section_id": "4",
+            "section_name": "Case Study",
+            "text": "Figure 2  ###reference_### presents some improved results of Alpaca2 by incorporating WordNet, ConceptNet, and Wikidata in KnowLA.\nIn Case 1, we discover that after integrating ConceptNet and WordNet with KnowLA, the response precisely describes the correct answers.\nThe contents generated by KnowLA (ConceptNet) and KnowLA (WordNet) are very similar.\nThe content generated by Alpaca2 not only misses significant answers but also misinterprets the song \u201cCan\u2019t Hold Me Down\u201d in the question.\nTherefore, we believe that KnowLA helps the model better understand questions.\nBy examining the answers of the three models in Case 2, it can be observed that Alpaca2 does not provide an accurate and relevant response, which is similar to the content generated by KnowLA (Wikidata).\nThey both generate deceptive answers.\nHowever, after incorporating ConceptNet, KnowLA accurately provides the correct answer in the response.\nAccording to Table 2  ###reference_###, we believe that the enhancement is not accidental.\nMoreover, by examining the token-to-entity linking results, we find that the answer entity \u201cBoojum\u201d does not exist in ConceptNet.\nTherefore, we conclude that KnowLA can stimulate the underlying reasoning abilities of LLMs by working with LoRA."
+        },
+        {
+            "section_id": "4.8",
+            "parent_section_id": "4",
+            "section_name": "Why Knowledgeable Adaptation Works?",
+            "text": "We delve into why KnowLA collaborates effectively with LoRA, focusing on space alignment of KGs and LLMs, and knowledge recall in LLMs.\nOur KnowLA incorporates pre-trained KG embeddings into a pre-trained LLM for instruction tuning with LoRA.\nWe hereby investigate whether the two heterogeneous representation spaces of the KG and the LLM are aligned, to understand how KnowLA works.\nThe results are illustrated in Figure 3  ###reference_###  ###reference_###, where the last column represents the \u201csentinel\u201d entity.\nWe first acquire the representations of the input tokens in a specific layer, e.g., the 32nd layer.\nThen, we retrieve the top five similar entity embeddings in the KG for each token.\nNext, to establish the relevance of each token and its corresponding entities, we calculate the attention weights between them. A larger weight suggests a stronger semantic correlation between the token and the mapped entity.\nIn the case of Llama 2 (depicted in the left part of Figure 3  ###reference_###  ###reference_###), the similarities between entity embeddings and token representations appear to be random, lacking any discernible patterns.\nHowever, after applying KnowLA,\nthe results show improved accuracy specifically for the most relevant entities (i.e.,  on the x-axis).\nFor token \u201cunderrated\u201d, the relevant entities in ConceptNet are \u201cunderrated\u201d, \u201cunderrate\u201d, etc.\nAfter finetuning, the token \u201cunderrated\u201d exhibits the highest correlation with the entity \u201cunderrated\u201d.\nThis observation indicates that KnowLA can effectively align the KG and the LLM through instruction tuning with LoRA.\n###figure_5### We study the role of KnowLA in activating an LLM\u2019s knowledge.\nAccording to Li et al. (2023  ###reference_b18###  ###reference_b18###); Geva et al. (2021  ###reference_b9###  ###reference_b9###); Meng et al. (2022  ###reference_b24###  ###reference_b24###), the feed-forward network (FFN) layers, which constitute two-thirds of an LLM\u2019s parameters, primarily capture its own knowledge.\nSo, we explore the impact of KnowLA on the FFN layers to see how KnowLA affects these layers in activating knowledge stored in the LLM.\n###figure_6### We compute the differences between the hidden state representations of the last token before and after each FFN layer in the LLM.\nWe analyze the trends in differences of all 32 layers after inserting KnowLA.\nWe use the 100 questions from TriviaQA as queries to explore the knowledge stored in the FFN layers of Llama 2 (7B).\nThe last token representation in each input aggregates information from all tokens.\nAccording to Li et al. (2023  ###reference_b18###  ###reference_b18###), there is a positive correlation between the similarity of hidden states and the consistency of knowledge.\nIntuitively, we believe that higher differences in representations indicate the model\u2019s ability to capture more information from the FFN layers.\nTherefore, we extract the representations of the last token before and after each FFN layer and compute the cosine similarities for Llama 2, KnowLA, and Alpaca2, which are denoted by , , and , respectively.\nGiven the token similarities, we further evaluate the capacities of KnowLA and Llama 2 in capturing hidden knowledge.\nThe capacities are measured by  and .\nThe results are shown in Figure 4  ###reference_###  ###reference_###.\nThe red color indicates that the representation of the last token, after introducing KnowLA and undergoing the FFN layers, exhibits a greater change compared to that of Alpaca2.\nThe blue color shows the opposite.\nWe think the representations with greater changes capture more internal knowledge.\nAfter introducing entity embeddings, KnowLA enables the LLM to activate richer knowledge at the FFN layers.\nIn contrast, Llama 2 captures less knowledge than Alpaca2.\nAccording to the work Geva et al. (2021  ###reference_b9###  ###reference_b9###), lower FFN layers tend to capture shallow knowledge patterns, while higher FFN layers learn more semantic patterns.\nOur KnowLA demonstrates enhanced knowledge activation capabilities at the higher layers,\nand thus achieves superior results over Alpaca2.\nBy examining the differences in similarity across the last 16 layers, we find that KnowLA (ConceptNet) shows the greatest similarity difference in the three KGs and performs best on TriviaQA.\nThis further emphasizes that the introduction of ConceptNet substantially activates more knowledge stored internally in Llama 2."
+        },
+        {
+            "section_id": "4.9",
+            "parent_section_id": "4",
+            "section_name": "Impact of KG Embedding Models",
+            "text": "The KG embedding learning models are used to learn entity embeddings Bordes et al. (2013  ###reference_b2###); Nickel et al. (2011  ###reference_b26###); Sun et al. (2019  ###reference_b38###); Chen et al. (2023  ###reference_b3###).\nWe study the impact of embedding learning models for KnowLA.\nWe obtain entity embeddings of ConceptNet by three representative KG embedding models: RESCAL Nickel et al. (2011  ###reference_b26###), TransE Bordes et al. (2013  ###reference_b2###), and RotatE Sun et al. (2019  ###reference_b38###).\nWe show the results of KnowLA with these embeddings on the CommonsenseQA, SIQA, and BBH datasets in Table 4  ###reference_###.\nWe can observe that the entity embeddings obtained by TransE achieve favorable results.\nThis is attributed to the fact that the TransE embeddings have a good generalization ability and are thus more suitable for Llama 2.\nRotatE employs complex vector representations for entities and obtains subpar results on Llama 2.\nThis suggests that aligning the complex space of entities with the semantic space of Llama 2 during finetuning is challenging, leading to a loss of original entity knowledge."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.10 Robustness of KnowLA",
+            "text": "We evaluate the robustness of KnowLA against three factors:\nOn the foundation model side, we use LLaMA 1 as another LLM.\nOn the instruction data side, we finetune Llama 2 using the Vicuna multi-round dialog data Chiang et al. (2023  ###reference_b4###) to get Vicuna2 and KnowLA (Vicuna2).\nOn the PEFT method side, we use AdaLoRA Zhang et al. (2023  ###reference_b54###) to replace LoRA and get Alpaca2 (AdaLoRA) and KnowLA (AdaLoRA).\nOn the rank side, we finetune Llama 2 using the Alpaca data with rank  and get Alpaca2 () and KnowLA ().\nTable 5  ###reference_### lists the performance of the above models on the commonsense reasoning dataset CommonsenseQA.\nWe can see that the three KnowLA variants still outperform all baselines.\nThis experiment shows that KnowLA is robust and can bring stable improvement when combined with different LLMs, instruction data, PEFT methods, and ranks."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "Conclusion",
+            "text": "In this paper, we propose a knowledgeable adaptation method KnowLA.\nIt works with LoRA and injects entity embeddings into an LLM in the PEFT process.\nCompared to Alpaca2, which is finetuned with LoRA alone, KnowLA with Llama 2 shows better performance on six benchmark datasets.\nWe show that pre-trained KG embeddings are compatible with Llama 2.\nMoreover, we find that KnowLA can align the KG space and the LLM space, and activate the hidden knowledge related to input in LLMs, thereby achieving improved performance."
+        }
+    ],
+    "appendix": [
+        {
+            "section_id": "Appendix 1",
+            "parent_section_id": null,
+            "section_name": "Appendix A Datasets and KGs",
+            "text": "The details of the datasets are described as follows:\nIn CommonsenseQA Talmor et al. (2019  ###reference_b40###), each sample consists of a question, five candidate answers, and a correct answer.\nTo run LLMs for CommonsenseQA, we adopt the same setting as in Shwartz et al. (2020  ###reference_b33###) and consider it as a text completion task. We test the LLMs with the validation dataset.\nSIQA Sap et al. (2019  ###reference_b29###) is a QA dataset about social commonsense, where each sample consists of a question, three candidate answers, and a correct answer.\nTo evaluate prompt-based methods, we do not use the provided knowledge in the dataset.\nThe settings are the same as in CommonsenseQA. We test the LLMs with the validation dataset.\nBBH Suzgun et al. (2023  ###reference_b39###) is a popular benchmark that focuses on tasks challenging for LLMs.\nTo compare scores of different methods on correct answers, we select 15 multiple-choice QA datasets from this benchmark.\nWebQuestionSP Yih et al. (2016  ###reference_b51###) is a KBQA dataset that enhances the WebQuestion dataset by annotating each answer with corresponding SPARQL queries and removing ambiguous, unclear, or unanswerable questions.\nIn this paper, we treat it as a closed-book QA task.\nTriviaQA Joshi et al. (2017  ###reference_b14###) includes 95K question-answer pairs authored by trivia enthusiasts, which provide high-quality distant supervision for answering the questions. In this paper, we treat it as a closed-book QA task and select 7,500 questions from TriviaQA to test LLMs.\nTruthfulQA Lin et al. (2022  ###reference_b19###) is a benchmark to measure whether a language model is truthful in generating answers to questions.\nThe used KGs are introduced as follows:\nWordNet Miller (1995  ###reference_b25###) is a lexical KG in English. Nouns, verbs, adjectives, and adverbs are arranged into synsets, each denoting a separate notion.\nConceptNet Speer et al. (2017  ###reference_b34###) is a multi-lingual conceptual KG of things people know and computers should know.\nWikidata Vrandecic and Kr\u00f6tzsch (2014  ###reference_b45###) is a factual KG across diverse domains.\nIt encompasses various entity types, including individuals, places, concepts, etc."
+        },
+        {
+            "section_id": "Appendix 2",
+            "parent_section_id": null,
+            "section_name": "Appendix B Knowledge-Unrelated Tasks",
+            "text": "We analyze the side effects of KnowLA on knowledge-unrelated tasks.\nIn this experiment, five knowledge-unrelated tasks from BBH are picked.\nThe results in Table 6  ###reference_### show that even if these tasks are knowledge-unrelated, our KnowLA can still improve the LLM.\nThis is due to the enhanced ability of the LLM to activate its own knowledge."
+        },
+        {
+            "section_id": "Appendix 3",
+            "parent_section_id": null,
+            "section_name": "Appendix C Additional Latency on Efficiency",
+            "text": "Retrieving the embeddings of related entities during each finetuning step would slow down the training process.\nWe move it to the data processing step.\nWe use eight workers to process 50,538 training samples in parallel.\nDuring inference, we compare the overall inference time of KnowLA (ConceptNet) and Alpaca2 on CommonsenseQA using an A6000 GPU card.\nTable 7  ###reference_### shows the results.\nAlpaca2 spends 9 seconds on data processing, while KnowLA (ConceptNet) spends 16 seconds.\nDuring inference, KnowLA (ConceptNet) takes 19 minutes and 12 seconds, while Alpaca2 takes 19 minutes and 1 second.\nWe believe that the additional latency caused by KnowLA is tolerable compared to the performance boost."
+        },
+        {
+            "section_id": "Appendix 4",
+            "parent_section_id": null,
+            "section_name": "Appendix D Robustness to Different Prompts",
+            "text": "We try different prompts to evaluate the robustness of KnowLA.\nTable 8  ###reference_### compares the accuracy of Alpaca2 () and KnowLA on CommonsenseQA with different prompts.\nKnowLA outperforms Alpaca2 on all prompts, indicating its good robustness.\nWe use the first prompt in the main experiments due to its superior performance.\nBelow is an instruction that describes a task, paired with an input that provides further context. Choose a correct answer that appears in the candidate answers.\nBelow is an instruction that describes a task, paired with an input that provides further context. Please answer the following question.\nBelow is an instruction that describes a task, paired with an input that provides further context. Give an answer that appropriately completes the question.\nPlease answer the following question."
+        },
+        {
+            "section_id": "Appendix 5",
+            "parent_section_id": null,
+            "section_name": "Appendix E Discussion on Extension of KnowLA",
+            "text": "We hereby discuss the extension of KnowLA to integrate multiple KGs for PEFT and incrementally incorporate knowledge updates in a KG."
+        }
+    ],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T1\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T1.2\" style=\"width:346.9pt;height:224.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-7.5pt,4.8pt) scale(0.958646077083213,0.958646077083213) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T1.2.2\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T1.2.2.3.1.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.2.2.3.1.1.1\">Methods</span></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T1.2.2.3.1.2\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.2.2.3.1.2.1\">#Parameters</span></th>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" colspan=\"2\" id=\"S4.T1.2.2.3.1.3\">CommonsenseQA</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" colspan=\"2\" id=\"S4.T1.2.2.3.1.4\">SIQA</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" colspan=\"2\" id=\"S4.T1.2.2.3.1.5\">BIG-Bench Hard</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.4.2\">\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.1\">Accuracy</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.2\">Score</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.3\">Accuracy</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.4\">Score</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.5\">Accuracy</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.4.2.6\">Score</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.5.3.1\">Llama\u00a02 (7B)</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.5.3.2\">7B</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.3\">45.37</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.4\">36.40</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.5\">46.42</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.6\">40.58</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.7\">26.95</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.5.3.8\">24.87</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.1.1.1.1\">Alpaca2 ()</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.1.1.1.2\">+\u20090.24%</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.3\">56.92</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.4\">46.55</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.5\">52.61</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.6\">46.18</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.7\">28.93</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.8\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.1.1.1.8.1\">25.42</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.2.1\">Alpaca2 ()</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.2.2\">+\u20090.50%</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.3\">57.90</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.4\">46.81</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.5\">53.17</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.6\">46.21</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.7\">28.79</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.8\">25.36</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.6.4.1\">Contriever (WordNet)</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.6.4.2\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.2.2.6.4.2.1\">+\u20090.50%</span></th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.3\">57.15</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.4\">46.09</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.5\">52.58</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.6\">46.13</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.7\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.6.4.8\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.7.5.1\">Contriever (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.2\">57.06</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.3\">45.30</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.4\">52.51</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.5\">45.51</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.6\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.7.5.7\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.8.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.8.6.1\">KAPING (WordNet)</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.8.6.2\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T1.2.2.8.6.2.1\">+\u20090.50%</span></th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.3\">57.21</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.4\">45.91</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.5\">52.51</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.6\">45.89</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.7\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.8.6.8\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.9.7\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.9.7.1\">KAPING (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.2\">57.58</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.3\">45.64</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.4\">52.66</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.5\">46.15</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.6\">-</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.9.7.7\">-</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.10.8\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.10.8.1\">KnowLA (Random)</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_row ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T1.2.2.10.8.2\" rowspan=\"4\"><span class=\"ltx_text\" id=\"S4.T1.2.2.10.8.2.1\">+\u20090.55%</span></th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.3\">57.49</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.4\">47.82</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.5\">52.61</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.6\">46.56</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.7\">29.26</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.10.8.8\">25.34</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.11.9\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.11.9.1\">KnowLA (WordNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.2\">58.07</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.11.9.3.1\">48.35</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.11.9.4.1\">53.22</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.5\">46.76</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.6\">30.00</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.11.9.7\">25.39</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.12.10\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T1.2.2.12.10.1\">KnowLA (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.12.10.2.1\">58.39</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.3\">48.19</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.12.10.4.1\">53.22</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.12.10.5.1\">46.81</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.12.10.6.1\">30.19</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.12.10.7\">25.29</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.2.2.13.11\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S4.T1.2.2.13.11.1\">KnowLA (Wikidata)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.2\">57.90</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.3\">47.39</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.4\">53.21</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.5\">46.64</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.6\">29.39</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T1.2.2.13.11.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.2.2.13.11.7.1\">25.42</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>Multi-choice QA results on CommonsenseQA, SIQA, and BBH. For KnowLA, the rank of LoRA is . The percentage of trainable parameters are similar in Tables\u00a0<a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.14950v1#S4.T2\" title=\"Table 2 \u2023 4.4 Experiments on Multi-choice QA \u2023 4 Experiments \u2023 KnowLA: Enhancing Parameter-efficient Finetuning with Knowledgeable Adaptation\"><span class=\"ltx_text ltx_ref_tag\">2</span></a> and <a class=\"ltx_ref\" href=\"https://arxiv.org/html/2403.14950v1#S4.T3\" title=\"Table 3 \u2023 4.6 Experiments on TruthfulQA \u2023 4 Experiments \u2023 KnowLA: Enhancing Parameter-efficient Finetuning with Knowledgeable Adaptation\"><span class=\"ltx_text ltx_ref_tag\">3</span></a>.</figcaption>\n</figure>",
+            "capture": "Table 1: Multi-choice QA results on CommonsenseQA, SIQA, and BBH. For KnowLA, the rank of LoRA is . The percentage of trainable parameters are similar in Tables\u00a02 and 3."
+        },
+        "2": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T2\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T2.2\" style=\"width:407.6pt;height:303.5pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(95.0pt,-70.7pt) scale(1.87331918143394,1.87331918143394) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T2.2.2\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T2.2.2.3.1.1\">Methods</th>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.2.2.3.1.2\">WebQuestionSP</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T2.2.2.3.1.3\">TriviaQA</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T2.1.1.1.1\">Alpaca2 ()</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.2\">67.55</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.1.1.1.3\">68.70</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T2.2.2.2.1\">Alpaca2 ()</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.2\">67.43</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.2.3\">67.97</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T2.2.2.4.2.1\">Contriever (Wikipedia)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.4.2.2\">-</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.4.2.3\">68.71</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T2.2.2.5.3.1\">KAPING (Wikidata)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.5.3.2\">67.11</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.5.3.3\">66.05</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T2.2.2.6.4.1\">KnowLA (Random)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.6.4.2\">67.68</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T2.2.2.6.4.3\">69.34</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T2.2.2.7.5.1\">KnowLA (WordNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.7.5.2\">67.43</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.7.5.3\">69.27</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.8.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T2.2.2.8.6.1\">KnowLA (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.8.6.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.2.8.6.2.1\">68.12</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T2.2.2.8.6.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T2.2.2.8.6.3.1\">69.40</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T2.2.2.9.7\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S4.T2.2.2.9.7.1\">KnowLA (Wikidata)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.2.2.9.7.2\">67.49</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T2.2.2.9.7.3\">68.92</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 2: </span>Closed-book QA results on WebQuestionSP and TriviaQA. For KnowLA, .</figcaption>\n</figure>",
+            "capture": "Table 2: Closed-book QA results on WebQuestionSP and TriviaQA. For KnowLA, ."
+        },
+        "3": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T3\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T3.2\" style=\"width:433.6pt;height:229.4pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(97.7pt,-51.7pt) scale(1.82044197497031,1.82044197497031) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T3.2.2\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T3.2.2.3.1.1\">Methods</th>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.2.2.3.1.2\">BLEU</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.2.2.3.1.3\">Rouge-1</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.2.2.3.1.4\">Rouge-2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T3.2.2.3.1.5\">Rouge-L</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T3.1.1.1.1\">Alpaca2 ()</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.1.2\">0.1657</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.1.3\">0.4094</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.1.4\">0.2831</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.1.1.1.5\">0.3892</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T3.2.2.2.1\">Alpaca2 ()</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.2.2\">0.1637</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.2.3\">0.4048</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.2.4\">0.2802</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.2.5\">0.3851</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T3.2.2.4.2.1\">KnowLA (Random)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.2.4.2.2\">0.1677</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.2.4.2.3\">0.4110</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.2.4.2.4\">0.2850</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T3.2.2.4.2.5\">0.3897</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T3.2.2.5.3.1\">KnowLA (WordNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.5.3.2\">0.1714</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.5.3.3\">0.4143</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.5.3.4\">0.2874</td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.5.3.5\">0.3927</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T3.2.2.6.4.1\">KnowLA (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.6.4.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.2.6.4.2.1\">0.1747</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.6.4.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.2.6.4.3.1\">0.4190</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.6.4.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.2.6.4.4.1\">0.2922</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T3.2.2.6.4.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T3.2.2.6.4.5.1\">0.3975</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T3.2.2.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S4.T3.2.2.7.5.1\">KnowLA (Wikidata)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.2.7.5.2\">0.1703</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.2.7.5.3\">0.4135</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.2.7.5.4\">0.2895</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T3.2.2.7.5.5\">0.3931</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 3: </span>Results on TruthfulQA. For KnowLA, .</figcaption>\n</figure>",
+            "capture": "Table 3: Results on TruthfulQA. For KnowLA, ."
+        },
+        "4": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T4\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T4.1\" style=\"width:433.6pt;height:167.8pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(100.5pt,-38.9pt) scale(1.86480631297425,1.86480631297425) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T4.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.1.1\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T4.1.1.1.1.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"2\" id=\"S4.T4.1.1.1.1.2\">CommonsenseQA</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"2\" id=\"S4.T4.1.1.1.1.3\">SIQA</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" colspan=\"2\" id=\"S4.T4.1.1.1.1.4\">BBH</th>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.2.2\">\n<th class=\"ltx_td ltx_th ltx_th_column ltx_th_row ltx_border_r\" id=\"S4.T4.1.1.2.2.1\"></th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.2\">Accuracy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.3\">Score</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.4\">Accuracy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.5\">Score</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.6\">Accuracy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_t\" id=\"S4.T4.1.1.2.2.7\">Score</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.3.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T4.1.1.3.1.1\">RESCAL</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.3.1.2.1\">58.39</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.3\">46.71</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.4\">52.10</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.5\">44.91</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.6\">27.50</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T4.1.1.3.1.7\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.3.1.7.1\">25.96</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T4.1.1.4.2.1\">TransE</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.4.2.2.1\">58.39</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.4.2.3.1\">48.19</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.4.2.4.1\">53.22</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.5\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.4.2.5.1\">46.81</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.6\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T4.1.1.4.2.6.1\">30.19</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T4.1.1.4.2.7\">25.29</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T4.1.1.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S4.T4.1.1.5.3.1\">RotatE</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.2\">57.58</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.3\">46.05</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.4\">52.00</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.5\">44.65</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.6\">27.31</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T4.1.1.5.3.7\">24.94</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 4: </span>Comparison of KG embedding learning models on CommonsenseQA, SIQA, and BBH, which are pre-trained on ConceptNet for Llama\u00a02.</figcaption>\n</figure>",
+            "capture": "Table 4: Comparison of KG embedding learning models on CommonsenseQA, SIQA, and BBH, which are pre-trained on ConceptNet for Llama\u00a02."
+        },
+        "5": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T5\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"S4.T5.2\" style=\"width:411.9pt;height:319.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(101.5pt,-78.7pt) scale(1.97099002858207,1.97099002858207) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"S4.T5.2.2\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.3.1\">\n<th class=\"ltx_td ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T5.2.2.3.1.1\"></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_tt\" id=\"S4.T5.2.2.3.1.2\">Methods</th>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T5.2.2.3.1.3\">Accuracy</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"S4.T5.2.2.3.1.4\">Score</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.4.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.4.2.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T5.2.2.4.2.1.1\">LLM side</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.4.2.2\">Alpaca1</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.4.2.3\">56.59</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.4.2.4\">46.03</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.5.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T5.2.2.5.3.1\">KnowLA (LLaMA 1)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.5.3.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.5.3.2.1\">57.74</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.5.3.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.5.3.3.1\">46.81</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.6.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.6.4.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T5.2.2.6.4.1.1\">Data side</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.6.4.2\">Vicuna2</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.6.4.3\">51.52</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.6.4.4\">42.31</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.7.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T5.2.2.7.5.1\">KnowLA (Vicuna2)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.7.5.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.7.5.2.1\">53.56</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.7.5.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.7.5.3.1\">49.09</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.8.6\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.8.6.1\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T5.2.2.8.6.1.1\">PEFT side</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.2.2.8.6.2\">Alpaca2 (AdaLoRA)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.8.6.3\">57.58</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.2.2.8.6.4\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.8.6.4.1\">46.67</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.9.7\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"S4.T5.2.2.9.7.1\">KnowLA (AdaLoRA)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.9.7.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.9.7.2.1\">57.66</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"S4.T5.2.2.9.7.3\">46.30</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r ltx_border_t\" id=\"S4.T5.1.1.1.2\" rowspan=\"2\"><span class=\"ltx_text\" id=\"S4.T5.1.1.1.2.1\">Rank side</span></th>\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"S4.T5.1.1.1.1\">Alpaca2 ()</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.1.1.1.3\">56.92</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T5.1.1.1.4\">46.25</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T5.2.2.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"S4.T5.2.2.2.1\">KnowLA ()</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T5.2.2.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.2.2.1\">57.74</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"S4.T5.2.2.2.3\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T5.2.2.2.3.1\">46.93</span></td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 5: </span>Results with different LLMs, instruction data, PEFT methods, and ranks on CommonsenseQA </figcaption>\n</figure>",
+            "capture": "Table 5: Results with different LLMs, instruction data, PEFT methods, and ranks on CommonsenseQA "
+        },
+        "6": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A2.T6\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"A2.T6.1\" style=\"width:429.3pt;height:173.6pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(81.1pt,-32.8pt) scale(1.60774158685352,1.60774158685352) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"A2.T6.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"A2.T6.1.1.1.2\">Datasets</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A2.T6.1.1.1.1\">Alpaca2 ()</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A2.T6.1.1.1.3\">KnowLA (ConceptNet)</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A2.T6.1.1.2.1.1\">Temporal sequences</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A2.T6.1.1.2.1.2\">14.80</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A2.T6.1.1.2.1.3\">15.20</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"A2.T6.1.1.3.2.1\">Date understanding</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.3.2.2\">72.00</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.3.2.3\">73.20</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"A2.T6.1.1.4.3.1\">Geometric shapes</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.4.3.2\">\u00a0\u00a09.20</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.4.3.3\">19.20</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"A2.T6.1.1.5.4.1\">Snarks</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.5.4.2\">51.12</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A2.T6.1.1.5.4.3\">53.37</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A2.T6.1.1.6.5\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"A2.T6.1.1.6.5.1\">Logical deduction</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A2.T6.1.1.6.5.2\">35.20</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A2.T6.1.1.6.5.3\">36.40</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 6: </span>Results on knowledge-unrelated tasks</figcaption>\n</figure>",
+            "capture": "Table 6: Results on knowledge-unrelated tasks"
+        },
+        "7": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A3.T7\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"A3.T7.1\" style=\"width:429.3pt;height:105pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(104.3pt,-25.5pt) scale(1.94515682969359,1.94515682969359) ;\">\n<table class=\"ltx_tabular ltx_guessed_headers ltx_align_middle\" id=\"A3.T7.1.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A3.T7.1.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"A3.T7.1.1.1.1.1\">Models</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A3.T7.1.1.1.1.2\">Data processing</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A3.T7.1.1.1.1.3\">Inference</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A3.T7.1.1.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A3.T7.1.1.2.1.1\">Alpaca2</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A3.T7.1.1.2.1.2\">\u00a0\u00a09 s</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A3.T7.1.1.2.1.3\">19.02 min.</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A3.T7.1.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"A3.T7.1.1.3.2.1\">KnowLA (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A3.T7.1.1.3.2.2\">16 s</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A3.T7.1.1.3.2.3\">19.20 min.</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 7: </span>Time overhead of Alpaca2 and KnowLA </figcaption>\n</figure>",
+            "capture": "Table 7: Time overhead of Alpaca2 and KnowLA "
+        },
+        "8": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A4.T8\">\n<div class=\"ltx_inline-block ltx_align_center ltx_transformed_outer\" id=\"A4.T8.1\" style=\"width:433.6pt;height:108.3pt;vertical-align:-0.0pt;\"><span class=\"ltx_transformed_inner\" style=\"transform:translate(-50.7pt,12.7pt) scale(0.810591059284775,0.810591059284775) ;\">\n<table class=\"ltx_tabular ltx_align_middle\" id=\"A4.T8.1.1\">\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.2.1\">\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_tt\" id=\"A4.T8.1.1.2.1.1\" rowspan=\"2\" style=\"width:173.6pt;\"><span class=\"ltx_text ltx_align_top\" id=\"A4.T8.1.1.2.1.1.1\">Prompts</span></td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"A4.T8.1.1.2.1.2\">Alpaca2</td>\n<td class=\"ltx_td ltx_align_center ltx_border_tt\" id=\"A4.T8.1.1.2.1.3\">KnowLA</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.1\">\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T8.1.1.1.1\">()</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A4.T8.1.1.1.2\">(ConceptNet)</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.3.2\">\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"A4.T8.1.1.3.2.1\" style=\"width:173.6pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"A4.T8.1.1.3.2.1.1\">Below is an instruction that describes a task, paired with an input that provides further context. Choose a correct answer that appears in the candidate answers.</p>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.3.2.2\">56.92</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.3.2.3\">58.39</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.4.3\">\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"A4.T8.1.1.4.3.1\" style=\"width:173.6pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"A4.T8.1.1.4.3.1.1\">Below is an instruction that describes a task, paired with an input that provides further context. Please answer the following question.</p>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.4.3.2\">52.74</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.4.3.3\">54.95</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.5.4\">\n<td class=\"ltx_td ltx_align_justify ltx_border_r ltx_border_t\" id=\"A4.T8.1.1.5.4.1\" style=\"width:173.6pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"A4.T8.1.1.5.4.1.1\">Below is an instruction that describes a task, paired with an input that provides further context. Give an answer that appropriately completes the question.</p>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.5.4.2\">53.73</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A4.T8.1.1.5.4.3\">56.10</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A4.T8.1.1.6.5\">\n<td class=\"ltx_td ltx_align_justify ltx_border_bb ltx_border_r ltx_border_t\" id=\"A4.T8.1.1.6.5.1\" style=\"width:173.6pt;\">\n<p class=\"ltx_p ltx_align_top\" id=\"A4.T8.1.1.6.5.1.1\">Please answer the following question.</p>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"A4.T8.1.1.6.5.2\">55.20</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb ltx_border_t\" id=\"A4.T8.1.1.6.5.3\">56.35</td>\n</tr>\n</tbody>\n</table>\n</span></div>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 8: </span>Accuracy of KnowLA when using different prompts on CommonsenseQA </figcaption>\n</figure>",
+            "capture": "Table 8: Accuracy of KnowLA when using different prompts on CommonsenseQA "
+        },
+        "9": {
+            "table_html": "<figure class=\"ltx_table\" id=\"A5.T9\">\n<table class=\"ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle\" id=\"A5.T9.1\">\n<thead class=\"ltx_thead\">\n<tr class=\"ltx_tr\" id=\"A5.T9.1.1.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_column ltx_th_row ltx_border_r ltx_border_tt\" id=\"A5.T9.1.1.1.1\">Methods</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A5.T9.1.1.1.2\">Accuracy</th>\n<th class=\"ltx_td ltx_align_center ltx_th ltx_th_column ltx_border_tt\" id=\"A5.T9.1.1.1.3\">Score</th>\n</tr>\n</thead>\n<tbody class=\"ltx_tbody\">\n<tr class=\"ltx_tr\" id=\"A5.T9.1.2.1\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r ltx_border_t\" id=\"A5.T9.1.2.1.1\">KnowLA (WordNet)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A5.T9.1.2.1.2\">58.07</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"A5.T9.1.2.1.3\"><span class=\"ltx_text ltx_font_bold\" id=\"A5.T9.1.2.1.3.1\">48.35</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A5.T9.1.3.2\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"A5.T9.1.3.2.1\">KnowLA (ConceptNet)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A5.T9.1.3.2.2\"><span class=\"ltx_text ltx_font_bold\" id=\"A5.T9.1.3.2.2.1\">58.39</span></td>\n<td class=\"ltx_td ltx_align_center\" id=\"A5.T9.1.3.2.3\">48.19</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A5.T9.1.4.3\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_r\" id=\"A5.T9.1.4.3.1\">KnowLA (Wikidata)</th>\n<td class=\"ltx_td ltx_align_center\" id=\"A5.T9.1.4.3.2\">57.90</td>\n<td class=\"ltx_td ltx_align_center\" id=\"A5.T9.1.4.3.3\">47.39</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"A5.T9.1.5.4\">\n<th class=\"ltx_td ltx_align_left ltx_th ltx_th_row ltx_border_bb ltx_border_r\" id=\"A5.T9.1.5.4.1\">KnowLA (multiple KGs)</th>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A5.T9.1.5.4.2\">57.61</td>\n<td class=\"ltx_td ltx_align_center ltx_border_bb\" id=\"A5.T9.1.5.4.3\">47.24</td>\n</tr>\n</tbody>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 9: </span>Results of multiple KGs on CommonsenseQA </figcaption>\n</figure>",
+            "capture": "Table 9: Results of multiple KGs on CommonsenseQA "
+        }
+    },
+    "image_paths": {
+        "1": {
+            "figure_path": "2403.14950v1_figure_1.png",
+            "caption": "Figure 1: Illustration of knowledgeable adaptation.\nThe KnowLA layer is inserted between two decoder layers of an LLM.\nIt consists of knowledge injection and fusion."
+        },
+        "2": {
+            "figure_path": "2403.14950v1_figure_2.png",
+            "caption": "Figure 2: Examples of Alpaca2 and KnowLA for TriviaQA."
+        },
+        "3": {
+            "figure_path": "2403.14950v1_figure_3.png",
+            "caption": "Figure 3: The similarity heatmap between the output representations of text tokens and their corresponding entity embeddings.\nThe x-axis denotes the top-5 similar entities with tokens on the y-axis.\n(a) The left heatmap presents the similarity of Llama 2 without finetuning, and (b) the right heatmap presents the similarity after finetuning with our KnowLA (ConceptNet)."
+        },
+        "4": {
+            "figure_path": "2403.14950v1_figure_4.png",
+            "caption": "Figure 4: \nThe heatmap indicates the capabilities of KnowLA and Llama 2 in capturing knowledge compared to Alpaca2, which is measured by averaging the changes in cosine similarities of the last token representations from 100 queries across all FFN layers.\nThe x-axis denotes the 32 layers of Llama 2."
+        }
+    },
+    "references": [
+        {
+            "1": {
+                "title": "Knowledge-augmented language model prompting for zero-shot knowledge graph question answering.",
+                "author": "Jinheon Baek, Alham Fikri Aji, and Amir Saffari. 2023.",
+                "venue": "In Proceedings of the 1st Workshop on Natural Language Reasoning and Structured Explanations (NLRSE), pages 78\u2013106, Toronto, Canada. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2023.nlrse-1.7"
+            }
+        },
+        {
+            "2": {
+                "title": "Translating embeddings for modeling multi-relational data.",
+                "author": "Antoine Bordes, Nicolas Usunier, Alberto Garc\u00eda-Dur\u00e1n, Jason Weston, and Oksana Yakhnenko. 2013.",
+                "venue": "In Advances in Neural Information Processing Systems 26: 27th Annual Conference on Neural Information Processing Systems 2013. Proceedings of a meeting held December 5-8, 2013, Lake Tahoe, Nevada, United States, pages 2787\u20132795.",
+                "url": "https://proceedings.neurips.cc/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html"
+            }
+        },
+        {
+            "3": {
+                "title": "PosKHG: A position-aware knowledge hypergraph model for link prediction.",
+                "author": "Zirui Chen, Xin Wang, Chenxu Wang, and Zhao Li. 2023.",
+                "venue": "Data Sci. Eng., 8(2):135\u2013145.",
+                "url": "https://doi.org/10.1007/S41019-023-00214-X"
+            }
+        },
+        {
+            "4": {
+                "title": "Vicuna: An open-source chatbot impressing gpt-4 with 90%* chatgpt quality.",
+                "author": "Wei-Lin Chiang, Zhuohan Li, Zi Lin, Ying Sheng, Zhanghao Wu, Hao Zhang, Lianmin Zheng, Siyuan Zhuang, Yonghao Zhuang, Joseph E. Gonzalez, Ion Stoica, and Eric P. Xing. 2023.",
+                "venue": null,
+                "url": "https://lmsys.org/blog/2023-03-30-vicuna/"
+            }
+        },
+        {
+            "5": {
+                "title": "Lifelong embedding learning and transfer for growing knowledge graphs.",
+                "author": "Yuanning Cui, Yuxin Wang, Zequn Sun, Wenqiang Liu, Yiqiao Jiang, Kexin Han, and Wei Hu. 2023.",
+                "venue": "In Thirty-Seventh AAAI Conference on Artificial Intelligence, AAAI 2023, Thirty-Fifth Conference on Innovative Applications of Artificial Intelligence, IAAI 2023, Thirteenth Symposium on Educational Advances in Artificial Intelligence, EAAI 2023, Washington, DC, USA, February 7-14, 2023, pages 4217\u20134224. AAAI Press.",
+                "url": "https://doi.org/10.1609/AAAI.V37I4.25539"
+            }
+        },
+        {
+            "6": {
+                "title": "Qlora: Efficient finetuning of quantized llms.",
+                "author": "Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer. 2023.",
+                "venue": "CoRR, abs/2305.14314.",
+                "url": "https://doi.org/10.48550/arXiv.2305.14314"
+            }
+        },
+        {
+            "7": {
+                "title": "BERT: pre-training of deep bidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019.",
+                "venue": "In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, NAACL-HLT 2019, Minneapolis, MN, USA, June 2-7, 2019, pages 4171\u20134186.",
+                "url": "https://doi.org/10.18653/v1/n19-1423"
+            }
+        },
+        {
+            "8": {
+                "title": "GLM: general language model pretraining with autoregressive blank infilling.",
+                "author": "Zhengxiao Du, Yujie Qian, Xiao Liu, Ming Ding, Jiezhong Qiu, Zhilin Yang, and Jie Tang. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics, ACL 2022, Dublin, Ireland, May 22-27, 2022, pages 320\u2013335.",
+                "url": "https://doi.org/10.18653/v1/2022.acl-long.26"
+            }
+        },
+        {
+            "9": {
+                "title": "Transformer feed-forward layers are key-value memories.",
+                "author": "Mor Geva, Roei Schuster, Jonathan Berant, and Omer Levy. 2021.",
+                "venue": "In Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing, EMNLP 2021, Virtual Event / Punta Cana, Dominican Republic, 7-11 November, 2021, pages 5484\u20135495.",
+                "url": "https://doi.org/10.18653/V1/2021.EMNLP-MAIN.446"
+            }
+        },
+        {
+            "10": {
+                "title": "Parameter-efficient transfer learning for NLP.",
+                "author": "Neil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin de Laroussilhe, Andrea Gesmundo, Mona Attariyan, and Sylvain Gelly. 2019.",
+                "venue": "In Proceedings of the 36th International Conference on Machine Learning, ICML 2019, 9-15 June 2019, Long Beach, California, USA, volume 97 of Proceedings of Machine Learning Research, pages 2790\u20132799.",
+                "url": "http://proceedings.mlr.press/v97/houlsby19a.html"
+            }
+        },
+        {
+            "11": {
+                "title": "Lora: Low-rank adaptation of large language models.",
+                "author": "Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. 2022.",
+                "venue": "In The Tenth International Conference on Learning Representations, ICLR 2022, Virtual Event, April 25-29, 2022.",
+                "url": "https://openreview.net/forum?id=nZeVKeeFYf9"
+            }
+        },
+        {
+            "12": {
+                "title": "Multilingual knowledge graph completion with self-supervised adaptive graph alignment.",
+                "author": "Zijie Huang, Zheng Li, Haoming Jiang, Tianyu Cao, Hanqing Lu, Bing Yin, Karthik Subbian, Yizhou Sun, and Wei Wang. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 474\u2013485, Dublin, Ireland. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2022.acl-long.36"
+            }
+        },
+        {
+            "13": {
+                "title": "Unsupervised dense information retrieval with contrastive learning.",
+                "author": "Gautier Izacard, Mathilde Caron, Lucas Hosseini, Sebastian Riedel, Piotr Bojanowski, Armand Joulin, and Edouard Grave. 2022.",
+                "venue": "Trans. Mach. Learn. Res., 2022.",
+                "url": "https://openreview.net/forum?id=jKN1pXi7b0"
+            }
+        },
+        {
+            "14": {
+                "title": "Triviaqa: A large scale distantly supervised challenge dataset for reading comprehension.",
+                "author": "Mandar Joshi, Eunsol Choi, Daniel S. Weld, and Luke Zettlemoyer. 2017.",
+                "venue": "In Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics, ACL 2017, Vancouver, Canada, July 30 - August 4, pages 1601\u20131611.",
+                "url": "https://doi.org/10.18653/V1/P17-1147"
+            }
+        },
+        {
+            "15": {
+                "title": "Informing unsupervised pretraining with external linguistic knowledge.",
+                "author": "Anne Lauscher, Ivan Vulic, Edoardo Maria Ponti, Anna Korhonen, and Goran Glavas. 2019.",
+                "venue": "CoRR, abs/1909.02339.",
+                "url": "http://arxiv.org/abs/1909.02339"
+            }
+        },
+        {
+            "16": {
+                "title": "Sensebert: Driving some sense into BERT.",
+                "author": "Yoav Levine, Barak Lenz, Or Dagan, Ori Ram, Dan Padnos, Or Sharir, Shai Shalev-Shwartz, Amnon Shashua, and Yoav Shoham. 2020.",
+                "venue": "In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, ACL 2020, Online, July 5-10, 2020, pages 4656\u20134667.",
+                "url": "https://doi.org/10.18653/v1/2020.acl-main.423"
+            }
+        },
+        {
+            "17": {
+                "title": "Prefix-tuning: Optimizing continuous prompts for generation.",
+                "author": "Xiang Lisa Li and Percy Liang. 2021.",
+                "venue": "In Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing, pages 4582\u20134597, Online.",
+                "url": "https://doi.org/10.18653/v1/2021.acl-long.353"
+            }
+        },
+        {
+            "18": {
+                "title": "PMET: precise model editing in a transformer.",
+                "author": "Xiaopeng Li, Shasha Li, Shezheng Song, Jing Yang, Jun Ma, and Jie Yu. 2023.",
+                "venue": "CoRR, abs/2308.08742.",
+                "url": "https://doi.org/10.48550/ARXIV.2308.08742"
+            }
+        },
+        {
+            "19": {
+                "title": "Truthfulqa: Measuring how models mimic human falsehoods.",
+                "author": "Stephanie Lin, Jacob Hilton, and Owain Evans. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics, ACL 2022, Dublin, Ireland, May 22-27, 2022, pages 3214\u20133252.",
+                "url": "https://doi.org/10.18653/V1/2022.ACL-LONG.229"
+            }
+        },
+        {
+            "20": {
+                "title": "Generated knowledge prompting for commonsense reasoning.",
+                "author": "Jiacheng Liu, Alisa Liu, Ximing Lu, Sean Welleck, Peter West, Ronan Le Bras, Yejin Choi, and Hannaneh Hajishirzi. 2022.",
+                "venue": "In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics, Stroudsburg, PA, USA.",
+                "url": "https://doi.org/10.18653/v1/2022.acl-long.225"
+            }
+        },
+        {
+            "21": {
+                "title": "K-BERT: enabling language representation with knowledge graph.",
+                "author": "Weijie Liu, Peng Zhou, Zhe Zhao, Zhiruo Wang, Qi Ju, Haotang Deng, and Ping Wang. 2020.",
+                "venue": "In The Thirty-Fourth AAAI Conference on Artificial Intelligence, AAAI 2020, New York, NY, USA, February 7-12, 2020, pages 2901\u20132908.",
+                "url": "https://ojs.aaai.org/index.php/AAAI/article/view/5681"
+            }
+        },
+        {
+            "22": {
+                "title": "KG-BART: knowledge graph-augmented BART for generative commonsense reasoning.",
+                "author": "Ye Liu, Yao Wan, Lifang He, Hao Peng, and Philip S. Yu. 2021.",
+                "venue": "In Thirty-Fifth AAAI Conference on Artificial Intelligence, AAAI 2021, Thirty-Third Conference on Innovative Applications of Artificial Intelligence, Virtual Event, February 2-9, 2021, pages 6418\u20136425.",
+                "url": "https://ojs.aaai.org/index.php/AAAI/article/view/16796"
+            }
+        },
+        {
+            "23": {
+                "title": "KELM: knowledge enhanced pre-trained language representations with message passing on hierarchical relational graphs.",
+                "author": "Yinquan Lu, Haonan Lu, Guirong Fu, and Qun Liu. 2021.",
+                "venue": "CoRR, abs/2109.04223.",
+                "url": "http://arxiv.org/abs/2109.04223"
+            }
+        },
+        {
+            "24": {
+                "title": "Locating and editing factual associations in GPT.",
+                "author": "Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov. 2022.",
+                "venue": "In NeurIPS.",
+                "url": "http://papers.nips.cc/paper_files/paper/2022/hash/6f1d43d5a82a37e89b0665b33bf3a182-Abstract-Conference.html"
+            }
+        },
+        {
+            "25": {
+                "title": "Wordnet: A lexical database for english.",
+                "author": "George A. Miller. 1995.",
+                "venue": "Commun. ACM, 38(11):39\u201341.",
+                "url": "https://doi.org/10.1145/219717.219748"
+            }
+        },
+        {
+            "26": {
+                "title": "A three-way model for collective learning on multi-relational data.",
+                "author": "Maximilian Nickel, Volker Tresp, and Hans-Peter Kriegel. 2011.",
+                "venue": "In Proceedings of the 28th International Conference on Machine Learning, ICML 2011, Bellevue, Washington, USA, June 28 - July 2, 2011, pages 809\u2013816.",
+                "url": "https://icml.cc/2011/papers/438_icmlpaper.pdf"
+            }
+        },
+        {
+            "27": {
+                "title": "GPT-4 technical report.",
+                "author": "OpenAI. 2023.",
+                "venue": "CoRR, abs/2303.08774.",
+                "url": "https://doi.org/10.48550/arXiv.2303.08774"
+            }
+        },
+        {
+            "28": {
+                "title": "Knowledge enhanced contextual word representations.",
+                "author": "Matthew E. Peters, Mark Neumann, Robert L. Logan IV, Roy Schwartz, Vidur Joshi, Sameer Singh, and Noah A. Smith. 2019.",
+                "venue": "In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing, EMNLP-IJCNLP 2019, Hong Kong, China, November 3-7, 2019, pages 43\u201354.",
+                "url": "https://doi.org/10.18653/v1/D19-1005"
+            }
+        },
+        {
+            "29": {
+                "title": "Socialiqa: Commonsense reasoning about social interactions.",
+                "author": "Maarten Sap, Hannah Rashkin, Derek Chen, Ronan Le Bras, and Yejin Choi. 2019.",
+                "venue": "CoRR, abs/1904.09728.",
+                "url": "http://arxiv.org/abs/1904.09728"
+            }
+        },
+        {
+            "30": {
+                "title": "Neural machine translation of rare words with subword units.",
+                "author": "Rico Sennrich, Barry Haddow, and Alexandra Birch. 2016.",
+                "venue": "In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics, ACL 2016, August 7-12, 2016, Berlin, Germany.",
+                "url": "https://doi.org/10.18653/v1/p16-1162"
+            }
+        },
+        {
+            "31": {
+                "title": "GLU variants improve transformer.",
+                "author": "Noam Shazeer. 2020.",
+                "venue": "CoRR, abs/2002.05202.",
+                "url": "http://arxiv.org/abs/2002.05202"
+            }
+        },
+        {
+            "32": {
+                "title": "Mixture-of-experts meets instruction tuning:a winning combination for large language models.",
+                "author": "Sheng Shen, Le Hou, Yanqi Zhou, Nan Du, Shayne Longpre, Jason Wei, Hyung Won Chung, Barret Zoph, William Fedus, Xinyun Chen, Tu Vu, Yuexin Wu, Wuyang Chen, Albert Webson, Yunxuan Li, Vincent Zhao, Hongkun Yu, Kurt Keutzer, Trevor Darrell, and Denny Zhou. 2024.",
+                "venue": "In ICLR.",
+                "url": null
+            }
+        },
+        {
+            "33": {
+                "title": "Unsupervised commonsense question answering with self-talk.",
+                "author": "Vered Shwartz, Peter West, Ronan Le Bras, Chandra Bhagavatula, and Yejin Choi. 2020.",
+                "venue": "In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing, EMNLP 2020, Online, November 16-20, 2020, pages 4615\u20134629.",
+                "url": "https://doi.org/10.18653/v1/2020.emnlp-main.373"
+            }
+        },
+        {
+            "34": {
+                "title": "Conceptnet 5.5: An open multilingual graph of general knowledge.",
+                "author": "Robyn Speer, Joshua Chin, and Catherine Havasi. 2017.",
+                "venue": "In Proceedings of the Thirty-First AAAI Conference on Artificial Intelligence, February 4-9, 2017, San Francisco, California, USA, pages 4444\u20134451.",
+                "url": "http://aaai.org/ocs/index.php/AAAI/AAAI17/paper/view/14972"
+            }
+        },
+        {
+            "35": {
+                "title": "CoLAKE: Contextualized language and knowledge embedding.",
+                "author": "Tianxiang Sun, Yunfan Shao, Xipeng Qiu, Qipeng Guo, Yaru Hu, Xuanjing Huang, and Zheng Zhang. 2020.",
+                "venue": "In Proceedings of the 28th International Conference on Computational Linguistics, pages 3660\u20133670, Barcelona, Spain (Online). International Committee on Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.coling-main.327"
+            }
+        },
+        {
+            "36": {
+                "title": "ERNIE 3.0: Large-scale knowledge enhanced pre-training for language understanding and generation.",
+                "author": "Yu Sun, Shuohuan Wang, Shikun Feng, Siyu Ding, Chao Pang, Junyuan Shang, Jiaxiang Liu, Xuyi Chen, Yanbin Zhao, Yuxiang Lu, Weixin Liu, Zhihua Wu, Weibao Gong, Jianzhong Liang, Zhizhou Shang, Peng Sun, Wei Liu, Xuan Ouyang, Dianhai Yu, Hao Tian, Hua Wu, and Haifeng Wang. 2021.",
+                "venue": "CoRR, abs/2107.02137.",
+                "url": "http://arxiv.org/abs/2107.02137"
+            }
+        },
+        {
+            "37": {
+                "title": "Bootstrapping entity alignment with knowledge graph embedding.",
+                "author": "Zequn Sun, Wei Hu, Qingheng Zhang, and Yuzhong Qu. 2018.",
+                "venue": "In Proceedings of the Twenty-Seventh International Joint Conference on Artificial Intelligence, IJCAI 2018, July 13-19, 2018, Stockholm, Sweden, pages 4396\u20134402.",
+                "url": null
+            }
+        },
+        {
+            "38": {
+                "title": "Rotate: Knowledge graph embedding by relational rotation in complex space.",
+                "author": "Zhiqing Sun, Zhi-Hong Deng, Jian-Yun Nie, and Jian Tang. 2019.",
+                "venue": "In 7th International Conference on Learning Representations, ICLR 2019, New Orleans, LA, USA, May 6-9, 2019.",
+                "url": "https://openreview.net/forum?id=HkgEQnRqYQ"
+            }
+        },
+        {
+            "39": {
+                "title": "Challenging big-bench tasks and whether chain-of-thought can solve them.",
+                "author": "Mirac Suzgun, Nathan Scales, Nathanael Sch\u00e4rli, Sebastian Gehrmann, Yi Tay, Hyung Won Chung, Aakanksha Chowdhery, Quoc V. Le, Ed Chi, Denny Zhou, and Jason Wei. 2023.",
+                "venue": "In Findings of the Association for Computational Linguistics: ACL 2023, Toronto, Canada, July 9-14, 2023, pages 13003\u201313051.",
+                "url": "https://doi.org/10.18653/V1/2023.FINDINGS-ACL.824"
+            }
+        },
+        {
+            "40": {
+                "title": "CommonsenseQA: A question answering challenge targeting commonsense knowledge.",
+                "author": "Alon Talmor, Jonathan Herzig, Nicholas Lourie, and Jonathan Berant. 2019.",
+                "venue": "In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, pages 4149\u20134158, Minneapolis, Minnesota.",
+                "url": "https://doi.org/10.18653/v1/N19-1421"
+            }
+        },
+        {
+            "41": {
+                "title": "Evaluation of chatgpt as a question answering system for answering complex questions.",
+                "author": "Yiming Tan, Dehai Min, Yu Li, Wenbo Li, Nan Hu, Yongrui Chen, and Guilin Qi. 2023.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2303.07992"
+            }
+        },
+        {
+            "42": {
+                "title": "Stanford alpaca: An instruction-following llama model.",
+                "author": "Rohan Taori, Ishaan Gulrajani, Tianyi Zhang, Yann Dubois, Xuechen Li, Carlos Guestrin, Percy Liang, and Tatsunori B. Hashimoto. 2023.",
+                "venue": "https://github.com/tatsu-lab/stanford_alpaca.",
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "Llama: Open and efficient foundation language models.",
+                "author": "Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timoth\u00e9e Lacroix, Baptiste Rozi\u00e8re, Naman Goyal, Eric Hambro, Faisal Azhar, Aur\u00e9lien Rodriguez, Armand Joulin, Edouard Grave, and Guillaume Lample. 2023a.",
+                "venue": "CoRR, abs/2302.13971.",
+                "url": "https://doi.org/10.48550/arXiv.2302.13971"
+            }
+        },
+        {
+            "44": {
+                "title": "Llama 2: Open foundation and fine-tuned chat models.",
+                "author": "Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton-Ferrer, Moya Chen, Guillem Cucurull, David Esiobu, Jude Fernandes, Jeremy Fu, Wenyin Fu, Brian Fuller, Cynthia Gao, Vedanuj Goswami, Naman Goyal, Anthony Hartshorn, Saghar Hosseini, Rui Hou, Hakan Inan, Marcin Kardas, Viktor Kerkez, Madian Khabsa, Isabel Kloumann, Artem Korenev, Punit Singh Koura, Marie-Anne Lachaux, Thibaut Lavril, Jenya Lee, Diana Liskovich, Yinghai Lu, Yuning Mao, Xavier Martinet, Todor Mihaylov, Pushkar Mishra, Igor Molybog, Yixin Nie, Andrew Poulton, Jeremy Reizenstein, Rashi Rungta, Kalyan Saladi, Alan Schelten, Ruan Silva, Eric Michael Smith, Ranjan Subramanian, Xiaoqing Ellen Tan, Binh Tang, Ross Taylor, Adina Williams, Jian Xiang Kuan, Puxin Xu, Zheng Yan, Iliyan Zarov, Yuchen Zhang, Angela Fan, Melanie Kambadur, Sharan Narang, Aur\u00e9lien Rodriguez, Robert Stojnic, Sergey Edunov,\nand Thomas Scialom. 2023b.",
+                "venue": "CoRR, abs/2307.09288.",
+                "url": "https://doi.org/10.48550/ARXIV.2307.09288"
+            }
+        },
+        {
+            "45": {
+                "title": "Wikidata: a free collaborative knowledgebase.",
+                "author": "Denny Vrandecic and Markus Kr\u00f6tzsch. 2014.",
+                "venue": "Commun. ACM, 57(10):78\u201385.",
+                "url": "https://doi.org/10.1145/2629489"
+            }
+        },
+        {
+            "46": {
+                "title": "K-adapter: Infusing knowledge into pre-trained models with adapters.",
+                "author": "Ruize Wang, Duyu Tang, Nan Duan, Zhongyu Wei, Xuanjing Huang, Jianshu Ji, Guihong Cao, Daxin Jiang, and Ming Zhou. 2021a.",
+                "venue": "In Findings of the Association for Computational Linguistics: ACL/IJCNLP 2021, Online Event, August 1-6, 2021, volume ACL/IJCNLP 2021 of Findings of ACL, pages 1405\u20131418.",
+                "url": "https://doi.org/10.18653/v1/2021.findings-acl.121"
+            }
+        },
+        {
+            "47": {
+                "title": "Orthogonal subspace learning for language model continual learning.",
+                "author": "Xiao Wang, Tianze Chen, Qiming Ge, Han Xia, Rong Bao, Rui Zheng, Qi Zhang, Tao Gui, and Xuanjing Huang. 2023.",
+                "venue": "In Findings of the Association for Computational Linguistics: EMNLP 2023, Singapore, December 6-10, 2023, pages 10658\u201310671.",
+                "url": null
+            }
+        },
+        {
+            "48": {
+                "title": "KEPLER: A unified model for knowledge embedding and pre-trained language representation.",
+                "author": "Xiaozhi Wang, Tianyu Gao, Zhaocheng Zhu, Zhengyan Zhang, Zhiyuan Liu, Juanzi Li, and Jian Tang. 2021b.",
+                "venue": "Transactions of the Association for Computational Linguistics, 9:176\u2013194.",
+                "url": "https://doi.org/10.1162/tacl_a_00360"
+            }
+        },
+        {
+            "49": {
+                "title": "Enhancing document-level relation extraction by entity knowledge injection.",
+                "author": "Xinyi Wang, Zitao Wang, Weijian Sun, and Wei Hu. 2022.",
+                "venue": "In The Semantic Web - ISWC 2022 - 21st International Semantic Web Conference, Virtual Event, October 23-27, 2022, Proceedings, volume 13489 of Lecture Notes in Computer Science, pages 39\u201356.",
+                "url": "https://doi.org/10.1007/978-3-031-19433-7_3"
+            }
+        },
+        {
+            "50": {
+                "title": "Enhancing pre-trained language representations with rich knowledge for machine reading comprehension.",
+                "author": "An Yang, Quan Wang, Jing Liu, Kai Liu, Yajuan Lyu, Hua Wu, Qiaoqiao She, and Sujian Li. 2019.",
+                "venue": "In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics, pages 2346\u20132357, Florence, Italy.",
+                "url": "https://doi.org/10.18653/v1/P19-1226"
+            }
+        },
+        {
+            "51": {
+                "title": "The value of semantic parse labeling for knowledge base question answering.",
+                "author": "Wen-tau Yih, Matthew Richardson, Christopher Meek, Ming-Wei Chang, and Jina Suh. 2016.",
+                "venue": "In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics, ACL 2016, August 7-12, 2016, Berlin, Germany.",
+                "url": "https://doi.org/10.18653/v1/p16-2033"
+            }
+        },
+        {
+            "52": {
+                "title": "GLM-130B: an open bilingual pre-trained model.",
+                "author": "Aohan Zeng, Xiao Liu, Zhengxiao Du, Zihan Wang, Hanyu Lai, Ming Ding, Zhuoyi Yang, Yifan Xu, Wendi Zheng, Xiao Xia, Weng Lam Tam, Zixuan Ma, Yufei Xue, Jidong Zhai, Wenguang Chen, Zhiyuan Liu, Peng Zhang, Yuxiao Dong, and Jie Tang. 2023.",
+                "venue": "In The Eleventh International Conference on Learning Representations, ICLR 2023, Kigali, Rwanda, May 1-5, 2023.",
+                "url": "https://openreview.net/pdf?id=-Aw0rrrPUF"
+            }
+        },
+        {
+            "53": {
+                "title": "Root mean square layer normalization.",
+                "author": "Biao Zhang and Rico Sennrich. 2019.",
+                "venue": "In Advances in Neural Information Processing Systems 32: Annual Conference on Neural Information Processing Systems 2019, NeurIPS 2019, December 8-14, 2019, Vancouver, BC, Canada, pages 12360\u201312371.",
+                "url": "https://proceedings.neurips.cc/paper/2019/hash/1e8a19426224ca89e83cef47f1e7f53b-Abstract.html"
+            }
+        },
+        {
+            "54": {
+                "title": "Adaptive budget allocation for parameter-efficient fine-tuning.",
+                "author": "Qingru Zhang, Minshuo Chen, Alexander Bukharin, Pengcheng He, Yu Cheng, Weizhu Chen, and Tuo Zhao. 2023.",
+                "venue": "In The Eleventh International Conference on Learning Representations, ICLR 2023, Kigali, Rwanda, May 1-5, 2023.",
+                "url": "https://openreview.net/pdf?id=lq62uWRJjiY"
+            }
+        },
+        {
+            "55": {
+                "title": "ERNIE: enhanced language representation with informative entities.",
+                "author": "Zhengyan Zhang, Xu Han, Zhiyuan Liu, Xin Jiang, Maosong Sun, and Qun Liu. 2019.",
+                "venue": "In Proceedings of the 57th Conference of the Association for Computational Linguistics, ACL 2019, Florence, Italy, July 28- August 2, 2019, pages 1441\u20131451.",
+                "url": "https://doi.org/10.18653/v1/p19-1139"
+            }
+        },
+        {
+            "56": {
+                "title": "A robustly optimized BERT pre-training approach with post-training.",
+                "author": "Liu Zhuang, Lin Wayne, Shi Ya, and Zhao Jun. 2021.",
+                "venue": "In Proceedings of the 20th Chinese National Conference on Computational Linguistics, pages 1218\u20131227, Huhhot, China.",
+                "url": "https://aclanthology.org/2021.ccl-1.108"
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.14950v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1",
+            "2",
+            "2.1",
+            "2.2"
+        ],
+        "methodology_sections": [
+            "3",
+            "3.1",
+            "3.2",
+            "3.3",
+            "3.4"
+        ],
+        "main_experiment_and_results_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5",
+            "4.6",
+            "4.8",
+            "4.9",
+            "4.10"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "4",
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4",
+            "4.5",
+            "4.6",
+            "4.7",
+            "4.8",
+            "4.9",
+            "4.10"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.14950v1",
+        "paper_title": "KnowLA: Enhancing Parameter-efficient Finetuning with Knowledgeable Adaptation",
+        "research_background": "**Motivation:**\nThe paper is motivated by the increasing prominence of large language models (LLMs) in natural language processing (NLP) and the importance of adapting these models efficiently for specific downstream tasks. Given that LLMs contain billions to potentially trillions of parameters, parameter-efficient finetuning (PEFT) methods have become crucial. Such methods allow for the adaptation of LLMs by finetuning only a small fraction of their parameters using limited instruction data. Common PEFT methods, like LoRA, train small, low-rank adapters to approximate the large layers in LLMs. However, there's a need to further improve the effectiveness of these methods without compromising efficiency. The inspiration comes from the success of knowledge-injected pre-trained language models and their enhancement using knowledge graphs (KGs), which encapsulate a large amount of structured, trustworthy knowledge.\n\n**Research Problem:**\nThe main research problem addressed by the paper is to determine whether knowledge injection can enhance the parameter-efficient finetuning of large language models, particularly using the LoRA method. Specifically, the paper seeks to answer two primary questions:\n1. Can knowledge injection still enhance the PEFT of LLMs?\n2. How can knowledge injection be used to enhance PEFT?\n\n**Relevant Prior Work:**\nThe paper builds on several pertinent areas of prior research:\n1. **Large Language Models (LLMs):** References include Du et al. (2022), OpenAI (2023), and Touvron et al. (2023a), which discuss the burgeoning parameters and applications of LLMs.\n2. **Parameter-efficient Finetuning (PEFT):** The LoRA method by Hu et al. (2022) plays a central role, with enhancements like using quantized weights (Dettmers et al., 2023) mentioned.\n3. **Knowledge Injection in Pre-trained Language Models (PLMs):** Various efforts in incorporating KGs into PLMs have been noted, including works by Zhang et al. (2019), Lauscher et al. (2019), Peters et al. (2019), and others. These studies typically involve integrating pre-trained entity embeddings at the input layer of a model and finetuning it entirely on NLP tasks.\n4. **Limitations in Existing Methods:**\n   - Full finetuning required for PLMs is impractical for LLMs due to their size.\n   - Existing knowledge injection methods are based on encoder-based architectures, and their effectiveness on recent decoder-based LLMs is unknown.\n\nIn summary, the paper proposes a novel knowledgeable adaptation method called KnowLA, aimed at enhancing PEFT for LLMs through the integration of knowledge graphs while maintaining efficiency. The proposed method is tested across various datasets and models, demonstrating effectiveness and robustness.",
+        "methodology": "KnowLA aims to enhance parameter-efficient finetuning (PEFT) by integrating entity embeddings from a knowledge graph (KG) with the hidden states of a large language model (LLM). This process leverages the parameterized knowledge encapsulated within the Transformer layers of LLMs.\n\n1. **Insertion of Adaptation Layer:**\n   - KnowLA inserts a specialized adaptation layer into the LLM.\n   - This layer enables the fusion of entity embeddings from the KG with the LLM's hidden states during PEFT.\n\n2. **Generation and Integration of Entity Embeddings:**\n   - **Representation Learning:** A representation learning model, such as TransE, is used to train and generate entity embeddings from the KG.\n   - **Entity Linking (Module i):** Tokens within an input question are linked to corresponding entities in the KG, creating a set of entities for each token.\n   - **Knowledge Mapping and Injection (Module ii):** The KG's embedding space is mapped to the LLM's representation space. The pre-trained embeddings corresponding to tokens in the input question are then injected into the LLM.\n   - **Knowledge Fusion (Module iii):** The injected entity embeddings are integrated with the token representations within the LLM, thus enriching the contextual representation of each token.\n\n3. **Foundation Model:**\n   - Considering the powerful capabilities, widespread use, and open-source nature of the LLaMA family, it is chosen as the foundational model for building KnowLA.\n\nBy executing these steps, KnowLA aims to enhance the finetuning process of LLMs, making them more knowledgeable and context-aware through the integration of external knowledge from KGs.",
+        "main_experiment_and_results": "### Main Experiment Setup\n\n**Objective:** The main experiment aims to determine whether KnowLA effectively aligns the pre-trained Knowledge Graph (KG) embeddings and the pre-trained Large Language Model (LLM) representations, and whether this alignment enhances the knowledge activation within the LLM.\n\n**Datasets:**\n- **TriviaQA:** A dataset with 100 questions used to explore the knowledge stored in the Feed-Forward Network (FFN) layers of Llama 2 (7B).\n\n**Baselines:**\n- **Llama 2:** The standard pre-trained language model without any modifications.\n- **Alpaca2:** Another fine-tuned variant used for comparison.\n\n**Evaluation Metrics:**\n1. **Attention Weights:** Calculated between tokens and their retrieved top-five similar entity embeddings in the KG to assess semantic correlation.\n2. **Cosine Similarity Difference:** Evaluated by computing the differences between hidden state representations of the last token before and after each FFN layer. This helps gauge the model's knowledge activation capabilities by appreciating the change in token representations across layers.\n3. **Representation Changes:** Visual assessment where red and blue colors indicate the magnitude of changes in last token representations, with red indicating higher changes which imply richer knowledge activation.\n\n### Main Experimental Results\n\n1. **Alignment of KG and LLM Representations:**\n   - **Llama 2:** Showed random patterns in similarities between entity embeddings and token representations.\n   - **KnowLA:** Demonstrated improved accuracy for the most relevant entities post-finetuning. For instance, the token \"underrated\" showed the highest correlation with the entity \"underrated\" in ConceptNet, indicating successful alignment.\n\n2. **Knowledge Activation:**\n   - **Cosine Similarities:**\n     - **KnowLA:** Exhibited greater changes in the representations of the last token after passing through FFN layers compared to both Llama 2 and Alpaca2.\n     - **Llama 2:** Captured less knowledge than Alpaca2.\n   - **Visual Representations:**\n     - Red color, indicating higher representation changes, was predominantly observed in KnowLA for higher FFN layers, suggesting enhanced knowledge activation capabilities.\n\n3. **Overall Performance:**\n   - **KnowLA vs. Baselines:** KnowLA outperformed Alpaca2 by showing enhanced capability for activating richer internal knowledge, especially evident in higher FFN layers which capture more semantic patterns.\n   - **Knowledge Graphs Impact:** Introduced different KGs, ConceptNet produced the best results, emphasizing its role in substantially activating more knowledge within Llama 2.\n\n**Conclusion:** The main experiments confirm that KnowLA enhances the alignment of KG embeddings with LLM representations and increases the knowledge activation, particularly in higher FFN layers, leading to improved performance on knowledge-intensive tasks like TriviaQA."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "Investigate whether the heterogeneous representation spaces of Knowledge Graphs (KGs) and Large Language Models (LLMs) are aligned, and understand how KnowLA works.",
+            "experiment_process": "1. Acquire representations of the input tokens from the 32nd layer of Llama 2. 2. Retrieve top five similar entity embeddings from the KG for each token. 3. Calculate attention weights to establish the relevance between tokens and their corresponding entities. 4. Compare similarities and patterns in the representations before and after the application of KnowLA.",
+            "result_discussion": "After applying KnowLA, the similarities between entity embeddings and token representations show improved accuracy specifically for the most relevant entities. For example, for the token 'underrated', the relevant entities in ConceptNet show higher correlation, demonstrating effective alignment between the KG and LLM through instruction tuning with LoRA.",
+            "ablation_id": "2403.14950v1.No1"
+        },
+        {
+            "research_objective": "Explore the impact of KnowLA on the Feed-Forward Network (FFN) layers of LLMs in activating stored knowledge.",
+            "experiment_process": "1. Compute differences between hidden state representations of the last token before and after each FFN layer in Llama 2. 2. Analyze trends in these differences across 32 layers after inserting KnowLA. 3. Use 100 questions from TriviaQA to explore the stored knowledge in FFN layers. 4. Compute cosine similarities for the last token representations before and after each FFN layer for Llama 2, KnowLA, and Alpaca2.",
+            "result_discussion": "KnowLA enables the LLM to activate richer knowledge at FFN layers by introducing entity embeddings. The representations undergoing KnowLA exhibit greater changes compared to Alpaca2, indicating more internal knowledge capture. KnowLA shows enhanced knowledge activation in higher FFN layers and achieves superior results over Alpaca2, especially when evaluated on TriviaQA.",
+            "ablation_id": "2403.14950v1.No2"
+        },
+        {
+            "research_objective": "Understand the role of KnowLA in knowledge recall within LLMs.",
+            "experiment_process": "1. Incorporate pre-trained KG embeddings into a pre-trained LLM for instruction tuning with LoRA. 2. Acquire the representations of input tokens and retrieve top similar entity embeddings from the KG. 3. Establish the relevance of tokens and corresponding entities using attention weights.",
+            "result_discussion": "KnowLA effectively aligns the heterogeneous representation spaces of the KG and LLM, as indicated by the higher correlation between token representations and relevant entity embeddings after tuning. This alignment contributes to improved knowledge recall in LLMs.",
+            "ablation_id": "2403.14950v1.No3"
+        },
+        {
+            "research_objective": "Study the impact of embedding learning models on the performance of KnowLA.",
+            "experiment_process": "1. Use three KG embedding models: RESCAL, TransE, and RotatE. 2. Obtain entity embeddings of ConceptNet using these models. 3. Evaluate KnowLA with these embeddings on CommonsenseQA, SIQA, and BBH datasets.",
+            "result_discussion": "TransE embeddings achieve the best results due to their good generalization ability. Complex vector representations from RotatE perform subpar, indicating challenges in aligning the complex entity space with LLM\u2019s semantic space during finetuning, potentially losing entity knowledge.",
+            "ablation_id": "2403.14950v1.No4"
+        },
+        {
+            "research_objective": "Evaluate the robustness of KnowLA combined with different LLMs, instruction data, PEFT methods, and ranks.",
+            "experiment_process": "1. Use LLaMA 1 and Vicuna multi-round dialog data to create Vicuna2 and KnowLA (Vicuna2). 2. Replace LoRA with AdaLoRA to create Alpaca2 (AdaLoRA) and KnowLA (AdaLoRA). 3. Finetune Llama 2 using Alpaca data with different ranks. 4. Evaluate performance on CommonsenseQA.",
+            "result_discussion": "KnowLA variants demonstrated stable improvements across different LLMs, instruction data, PEFT methods, and ranks, outperforming all baselines and showcasing robustness.",
+            "ablation_id": "2403.14950v1.No5"
+        }
+    ]
+}

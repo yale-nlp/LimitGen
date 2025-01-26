@@ -1,0 +1,1207 @@
+{
+    "title": "HarmPot: An Annotation Framework for Evaluating Offline Harm Potential of Social Media Text",
+    "abstract": "In this paper, we discuss the development of an annotation schema to build datasets for evaluating the offline harm potential of social media texts. We define \u201charm potential\u201d as the potential for an online public post to cause real-world physical harm (i.e., violence). Understanding that real-world violence is often spurred by a web of triggers, often combining several online tactics and pre-existing intersectional fissures in the social milieu, to result in targeted physical violence, we do not focus on any single divisive aspect (i.e., caste, gender, religion, or other identities of the victim and perpetrators) nor do we focus on just hate speech or mis/dis-information. Rather, our understanding of the intersectional causes of such triggers focuses our attempt at measuring the harm potential of online content, irrespective of whether it is hateful or not. In this paper, we discuss the development of a framework/annotation schema that allows annotating the data with different aspects of the text including its socio-political grounding and intent of the speaker (as expressed through mood and modality) that together contribute to it being a trigger for offline harm. \n\nKeywords:\u2009Offline Harm, Harm Potential, Tagset, HarmPot",
+    "sections": [
+        {
+            "section_id": "1",
+            "parent_section_id": null,
+            "section_name": "1.   Background and Rationale",
+            "text": "India is a country with a rapidly proliferating social media presence with over 700 million users (including 81% of teens). However, despite massive levels of social media usage, digital media literacy remains low in India. A 2020 survey of a \u201chighly educated online sample\u201d of Indians found that roughly 50% of the fake news presented to them was judged as \u201caccurate\u201d or \u201cvery accurate\u201d in their control group (Guess et al., 2020). The wide reach of social media content, the high prevalence of false or misleading information online, and the extreme communalism/groupthink on social media have exacerbated long-standing social divisions in India, coupled with low levels of media discernment skills (Froerer, 2019; Banerjee and Ghosh, 2018). \n\nIndia has now become a hotbed for online content spurring real-world physical violence. Online rumours and hate speech leading to physical violence against targeted communities and the subsequent filming of lynching is no longer uncommon. In 2018, for example, rumours and accusations of certain individuals being child-lifters, primarily spread on social media, led to several instances of mob killings. Online hate has compounded pre-existing lines of oppression, incentivizing the publicizing of violence against targeted groups for the sake of gaining public recognition and even praise. Several incidents of lynching have been triggered by misinformation around caste (Staff, 2020; Sajlan, 2021), love-jihad (Muslim men eloping with Hindu women) (NewIndianXpress, 2018), religious desecration, etc. There are additional contextual triggers that often cause increased levels of online content and subsequent real-world harm. This includes elections (Deka, 2019), where fake news, rumours, misleading, and divisive content are typically spiked for political gains, and global crises like the COVID-19 pandemic (Al-Zaman, 2021), which create a context in which users want \u201csomeone to blame,\u201d often unjustly.\n\nIn the last few years, over 60 datasets of various sizes and kinds, where a wide variety of abusive language have been annotated, have been released publicly (Vidgen and Derczynski, 2020; Poletto et al., 2021). Existing tools such as Hatebase.org, or the Twitter-backed Hate-Lab or a host of other recent studies have focused on identifying abusive language (Nobata et al., 2016; Waseem et al., 2017), toxic language (Kolhatkar et al., 2020; Kaggle, 2020), aggressive language (Haddad et al., 2019; Kumar et al., 2018b; Bhattacharya et al., 2020), offensive language (Chen et al., 2012; Mubarak et al., 2017; Nascimento et al., 2019; de Pelle and Moreira, 2016; Sch\u00e4fer and Burtenshaw, 2019; Zampieri et al., 2019a, 2019b, 2020; Kumar et al., 2021; Steinberger et al., 2017), hate speech (several including Akhtar et al., 2019; Albadi et al., 2018; Alfina et al., 2017; Bohra et al., 2018; Davidson et al., 2017; Malmasi and Zampieri, 2017; Schmidt and Wiegand, 2017; Del Vigna et al., 2017; Fernquist et al., 2019; Ishmam and Sharmin, 2019; Sanguinetti et al., 2018), threatening language (Hammer, 2017), or narrower, more specific dimensions such as sexism (Waseem, 2016; Waseem and Hovy, 2016)), misogyny, Islamophobia (Chung et al., 2019; Vidgen and Yasseri, 2020), and homophobia (Akhtar et al., 2019). Some datasets include a combination of these such as hate speech and offensive language (Martins et al., 2018; Mathur et al., 2018)), or sexism and aggressive language (Bhattacharya et al., 2020). However, while most of these datasets and frameworks aim to model whether hate or offensive speech has been used or not, there has been no dataset or framework that could directly model the relationship and interdependence of online content and offline incidents of harm and violence. \n\nIn this paper, we discuss the development of a framework - HarmPot - that could be used for annotating the text with textual and contextual information such that the annotated dataset could be used for training models that could predict the offline harm potential of online content. In the following"
+        },
+        {
+            "section_id": "2",
+            "parent_section_id": null,
+            "section_name": "2.   The HarmPot Framework",
+            "text": "\u201cHarm Potential\u201d (HarmPot) could be defined as the potential for an online public post to cause offline, real-world physical harm (i.e., violence). Targeted real-world violence is often spurred by a web of triggers, often combining several online tactics and pre-existing intersectional fissures in the social milieu. As such, we do not focus on any single divisive aspect (i.e., caste, gender, religion, or other identities of the victim and perpetrators) nor do we focus on just hate speech or mis/dis-information. Rather, we focus on marking the harm potential of online content within a specific set of intersectional, contextual factors, irrespective of whether it is hateful or not. The HarmPot framework is designed with the aim of answering the following set of questions with respect to a given text: Who is being talked to, when, how, why, and all this results in what magnitude of harm potential for the addressee? Each of these questions is answered by using a set of parameters, defined in our tagset. We discuss each of these in the following subsections.\n\nA text will be marked as having \u20180\u2019 harm potential in the following cases:\n\n- Texts which are a part of the dataset but do not actually relate to any specific incident of violence or larger narrative campaign.\n- Texts which are blurbs accompanying links to news reports.\n- Texts that criticise public figures and not protected identities.\n\nA text will be marked as having \u20181\u2019 harm potential if it is likely to lead to offline harm in very few, specific contexts but more generally is not expected to trigger incidents of offline harm. The most stereotypical instances of such texts include:\n\n- Texts that target communities by using slurs and pejorative terms.\n- Texts that reinforce negative stereotypes regarding a particular community.\n\nA text that is likely to trigger offline harm in most of the contexts - it is only in very specific contexts that it may not be interpreted as a call to violence - is marked as \u20182\u2019 on the harm potential scale. Some of the most stereotypical instances of such texts include:\n\n- Explicit cases of attack or accusations against communities.\n- Justifying violence or discrimination against communities.\n\nAny text that has a high potential of triggering offline harm, irrespective of the context that it occurs in is marked as \u20183\u2019 on the harm potential scale. Instances of such texts include:\n\n- Explicit and clear calls to violence against communities or people.\n- Explicit and clear attempts to instigate violence against communities or people.\n\nThe magnitude of harm potential is marked at two levels:\n\n- Text Span: It is marked in conjunction with specific spans of text that are used to refer to specific identities. It refers to the potential of that specific span of text to trigger offline harm/violence against specific identities.\n- Document: It is the overall harm potential of the document - generally it is calculated based on the harm potential of individual spans; however, in cases where none of the spans refers to specific identities then an overall harm potential of the document is independently ascertained."
+        },
+        {
+            "section_id": "2.1",
+            "parent_section_id": "2",
+            "section_name": "2.1.   Magnitude of Harm Potential",
+            "text": "Depending on what kind of offline harm the text could lead to, we define two broad kinds of harm potential -\n\nPhysical Harm Potential: It defines the potential of a text to lead to acts of physical violence such as murder, mob lynching, thrashing, and beating.\n\nSexual Harm Potential: It defines the potential of a text to lead to acts of sexual violence such as rape (or rape threats), molestation, and sexual harassment.\n\nBoth of these harm potentials are classified on a scale of 0 - 3, defined below.\n\nA text will be marked as having \u20180\u2019 harm potential in the following cases:\n- Texts which are a part of the dataset but do not actually relate to any specific incident of violence or larger narrative campaign.\n- Texts which are blurbs accompanying links to news reports.\n- Texts that criticise public figures and not protected identities.\n\nA text will be marked as having \u20181\u2019 harm potential if it is likely to lead to offline harm in very few, specific contexts but more generally is not expected to trigger incidents of offline harm. The most stereotypical instances of such texts include:\n- Texts that target communities by using slurs and pejorative terms.\n- Texts that reinforce negative stereotypes regarding a particular community.\n\nA text that is likely to trigger offline harm in most of the contexts - it is only in very specific contexts that it may not be interpreted as a call to violence - is marked as \u20182\u2019 on the harm potential scale. Some of the most stereotypical instances of such texts include:\n- Explicit cases of attack or accusations against communities.\n- Justifying violence or discrimination against communities.\n\nAny text that has a high potential of triggering offline harm, irrespective of the context that it occurs in is marked as \u20183\u2019 on the harm potential scale. Instances of such texts include:\n- Explicit and clear calls to violence against communities or people.\n- Explicit and clear attempts to instigate violence against communities or people.\n\nThe magnitude of harm potential is marked at two levels -\n- Text Span: It is marked in conjunction with specific spans of text that are used to refer to specific identities. It refers to the potential of that specific span of text to trigger offline harm/violence against specific identities (refer to Section 2.2 for details).\n- Document: It is the overall harm potential of the document - generally, it is calculated based on the harm potential of individual spans; however, in cases where none of the spans refers to specific identities, then an overall harm potential of the document is independently ascertained."
+        },
+        {
+            "section_id": "2.2",
+            "parent_section_id": "2",
+            "section_name": "2.2.   Who is being talked to?",
+            "text": "This parameter is used to identify the specific types of identities that are \u2018mentioned/referred\u2019 (and not necessarily targeted) in a particular \u2018span of text\u2019. We discuss the various ontological types of identities that can be potentially targeted in a text. Since this parameter works with the magnitude of harm potential, a text span which simply mentions an identity without targeting it will have \u20180\u2019 harm potential.\n\nThere are three broad annotation instructions for this parameter:\n\nIntersectionality: If more than one identity of the same individual is referred to (e.g., Female Dalit or Pakistani Hindu), then the same span is marked with all the identities and the same harm potential is ascribed in all instances. If different identities are mentioned in different spans, then also different spans will carry the same harm potential, considering it an instance of intersectionality.\n\nMultiple Identities: If different identities of different individuals are referred to, they might have different harm potential.\n\nMultiple Spans: If more than one span refers to the same identity of the same or different persons, each span could potentially have different harm potentials.\n\nThe framework itself does not enforce a specific set of identities to be marked. However, for the current project, the following non-exhaustive set of identities have been marked in the dataset. If needed, more, fewer or different kinds of specific subtypes of these categories may also be marked in the text. For each identity and its sub-category, a set of additional guidelines was used for deciding whether its harm potential is \u20180\u2019 or not. If it\u2019s not \u20180\u2019, then the guidelines for marking the magnitude of harm potential are to be used.\n\nCaste: A span is annotated as targeting this identity if there are threats of violence, justification for caste-based discrimination, justification and support for untouchability, and criticism of reservation (affirmative action) policy that questions the intellectual capability of these groups.\n\nReligion: A span is annotated as targeting a member of a religious community if it calls for or justifies violence against them. Propounding or justifying conventional stereotypes associated with the members of such communities or using religious slurs will also have a harm potential greater than \u20180\u2019. For example, Muslims being called terrorists or jihadis, Muslims and Christians being targeted for alleged forced conversions, and Sikhs being called Khalistanis or secessionists.\n\nDescent: For our specific case, descent encompasses all identities based on inherited status. This includes ethnicity, race, and place of origin (including linguistic or cultural minorities) of a victim (but not caste given its prevalence in the Indian context). Spans supporting or justifying attacks based on places of origin are annotated under this category.\n\nGender: This label annotates spans attacking gender minorities (LGBTQIA+ community) and women. Spans propounding or justifying conventional stereotypes or using gendered slurs are also marked with non-zero harm potential.\n\nPolitical Ideology: Political violence, including murder, lynching, thrashing, etc., of opposing party members or people of different political ideologies happens regularly. Spans calling for or justifying violence, supporting discrimination, or furthering stereotypes against the supporters of a political party or ideology are assigned harm potential greater than \u20180\u2019. However, criticism of the political ideologies, political leaders, policies, etc., are assigned a \u20180\u2019 harm potential."
+        },
+        {
+            "section_id": "2.3",
+            "parent_section_id": "2",
+            "section_name": "2.3.   When is the discourse happening?",
+            "text": "This parameter indicates if a text is posted online in relation to or during a major, public event or happening that might add to its harm potential. The harm potential of the content may increase when posted during or before such sensitive occasions and may lead to real-world violence in the form of mob lynchings and even ethnic cleansing. The major categories that we marked under this parameter are discussed below. This parameter is marked at the text/document level and the same text could take multiple labels. Since generally the dates of the events are already well-known, these labels could be mostly assigned automatically and could be seen as a grouping of multiple dates in a single category.\n\nRiots: In general, violent public disorders are referred to as riots. In India, in the past few years, hate speeches in social media have made a significant contribution to the amplification of violence during the riots. As such posts related to riots at the time of riots (or otherwise) are likely to have higher harm potential than otherwise.\n\nElections: Elections in India often see violence by supporters of rival political parties, and they are adopted in various themes such as communalism, terrorism allegations, anti-national, systemized threats and disruption of harmony.\n\nPandemic\n\nExtremist Attack: An extremist attack on state forces or the public may also lead to online hate against particular communities. The Pulwama suicide attack of February 2019 in India led to widespread hate speech and real-world violence against Kashmiri Muslims throughout India.\n\nFestivals: Religious festivals have recently become flashpoints for communal violence with different sides accusing each other of attacking processions or interfering with rituals. Online hate and disinformation often spikes during these situations.\n\nGroup-Specific State Decisions: This context pertains to when the government introduces or implements legislation/decisions affecting a particular community. The government\u2019s decisions may be criticized or protested against by the community followed by online and offline attacks by the government\u2019s supporters. Recent examples in India have been the Citizenship Amendment Act, Farm Laws and the abrogation of Article 370.\n\nGeneric: These refer to the posts related to the incidents that are recurring in nature (like the previous factors) but generally do not have a fixed or predetermined start or end time (viz. mob lynching on the suspicion of being child-lifters or those related to cow vigilantism in India).\n\nOthers: The posts that do not co-occur with any of the above-mentioned contextual factors - seemingly one-off incidents of hate and violence at no specific time - are marked as others."
+        },
+        {
+            "section_id": "2.4",
+            "parent_section_id": "2",
+            "section_name": "2.4.   How is it being said?",
+            "text": "Since we focus on the harm potential of social media content, the methodology developed here is sensitive to the fact that the core objects of study are linguistic events themselves. It is essential to model the textual features, including lexical, syntactic, and semantic properties, alongside the contextual features. For the current project, we have defined a set of semantic features, specifically mood and modality, and lexical features such as affective expressions, which are marked in the text. Morphosyntactic features can be marked automatically using existing systems or implicitly learned by modern transformers-based multilingual models, so we have not marked those separately. The labels for this parameter are marked at the span level and generally overlap with the spans of the \u2018who\u2019 parameter.\n\nThere is an abstract link between the language a speaker uses to convey harm and how that language is structured to reflect the speaker\u2019s intentions and evaluation of what they say as possible or necessary. Variation in the speaker\u2019s intention and their evaluation of what they say can significantly impact the harm potential. These can be modeled using the linguistic categories of mood and modality.\n\nWe discuss the different subtypes of these two categories used for annotation below:\n\n**Mood Type:** Mood is a grammatical reflection of the speaker\u2019s purpose in speaking or an indication of what the speaker wants to do with the proposition in a particular discourse context. The grammatical form changes depending on whether the speaker discusses a situation that has or will actualize or an event that has not. We annotate three broad kinds of mood types:\n\n- **Realis Mood:** Portrays situations as actualized, knowable through direct perception. Indicative mood usually embodies the realis mood.\n\n- **Irrealis Mood:** Portrays situations as within the realm of thought, knowable only through imagination. It denotes actions not known to have happened, including modality-marked constructions, conditionals, counterfactuals, optatives, hortatives, and subjunctives.\n\n- **Neither:** Includes imperatives, interrogatives, future-tense marked constructions, and negative constructions.\n\n**Illocutionary Mood:** This draws on the idea of illocution acts, encoding speaker intention as a category of mood. Certain illocutionary acts map onto specific grammatical forms. We use these subtypes:\n\n- **Declaratives:** Can be \u2018direct\u2019 or \u2018indirect,\u2019 such as rhetorical questions, which can assert something indirectly.\n\n- **Interrogatives**\n\n- **Imperatives:** Commands, requests, advice, pleas, permissions, offers, or invitations.\n\n- **Admonitive:** Warnings issued to the addressees.\n\n- **Prohibitive:** Curtail the addressee\u2019s actions.\n\n- **Hortative:** Softened commands or exhortations, often using first-person inclusive reference.\n\n- **Optative:** Express a wish or desire for a situation to occur.\n\n- **Imprecative:** Indicates a wish for an unfavorable proposition.\n\n- **Exclamative**\n\n**Modality:** Modality modifies a state of affairs concerning how the basic event is construed by the speaker, indicating if the event is \u2018possible\u2019 or \u2018necessary.\u2019 We use these modalities:\n\n- **Epistemic:** Concerns the speaker\u2019s estimation of the likelihood of the state of affairs being true.\n\n- **Deontic:** Indicates the degree of moral desirability of the state of affairs, including societal norms and personal ethics.\n\n- **Dynamic:** Relates to the ability or necessity concerning participants, external circumstances, or inherent state of affairs.\n\n- **Teleological:** Concerns means that are possible or necessary for achieving a goal.\n\nIn addition to these, affective expressions are marked if a word conveys the speaker\u2019s evaluative attitude or emotional state towards the information conveyed by the sentence."
+        },
+        {
+            "section_id": "2.5",
+            "parent_section_id": "2",
+            "section_name": "2.5.   Why is it being said?",
+            "text": "This parameter analyses the discursive role of the text placed within its context and checks for the reason or rationale behind posting the text. It is a direct induction of the \u2018discursive roles\u2019 by Kumar et al. (2022a  ###reference_b66###) in this framework. We discuss the five categories and their relationship to the magnitude of harm potential here -\n\nAttack: This label is used when any comment/post poses an attack on any individual or group based on any of their identities. Not all attacks are accompanied by a positive harm potential. For example, criticisms, which are not likely to trigger real-world harm against them are tagged as \u2018attack\u2019 with harm potential \u20180\u2019.\n\nDefend: This label is used when any comment/post defends or counter-attacks a previous comment/post. Again not all instances of defend have \u20180\u2019 harm potential - in instances where the defense of the perceived \u2018victim\u2019 has the possibility of triggering real-world harm against the attacker, they are marked with non-zero harm potential.\n\nAbet: This label is used when any comment/post lends support and/or encourages an aggressive act which has a harm potential.\n\nInstigate: This label is used when any comment/post encourages someone to perform an aggressive act. The comment itself may or may not be aggressive but the purpose must be to instigate an act that is potentially harmful in the real world. Instigation happens before the event and its purpose is to trigger or provoke a harmful act unlike abet which occurs during or after the harmful act and its purpose is to praise, support, and/or encourage that act as well as other such acts in the future.\n\nCounterspeech: Texts that diffuse the potentially harmful situation will be tagged as counterspeech. Just as influential speakers can make violence seem acceptable and necessary, they can also favourably influence discourse through counterspeech."
+        },
+        {
+            "section_id": "3",
+            "parent_section_id": null,
+            "section_name": "3.   Data Collection and Annotation",
+            "text": "The framework discussed in Section 2 is developed over several stages and iterations. In order to test the reliability and validity of the framework, we collected a dataset from different social media platforms and annotated those using the framework. As a first step towards data collection, we focused on a few incidents of physical harm (riots, lynchings, etc.) that had a link to online disinformation and hate campaigns from 2016 \u2013 2022. This time period was decided given the introduction of low-cost data and smartphones by Reliance Jio in 2016, which led to a manifold increase in per-capita data usage. Finding relevant government-published data related to hate crimes was a challenge as the Indian government stopped collecting data on hate crimes in 2017. Therefore, we decided to use databases from non-governmental organizations like Documentation of the Oppressed (DOTO). This database consisted of a list of over 1,100 incidents of offline hate crimes and violence since 2016. Out of these, we sampled a little over 150 crimes since they had a link to social media discourse. We extracted social media data related to these incidents from different social media platforms viz Twitter, YouTube, Facebook, Telegram, and WhatsApp. We also ensured that we collected data both from before and after the incident separately. This approach ensured that we got data that had links to offline harm incidents so they could be considered as potential triggers for the offline harm incident; at the same time, we also got data that might be triggers for a related post-event incident. We collected a total of over 417,000 data points in Hindi and English using this methodology. The complete dataset, along with the hate crimes they were associated with, will be released publicly for further research."
+        },
+        {
+            "section_id": "3.1",
+            "parent_section_id": "3",
+            "section_name": "3.1.   Inter-Annotator Agreement",
+            "text": "Approximately 5 - 10 data points were selected from approximately 50 incidents for running the inter-annotator agreement experiments. Each of these was annotated by 3 annotators and Krippendorff\u2019s Kappa was calculated for the magnitude of harm potential. The first round of experiments with around 500 data points gave a rather dismal Kappa of 0.25. Following this, we made certain changes to the tagset such as merging different categories to reduce overlap across categories (for example, race, ethnicity and nationality under \u2018Who\u2019 were combined into a single category of \u2018Descent\u2019) and introducing new categories to better classify different kinds of categories (for example, several new categories under mood and modality were added for a better analysis). We also made changes to the annotation guidelines for clarity. These changes led to significant improvements in the alpha - the second round of experiments gave a final value of 0.53.\n\nWhile the Kappa value still remained low, for a highly subjective task such as predicting the magnitude of harm potential as reasonably good. We started conducting focus group discussions to understand the reason behind disagreements. As it has been argued earlier as well (for example, Kumar et al. (2022b  ###reference_b67###) and also the Perspectivist Data Manifesto 444http://pdai.info/  ###reference_dai.info/###), most of these disagreements seemed reasonable. As such we decided not to push for further agreement - instead, we will be making the disaggregated annotations by different annotators publicly available."
+        },
+        {
+            "section_id": "3.2",
+            "parent_section_id": "3",
+            "section_name": "3.2.   Data Annotation",
+            "text": "We have annotated a total dataset of approximately 2,000 data points (taking around 15 - 20 data points from over 100 incidents) to demonstrate the validity of the presented framework. We made use of an online app - LiFE App (Singh et al., 2022) - for data annotation since it allowed us to annotate the data simultaneously at the document and the span level. Each data point was annotated by 3 annotators working independently."
+        },
+        {
+            "section_id": "4",
+            "parent_section_id": null,
+            "section_name": "4.   HarmPot and Other Frameworks: A Comparison",
+            "text": "As we mentioned earlier, most of the existing frameworks attempt to only model hateful, aggressive, offensive (or one of the other similar flavours) speech but do not attempt to predict the potential of the text to trigger offline harm incidents. However, such language usage is expected to have some correlation with offline harm. Moreover, prior studies have also pointed out the need to flesh out the interrelationship between different frameworks so as to ensure interoperability and cross-use of datasets annotated with different hate speech frameworks (Poletto et al., 2021; Kumar et al., 2022b). In order to understand this relationship, we carried out a comparative study between our framework and three of the other popular frameworks. We took 500 texts annotated with each of these different frameworks, annotated those with the HarmPot framework and carried out a comparative study. The results of these are discussed in the following subsections."
+        },
+        {
+            "section_id": "4.1",
+            "parent_section_id": "4",
+            "section_name": "4.1.   HarmPot and HASOC",
+            "text": "The first level of the schema distinguishes between Hate and Offensive (HOF) and Not hate and offensive (NOT). The second level of the schema classified HOF into three classes - Hate, Offensive, and Profane. In certain editions, the second level of the schema was a multiclass annotation indicating Standalone Hate (hate by itself), Contextual Hate (hate in the context of its parent), and Non-hate (not hate by itself).\n\nWe took a total of 500 texts from selected editions of the task and annotated those using the HarmPot framework to understand their interrelationship. The study showed that most of the NOT texts had \u20180\u2019 harm potential but the vice-versa was not necessarily true. On the other hand, probably because of the broad definition of HOF (which includes texts with swear words and profanity), at least some of the offensive texts carried \u20181\u2019 and even \u20180\u2019 harm potential. At the second level, the mapping becomes clearer as most of the \u2018Profane\u2019 texts are marked with \u20181\u2019 or \u20180\u2019 harm potential, and most of the \u2018hate\u2019 texts were marked as \u20183\u2019 harm potential (or in some cases \u20182\u2019 as well). The offensive texts were marked with \u20182\u2019, \u20181\u2019 and even \u20180\u2019 harm potential.\n\nLevel 2 of certain editions, which mark whether it is contextual or standalone hate, do not have a direct relationship to any of the levels in HarmPot. The main reason is that our definition of \u2018context\u2019 is more rooted in how it is defined in discourse analysis and pragmatics as different socio-cultural factors affecting the interpretation of the text (and not just parent/previous text in the thread)."
+        },
+        {
+            "section_id": "4.2",
+            "parent_section_id": "4",
+            "section_name": "4.2.   HarmPot and OLID",
+            "text": "The Offensive Language Identification Dataset (OLID) contains a collection of over 14k annotated English tweets using a three-level annotation framework. Level A distinguishes between Offensive and Non-offensive texts. At Level B, offensive texts are further classified into targeted and untargeted insults. Level C categorises targeted insults into Individual, Group, and Other targets. For level A, the analysis was consistent with broader findings on offensive language. In the subsequent levels, the framework focuses on the nature of the offensive content, particularly identifying the targets of the insults. HarmPot differentiates by assessing specific identities, whether they pertain to individuals or groups. Any texts with mentions of identifiable categories and deemed harmful were classified as \u2018Targeted Insult\u2019 at OLID\u2019s Level B. Texts using inappropriate language not directly causing harm were often marked as \u2018Untargeted\u2019, with varying degrees of harm potential. For Level C, insults tagged as \u2018Individual\u2019 or \u2018Group\u2019 aligned with identity-based target identification in HarmPot. Texts tagged as \u2018Other\u2019 had less predictable mappings but were few in number. The mapping between these categories and harm potential is complex. The tentative alignment of the OLID framework with HarmPot analysis is detailed in a summary table."
+        },
+        {
+            "section_id": "4.3",
+            "parent_section_id": "4",
+            "section_name": "4.3.   HarmPot and ComMA",
+            "text": "The top level of the framework distinguishes between overtly, covertly, and non-aggressive texts. At the second level, the aggression intensity of the aggressive texts\u2014physical threat, sexual threat, non-threatening aggression, and curse/abuse\u2014are marked. Additionally, bias and threats of four kinds\u2014religious, caste/class, gender, and racial/ethnic\u2014are marked. It also marks the discursive roles\u2014attack, defend, counterspeech, abet and instigate, and gaslighting\u2014of the text. These discursive roles are incorporated in the HarmPot framework. Since social or physical \u2018harm\u2019 is inherent to the idea of aggression, we expected a good mapping between the notion of verbal aggression and the harm potential of a text. \n\nThe study showed that most of the non-aggressive texts (NAG) are at Level 0, but the vice-versa is not necessarily true. Also, most of the \u2018covertly aggressive\u2019 (CAG) texts are categorized with level \u20181\u2019 harm potential. At the second level, physical and sexual threats were mostly marked as having \u20182\u2019 or \u20183\u2019 harm potential, while non-threatening aggression is mostly marked as \u20181\u2019. Some of the curse/abuse texts were also marked with \u20180\u2019 harm potential. At the level of threat and bias, even though religious, caste, and gender bias have direct parallels in HarmPot since we are marking all mentions of these identities and not just biased or threatening ones, the instances of such spans were higher in our case. However, threats generally carried a harm potential of \u20182\u2019 or \u20183\u2019 while bias carried a harm potential of \u20181\u2019 or \u20182\u2019. Some comments carried a harm potential of \u20181\u2019 or even \u20182\u2019. Moreover, the dataset marks the biases at the document level while HarmPot marks these at the span level."
+        },
+        {
+            "section_id": "5",
+            "parent_section_id": null,
+            "section_name": "5.   Conclusion",
+            "text": "In this paper, we have presented a new framework that could be used for annotating social media text with its potential for triggering offline harm. The framework incorporates contextual information such as the identity of the victim (as mentioned/referred to in the text), the broad socio-political situation in which the post is situated, and the role that the text assumes in the discourse. We have also proposed using mood and modality as relevant categories for marking the speaker\u2019s intention, intended goal, and their own evaluation of whether what they are saying is \u2018necessary\u2019 or \u2018possible\u2019. These semantic categories have been rarely utilised in NLP but they could prove to be extremely useful in the identification of subjective phenomena like harm potential. We have annotated a total dataset of 4,000 texts - 2,000 related to the possible triggers of offline harm incidents and another 2,000 from datasets available for aggressive and hateful language identification. We are currently annotating some more data and also conducting experiments for the automatic identification of harm potential to understand the practical efficacy of the framework."
+        },
+        {
+            "section_id": "6",
+            "parent_section_id": null,
+            "section_name": "6.   Ethical Considerations",
+            "text": "The nature of the task - the creation of datasets with high harm potential and its annotation - in itself raises several ethical issues of bias and psychological impact on the annotators working with the data. In order to reduce the impact of working with such data, we took 3 steps - (a) a \u2018maximum\u2019 limit of 200 texts per week was set for the annotators - the annotators were barred from going through more than this number of texts in a week; (b) we had made arrangements for psychological counselling of the annotators working on the data; (c) a compulsory weekly \u2018venting out\u2019 meeting was organised to enable annotators to talk to each other and other members of the project that allowed them to talk about, discuss and (hopefully) figure out the ridiculousness of the data that they were going through. We made a very conscious decision not to use crowdsourcing or even third-party annotators for data annotation and collection so as to ensure that these mechanisms are put in place.\nIn order to minimise the bias in the annotations and also make different perspectives on the data public, we have decided to release the disaggregated dataset with the annotations of all the annotators (with their disagreements). We were very conscious not to push for an agreement where it was not possible. Moreover, our in-house annotators were from mutually distinct socio-political, religious, cultural, and educational backgrounds, providing an innate cancelling out of any one type of bias overpowering the data analysis and interpretation - we have tried to annotate the data in such a way as to reflect different perspectives on the data (and not propound a single, homogeneous view)."
+        },
+        {
+            "section_id": "7",
+            "parent_section_id": null,
+            "section_name": "7.   Limitations",
+            "text": "One of the primary limitations of the framework and the dataset is the lack of multimodal information being included in it. A large number of hateful and abusive language used on social media, with a high potential for harm, is expected to be accompanied by visuals including images and video. We are working on expanding the dataset to include multimodal data and see how well the framework adapts to that and also what kind of modifications would be needed for handling those cases. The second limitation is the pipeline-based workflow that the framework enforces, which has a greater chance of error propagation - if, for example, the system makes an error in recognising mood and modality, that might ultimately lead to an error in the prediction of harm potential itself. This is a general limitation of the hierarchical frameworks."
+        },
+        {
+            "section_id": "8",
+            "parent_section_id": null,
+            "section_name": "8.   Bibliographical References",
+            "text": ""
+        }
+    ],
+    "appendix": [],
+    "tables": {
+        "1": {
+            "table_html": "<figure class=\"ltx_table\" id=\"S4.T1\">\n<table class=\"ltx_tabular ltx_centering ltx_align_middle\" id=\"S4.T1.19\">\n<tr class=\"ltx_tr\" id=\"S4.T1.19.20\">\n<td class=\"ltx_td ltx_align_center ltx_border_l ltx_border_r ltx_border_t\" colspan=\"4\" id=\"S4.T1.19.20.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.19.20.1.1\">HASOC Framework</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.21\">\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"S4.T1.19.21.1\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.21.2\">Level A</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.21.3\">Level B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.21.4\">Span</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.5.5\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T1.5.5.6\">HarmPot Harm Potential</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.2.2.2\">\n<span class=\"ltx_text\" id=\"S4.T1.2.2.2.3\"></span> <span class=\"ltx_text\" id=\"S4.T1.2.2.2.2\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.2.2.2.2.2\">\n<span class=\"ltx_tr\" id=\"S4.T1.1.1.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.1.1.1.1.1.1.1\">HOF </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.2.2.2.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.2.2.2.2.2.2.1\">NOT </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.2.2.2.4\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.5.5.5\">\n<span class=\"ltx_text\" id=\"S4.T1.5.5.5.4\"></span> <span class=\"ltx_text\" id=\"S4.T1.5.5.5.3\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.5.5.5.3.3\">\n<span class=\"ltx_tr\" id=\"S4.T1.3.3.3.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.3.3.3.1.1.1.1\">Offensive </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.4.4.4.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.4.4.4.2.2.2.1\">Hate </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.5.5.5.3.3.3\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.5.5.5.3.3.3.1\">Profane </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.5.5.5.5\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.5.5.7\">\u2013</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.7.7\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T1.7.7.3\">HarmPot \u2018Who\u2019</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.7.7.4\">\u2013</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.7.7.5\">\u2013</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.7.7.2\">\n<span class=\"ltx_text\" id=\"S4.T1.7.7.2.3\"></span> <span class=\"ltx_text\" id=\"S4.T1.7.7.2.2\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.7.7.2.2.2\">\n<span class=\"ltx_tr\" id=\"S4.T1.6.6.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.6.6.1.1.1.1.1\"></span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.7.7.2.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.7.7.2.2.2.2.1\">HASOC </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.7.7.2.4\"></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.22\">\n<td class=\"ltx_td ltx_align_center ltx_border_l ltx_border_r ltx_border_t\" colspan=\"4\" id=\"S4.T1.19.22.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.19.22.1.1\">OLID Framework</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.23\">\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"S4.T1.19.23.1\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.23.2\">Level A</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.23.3\">Level B</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.23.4\">Level C</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.11.11\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T1.11.11.5\">HarmPot Harm Potential</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.9.9.2\">\n<span class=\"ltx_text\" id=\"S4.T1.9.9.2.3\"></span> <span class=\"ltx_text\" id=\"S4.T1.9.9.2.2\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.9.9.2.2.2\">\n<span class=\"ltx_tr\" id=\"S4.T1.8.8.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.8.8.1.1.1.1.1\">OFF </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.9.9.2.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.9.9.2.2.2.2.1\">NOT </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.9.9.2.4\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.10.10.3\">\n<span class=\"ltx_text\" id=\"S4.T1.10.10.3.2\"></span> <span class=\"ltx_text\" id=\"S4.T1.10.10.3.1\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.10.10.3.1.1\">\n<span class=\"ltx_tr\" id=\"S4.T1.10.10.3.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.10.10.3.1.1.1.1\">TIN </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.10.10.3.1.1.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.10.10.3.1.1.2.1\">{Caste, Religion\u2026} }</span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.10.10.3.3\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.11.11.4\">\n<span class=\"ltx_text\" id=\"S4.T1.11.11.4.2\"></span> <span class=\"ltx_text\" id=\"S4.T1.11.11.4.1\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.11.11.4.1.1\">\n<span class=\"ltx_tr\" id=\"S4.T1.11.11.4.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.11.11.4.1.1.1.1\">{IND,GRP} </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.11.11.4.1.1.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.11.11.4.1.1.2.1\">{Caste, Religion\u2026}</span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.11.11.4.3\"></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.24\">\n<td class=\"ltx_td ltx_align_center ltx_border_l ltx_border_r ltx_border_t\" colspan=\"4\" id=\"S4.T1.19.24.1\"><span class=\"ltx_text ltx_font_bold\" id=\"S4.T1.19.24.1.1\">ComMA Framework</span></td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.25\">\n<td class=\"ltx_td ltx_border_r ltx_border_t\" id=\"S4.T1.19.25.1\"></td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.25.2\">Aggression</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.25.3\">Aggression Intensity</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.19.25.4\">Threat and Bias</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.16.16\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T1.16.16.6\">HarmPot Harm Potential</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.14.14.3\">\n<span class=\"ltx_text\" id=\"S4.T1.14.14.3.4\"></span> <span class=\"ltx_text\" id=\"S4.T1.14.14.3.3\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.14.14.3.3.3\">\n<span class=\"ltx_tr\" id=\"S4.T1.12.12.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.12.12.1.1.1.1.1\">OAG </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.13.13.2.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.13.13.2.2.2.2.1\">CAG </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.14.14.3.3.3.3\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.14.14.3.3.3.3.1\">NOT </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.14.14.3.5\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.16.16.5\">\n<span class=\"ltx_text\" id=\"S4.T1.16.16.5.3\"></span> <span class=\"ltx_text\" id=\"S4.T1.16.16.5.2\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.16.16.5.2.2\">\n<span class=\"ltx_tr\" id=\"S4.T1.15.15.4.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.15.15.4.1.1.1.1\">{PTH, STH} </span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.16.16.5.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.16.16.5.2.2.2.1\">NtAG, CuAG </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.16.16.5.4\"></span>\n</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.16.16.7\">\u2013</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.18.18\">\n<td class=\"ltx_td ltx_align_center ltx_border_r ltx_border_t\" id=\"S4.T1.18.18.3\">HarmPot \u2018Who\u2019</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.18.18.4\">\u2013</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.18.18.5\">\u2013</td>\n<td class=\"ltx_td ltx_align_center ltx_border_t\" id=\"S4.T1.18.18.2\">\n<span class=\"ltx_text\" id=\"S4.T1.18.18.2.3\"></span> <span class=\"ltx_text\" id=\"S4.T1.18.18.2.2\">\n<span class=\"ltx_tabular ltx_align_middle\" id=\"S4.T1.18.18.2.2.2\">\n<span class=\"ltx_tr\" id=\"S4.T1.17.17.1.1.1.1\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.17.17.1.1.1.1.1\"></span></span>\n<span class=\"ltx_tr\" id=\"S4.T1.18.18.2.2.2.2\">\n<span class=\"ltx_td ltx_align_center\" id=\"S4.T1.18.18.2.2.2.2.1\">ComMA </span></span>\n</span></span> <span class=\"ltx_text\" id=\"S4.T1.18.18.2.4\"></span>\n</td>\n</tr>\n<tr class=\"ltx_tr\" id=\"S4.T1.19.19\">\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_r ltx_border_t\" id=\"S4.T1.19.19.2\">HarmPot \u2018Why\u2019</td>\n<td class=\"ltx_td ltx_align_center ltx_border_b ltx_border_t\" colspan=\"3\" id=\"S4.T1.19.19.1\">ComMA \n</td>\n</tr>\n</table>\n<figcaption class=\"ltx_caption ltx_centering\"><span class=\"ltx_tag ltx_tag_table\">Table 1: </span>Mapping of HarmPot and Other Frameworks</figcaption>\n</figure>",
+            "capture": "Table 1: Mapping of HarmPot and Other Frameworks"
+        }
+    },
+    "image_paths": {},
+    "references": [
+        {
+            "1": {
+                "title": "Gopal Vinayak Godse vs. The Union of India and Ors_1969.",
+                "author": "1969.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "2": {
+                "title": "Language and\nSocial Relations.",
+                "author": "A. Agha. 2007.",
+                "venue": "Cambridge: Cambridge University Press.",
+                "url": "https://doi.org/10.1017/CBO9780511618284"
+            }
+        },
+        {
+            "3": {
+                "title": "A new measure\nof polarization in the annotation of hate speech.",
+                "author": "Sohail Akhtar, Valerio Basile, and Viviana Patti. 2019.",
+                "venue": "In Proceedings of the international conference of the Italian\nassociation for artificial intelligence, pages 588\u2013603.",
+                "url": "https://doi.org/10.1007/978-3-030-35166-3_41"
+            }
+        },
+        {
+            "4": {
+                "title": "Detection of hate\nspeech in social networks: A survey on multilingual corpus.",
+                "author": "Areej Al-Hassan and Hmood Al-Dossari. 2019.",
+                "venue": "In Computer Science and Information Technology 2019, pages\n83\u2013100.",
+                "url": "https://doi.org/10.5121/csit.2019.90208"
+            }
+        },
+        {
+            "5": {
+                "title": "Digital disinformation and communalism in bangladesh.",
+                "author": "Md Sayeed Al-Zaman. 2019.",
+                "venue": "China Media Research, 15(2):68\u201376.",
+                "url": null
+            }
+        },
+        {
+            "6": {
+                "title": "Covid-19-related\nsocial media fake news in india.",
+                "author": "Md. Sayeed Al-Zaman. 2021.",
+                "venue": "Journalism and Media, 2(1):100\u2013114.",
+                "url": "https://doi.org/10.3390/journalmedia2010007"
+            }
+        },
+        {
+            "7": {
+                "title": "Towards accurate detection of offensive language in online communication in\narabic.",
+                "author": "Azalden Alakrot, Liam Murray, and Nikola S. Nikolov. 2018.",
+                "venue": "Procedia Computer Science, 142:315\u2013320.",
+                "url": "https://doi.org/https://doi.org/10.1016/j.procs.2018.10.491"
+            }
+        },
+        {
+            "8": {
+                "title": "Are they our\nbrothers? analysis and detection of religious hate speech in the arabic\ntwittersphere.",
+                "author": "Nuha Albadi, Maram Kurdi, and Shivakant Mishra. 2018.",
+                "venue": "In Proceedings of the 2018 IEEE/ACM international conference on\nadvances in social networks analysis and mining, page 69\u201376.",
+                "url": "https://doi.org/10.1109/ASONAM.2018.8508247"
+            }
+        },
+        {
+            "9": {
+                "title": "Hate speech\ndetection in the indonesian language: A dataset and preliminary study.",
+                "author": "Ika Alfina, Rio Mulia, Mohamad Ivan Fanany, and Yudo Ekanata. 2017.",
+                "venue": "In Proceedings of 2017 international conference on advanced\ncomputer science and information systems (ICACSIS), IEEE.",
+                "url": "https://doi.org/10.1109/ICACSIS.2017.8355039"
+            }
+        },
+        {
+            "10": {
+                "title": "Overview of abusive and threatening language detection in urdu at\nfire 2021.",
+                "author": "Maaz Amjad, Alisa Zhila, Grigori Sidorov, Andrey Labunets, Sabur Butt,\nHamza Imam Amjad, Oxana Vitman, and Alexander Gelbukh. 2021.",
+                "venue": "In Proceedings of the 12th forum for information retrieval\nevaluation (FIRE), pages 744\u2013762, New York, USA. Association for Computing\nMachinery.",
+                "url": null
+            }
+        },
+        {
+            "11": {
+                "title": "Classifying offensive speech of bangla text and analysis using\nexplainable ai.",
+                "author": "Amena Akter Aporna, Istinub Azad, Nibraj Safwan Amlan, Md Humaion Kabir Mehedi,\nMohammed Julfikar Ali Mahbub, and Annajiat Alim Rasel. 2022.",
+                "venue": "In Advances in Computing and Data Sciences, pages 133\u2013144,\nCham. Springer International Publishing.",
+                "url": null
+            }
+        },
+        {
+            "12": {
+                "title": "Deep learning for\nhate speech detection in tweets.",
+                "author": "Pinkesh Badjatiya, Shashank Gupta, Manish Gupta, and Vasudeva Varma. 2017.",
+                "venue": null,
+                "url": "https://doi.org/10.1145/3041021.3054223"
+            }
+        },
+        {
+            "13": {
+                "title": "Caste and Gender in Contemporary India: Power, Privilege and\nPolitics.",
+                "author": "Supurna Banerjee and Nandini Ghosh. 2018.",
+                "venue": "Taylor & Francis.",
+                "url": null
+            }
+        },
+        {
+            "14": {
+                "title": "Toxicity\ndetection on bengali social media comments using supervised models.",
+                "author": "Nayan Banik and Md. Hasan Hafizur Rahman. 2019.",
+                "venue": "In 2019 2nd International Conference on Innovation in\nEngineering and Technology (ICIET), pages 1\u20135.",
+                "url": "https://doi.org/10.1109/ICIET48527.2019.9290710"
+            }
+        },
+        {
+            "15": {
+                "title": "Developing a\nmultilingual annotated corpus of misogyny and aggression.",
+                "author": "Shiladitya Bhattacharya, Siddharth Singh, Ritesh Kumar, Akanksha Bansal, Akash\nBhagat, Yogesh Dawer, Bornini Lahiri, and Atul Kr. Ojha. 2020.",
+                "venue": "In Proceedings of the Second Workshop on Trolling, Aggression\nand Cyberbullying, pages 158\u2013168, Marseille, France. European Language\nResources Association (ELRA).",
+                "url": "https://aclanthology.org/2020.trac-1.25"
+            }
+        },
+        {
+            "16": {
+                "title": "A dataset of\nHindi-English code-mixed social media text for hate speech detection.",
+                "author": "Aditya Bohra, Deepanshu Vijay, Vinay Singh, Syed Sarfaraz Akhtar, and Manish\nShrivastava. 2018.",
+                "venue": "In Proceedings of the Second Workshop on Computational Modeling\nof People\u2019s Opinions, Personality, and Emotions in Social Media, pages\n36\u201341, New Orleans, Louisiana, USA. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/W18-1105"
+            }
+        },
+        {
+            "17": {
+                "title": "Natural Fibre Twines, 3rd edition.",
+                "author": "BSI. 1973a.",
+                "venue": "British Standards Institution, London.",
+                "url": null
+            }
+        },
+        {
+            "18": {
+                "title": "Natural fibre twines.",
+                "author": "BSI. 1973b.",
+                "venue": "BS 2570, British Standards Institution, London.",
+                "url": null
+            }
+        },
+        {
+            "19": {
+                "title": "Morphology: A Study of the Relation between Meaning and Form.",
+                "author": "Joan L Bybee. 1985.",
+                "venue": "John Benjamins Publishing Company.",
+                "url": null
+            }
+        },
+        {
+            "20": {
+                "title": "The use of user modelling to guide inference and learning.",
+                "author": "A. Castor and L. E. Pollux. 1992.",
+                "venue": "Applied Intelligence, 2(1):37\u201353.",
+                "url": null
+            }
+        },
+        {
+            "21": {
+                "title": "Threat and\nabusive language detection on social media in bengali language.",
+                "author": "Puja Chakraborty and Md. Hanif Seddiqui. 2019.",
+                "venue": "In 2019 1st International Conference on Advances in Science,\nEngineering and Robotics Technology (ICASERT), pages 1\u20136.",
+                "url": "https://doi.org/10.1109/ICASERT.2019.8934609"
+            }
+        },
+        {
+            "22": {
+                "title": "Detecting\noffensive language in social media to protect adolescent online safety.",
+                "author": "Ying Chen, Yilu Zhou, Sencun Zhu, and Heng Xu. 2012.",
+                "venue": "In 2012 International Conference on Privacy, Security, Risk and\nTrust and 2012 International Confernece on Social Computing, pages 71\u201380.",
+                "url": "https://doi.org/10.1109/SocialCom-PASSAT.2012.55"
+            }
+        },
+        {
+            "23": {
+                "title": "Case-Based Reasoning, 2nd edition.",
+                "author": "J.L. Chercheur. 1994.",
+                "venue": "Morgan Kaufman Publishers, San Mateo, CA.",
+                "url": null
+            }
+        },
+        {
+            "24": {
+                "title": "Conditions on transformations.",
+                "author": "N. Chomsky. 1973.",
+                "venue": "In A festschrift for Morris Halle, New York. Holt, Rinehart\n& Winston.",
+                "url": null
+            }
+        },
+        {
+            "25": {
+                "title": "CONAN - COunter\nNArratives through nichesourcing: a multilingual dataset of responses to\nfight online hate speech.",
+                "author": "Yi-Ling Chung, Elizaveta Kuzmenko, Serra Sinem Tekiroglu, and Marco Guerini.\n2019.",
+                "venue": "In Proceedings of the 57th Annual Meeting of the Association\nfor Computational Linguistics, pages 2819\u20132829, Florence, Italy.\nAssociation for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/P19-1271"
+            }
+        },
+        {
+            "26": {
+                "title": "Unsupervised cross-lingual\nrepresentation learning at scale.",
+                "author": "Alexis Conneau, Kartikay Khandelwal, Naman Goyal, Vishrav Chaudhary, Guillaume\nWenzek, Francisco Guzm\u00e1n, Edouard Grave, Myle Ott, Luke Zettlemoyer,\nand Veselin Stoyanov. 2019.",
+                "venue": "CoRR, abs/1911.02116.",
+                "url": "http://arxiv.org/abs/1911.02116"
+            }
+        },
+        {
+            "27": {
+                "title": "Impoliteness: Using Language to Cause Offence.",
+                "author": "Jonathan Culpeper. 2011.",
+                "venue": "Cambridge: Cambridge University Press.",
+                "url": null
+            }
+        },
+        {
+            "28": {
+                "title": "Bangla hate\nspeech detection on social media using attention-based recurrent neural\nnetwork.",
+                "author": "Amit Kumar Das, Abdullah Al Asif, Anik Paul, and Md. Nur Hossain. 2021.",
+                "venue": "Journal of Intelligent Systems, 30(1):578\u2013591.",
+                "url": "https://doi.org/doi:10.1515/jisys-2020-0060"
+            }
+        },
+        {
+            "29": {
+                "title": "Descriptive\nGrammar of Bangla:.",
+                "author": "Anne Boyle David. 2015.",
+                "venue": "DE GRUYTER.",
+                "url": "https://doi.org/10.1515/9781614512295"
+            }
+        },
+        {
+            "30": {
+                "title": "Automated hate speech detection and the problem of offensive\nlanguage.",
+                "author": "Thomas Davidson, Dana Warmsley, Michael Macy, and Ingmar Weber. 2017.",
+                "venue": "In Proceedings of the eleventh international conference on web\nand social media, AAAI, page 512\u2013515.",
+                "url": null
+            }
+        },
+        {
+            "31": {
+                "title": "Offensive comments\nin the brazilian web: A dataset and baseline results.",
+                "author": "R. de Pelle and V. P. Moreira. 2016.",
+                "venue": "In Proceedings of the fifth Brazilian workshop on social\nnetwork analysis and mining (BraSNAM 2016), page 510\u2013519.",
+                "url": "https://doi.org/10.5753/brasnam.2017.3260"
+            }
+        },
+        {
+            "32": {
+                "title": "Fake news: What you read in election season.",
+                "author": "Kaushik Deka. 2019.",
+                "venue": null,
+                "url": "https://www.indiatoday.in/magazine/up-front/story/20190429-fake-news-what-you-read-in-election-season-1505578-2019-04-19"
+            }
+        },
+        {
+            "33": {
+                "title": "Hate me, hate me not: Hate speech detection on facebook.",
+                "author": "Fabio Del Vigna, Andrea Cimino, Felice Dell\u2019Orletta, Marinella Petrocchi, and\nMaurizio Tesconi. 2017.",
+                "venue": "In Proceedings of the First Italian conference on cybersecurity\n(ITASEC17), CEUR.org, pages 86\u201395.",
+                "url": null
+            }
+        },
+        {
+            "34": {
+                "title": "BERT: pre-training of deep\nbidirectional transformers for language understanding.",
+                "author": "Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2018.",
+                "venue": "CoRR, abs/1810.04805.",
+                "url": "http://arxiv.org/abs/1810.04805"
+            }
+        },
+        {
+            "35": {
+                "title": "Hate speech\ndetection with comment embeddings.",
+                "author": "Nemanja Djuric, Jing Zhou, Robin Morris, Mihajlo Grbovic, Vladan Radosavljevic,\nand Narayan Bhamidipati. 2015.",
+                "venue": "pages 29\u201330.",
+                "url": "https://doi.org/10.1145/2740908.2742760"
+            }
+        },
+        {
+            "36": {
+                "title": "16 lynchings in 2 months. is social media the new serial killer?",
+                "author": "Prabhas k Dutta. 2018.",
+                "venue": null,
+                "url": "https://www.indiatoday.in/india/story/16-lynchings-in-2-months-is-social-media-the-new-serial-killer-1275182-2018-07-02"
+            }
+        },
+        {
+            "37": {
+                "title": "Crowdsourcing the measurement of interstate conflict.",
+                "author": "V. D\u2019Orazio, M. Kenwick, M. Lane, G. Palmer, and Reitter D. 2016.",
+                "venue": "PloS one, 11(6):e0156527.",
+                "url": "https://doi.org/=%20610.1371/journal.pone.0156527"
+            }
+        },
+        {
+            "38": {
+                "title": "The Limits of Interpretation.",
+                "author": "Umberto Eco. 1990.",
+                "venue": "Indian University Press.",
+                "url": null
+            }
+        },
+        {
+            "39": {
+                "title": "A Critique of\nPoliteness Theories, volume 1.",
+                "author": "Gino Eelen. 2001.",
+                "venue": "Routledge.",
+                "url": "https://doi.org/10.4324/9781315760179"
+            }
+        },
+        {
+            "40": {
+                "title": "An\napplication of machine learning to detect abusive bengali text.",
+                "author": "Shahnoor C. Eshan and Mohammad S. Hasan. 2017.",
+                "venue": "In 2017 20th International Conference of Computer and\nInformation Technology (ICCIT), pages 1\u20136.",
+                "url": "https://doi.org/10.1109/ICCITECHN.2017.8281787"
+            }
+        },
+        {
+            "41": {
+                "title": "A study on\nthe feasibility to detect hate speech in swedish.",
+                "author": "Johan Fernquist, Oskar Lindholm, Lisa Kaati, and Nazar Akrami. 2019.",
+                "venue": "In 2019 IEEE international conference on big data (Big Data),\n2019, IEEE, pages 4724\u20134729.",
+                "url": "https://doi.org/10.1109/BigData47090.2019.9005534"
+            }
+        },
+        {
+            "42": {
+                "title": "Automatic detection of hate speech in text: an overview of the topic\nand dataset annotation with hierarchical classes.",
+                "author": "Paula Fortuna. 2017.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "43": {
+                "title": "A\nhierarchically-labeled Portuguese hate speech dataset.",
+                "author": "Paula Fortuna, Jo\u00e3o Rocha da Silva, Juan Soler-Company, Leo Wanner, and\nS\u00e9rgio Nunes. 2019.",
+                "venue": "In Proceedings of the Third Workshop on Abusive Language\nOnline, pages 94\u2013104, Florence, Italy. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/W19-3510"
+            }
+        },
+        {
+            "44": {
+                "title": "Religious division and social conflict: the emergence of Hindu\nnationalism in rural India.",
+                "author": "Peggy Froerer. 2019.",
+                "venue": "Routledge.",
+                "url": null
+            }
+        },
+        {
+            "45": {
+                "title": "A digital media literacy intervention increases discernment between\nmainstream and false news in the united states and india.",
+                "author": "Andrew M Guess, Michael Lerner, Benjamin Lyons, Jacob M Montgomery, Brendan\nNyhan, Jason Reifler, and Neelanjan Sircar. 2020.",
+                "venue": "Proceedings of the National Academy of Sciences,\n117(27):15536\u201315545.",
+                "url": null
+            }
+        },
+        {
+            "46": {
+                "title": "T-hsab: A\ntunisian hate speech and abusive dataset.",
+                "author": "Hatem Haddad, Hala Mulki, and Asma Oueslati. 2019.",
+                "venue": "In 7th international conference on Arabic language processing,\npages 251\u2013263.",
+                "url": "https://doi.org/10.1007/978-3-030-32959-4_18"
+            }
+        },
+        {
+            "47": {
+                "title": "Automatic\ndetection of hateful comments in online discussion.",
+                "author": "Hugo Hammer. 2017.",
+                "venue": "In Lecture Notes of the Institute for Computer Sciences, Social\nInformatics and Telecommunications Engineering, volume 188, pages 164\u2013173.",
+                "url": "https://doi.org/10.1007/978-3-319-52569-3_15"
+            }
+        },
+        {
+            "48": {
+                "title": "Elementary Statistics, 3rd edition.",
+                "author": "Paul Gerhard Hoel. 1971a.",
+                "venue": "Wiley series in probability and mathematical statistics. Wiley, New\nYork, Chichester.",
+                "url": null
+            }
+        },
+        {
+            "49": {
+                "title": "Elementary Statistics, 3rd edition, Wiley series in\nprobability and mathematical statistics, pages 19\u201333. Wiley, New York,\nChichester.",
+                "author": "Paul Gerhard Hoel. 1971b.",
+                "venue": "ISBN 0 471 40300.",
+                "url": null
+            }
+        },
+        {
+            "50": {
+                "title": "A technique for\nperceiving abusive bangla comments.",
+                "author": "Md Gulzar Hussain and Tamim Al Mahmud. 2019.",
+                "venue": "GREEN UNIVERSITY OF BANGLADESH JOURNAL OF SCIENCE AND\nENGINEERING, 04(01).",
+                "url": "https://doi.org/10.5281/zenodo.3544583"
+            }
+        },
+        {
+            "51": {
+                "title": "Hateful speech\ndetection in public facebook pages for the bengali language.",
+                "author": "Alvi Ishmam and Sadia Sharmin. 2019.",
+                "venue": "In 18th IEEE international conference on machine learning and\napplications, ICMLA 2019, pages 555\u2013560, Boca Raton, FL, USA.",
+                "url": "https://doi.org/10.1109/ICMLA.2019.00104"
+            }
+        },
+        {
+            "52": {
+                "title": "An evolutionary\napproach to comparative analysis of detecting bangla abusive text.",
+                "author": "Tanvirul Islam, Nadim Ahmed, and Subhenur Latif. 2021.",
+                "venue": "Bulletin of Electrical Engineering and Informatics,\n10:2163\u20132169.",
+                "url": "https://doi.org/10.11591/eei.v10i4.3107"
+            }
+        },
+        {
+            "53": {
+                "title": "Language: Its Nature, Development, and Origin.",
+                "author": "Otto Jespersen. 1922.",
+                "venue": "Allen and Unwin.",
+                "url": null
+            }
+        },
+        {
+            "54": {
+                "title": "The state and\nfate of linguistic diversity and inclusion in the NLP world.",
+                "author": "Pratik Joshi, Sebastin Santy, Amar Budhiraja, Kalika Bali, and Monojit\nChoudhury. 2020.",
+                "venue": "In Proceedings of the 58th Annual Meeting of the Association\nfor Computational Linguistics, pages 6282\u20136293, Online. Association for\nComputational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.acl-main.560"
+            }
+        },
+        {
+            "55": {
+                "title": "A just and\ncomprehensive strategy for using NLP to address online abuse.",
+                "author": "David Jurgens, Libby Hemphill, and Eshwar Chandrasekharan. 2019.",
+                "venue": "In Proceedings of the 57th Annual Meeting of the Association\nfor Computational Linguistics, pages 3658\u20133666, Florence, Italy.\nAssociation for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/P19-1357"
+            }
+        },
+        {
+            "56": {
+                "title": "Jigsaw multilingual toxic comment classification.",
+                "author": "Kaggle. 2020.",
+                "venue": null,
+                "url": "https://www.kaggle.com/c/jigsaw-multilingual-toxic-comment-classification/discussion/138198"
+            }
+        },
+        {
+            "57": {
+                "title": "IndicNLPSuite: Monolingual Corpora, Evaluation Benchmarks and\nPre-trained Multilingual Language Models for Indian Languages.",
+                "author": "Divyanshu Kakwani, Anoop Kunchukuttan, Satish Golla, Gokul N.C., Avik\nBhattacharyya, Mitesh M. Khapra, and Pratyush Kumar. 2020.",
+                "venue": "In Findings of EMNLP.",
+                "url": null
+            }
+        },
+        {
+            "58": {
+                "title": "Deephateexplainer: Explainable hate speech detection in under-resourced\nbengali language.",
+                "author": "Md. Rezaul Karim, Sumon Kanti Dey, Tanhim Islam, Sagor Sarker, Mehadi Hasan\nMenon, Kabir Hossain, Md. Azam Hossain, and Stefan Decker. 2021.",
+                "venue": "In 2021 IEEE 8th International Conference on Data Science and\nAdvanced Analytics (DSAA), pages 1\u201310.",
+                "url": "https://doi.org/10.1109/DSAA53316.2021.9564230"
+            }
+        },
+        {
+            "59": {
+                "title": "Classification\nbenchmarks for under-resourced bengali language based on multichannel\nconvolutional-lstm network.",
+                "author": "Md. Rezaul Karim, Bharathi Raja Chakravarthi, John P. McCrae, and Michael\nCochez. 2020.",
+                "venue": "In 2020 IEEE 7th International Conference on Data Science and\nAdvanced Analytics (DSAA), pages 390\u2013399.",
+                "url": "https://doi.org/10.1109/DSAA49011.2020.00053"
+            }
+        },
+        {
+            "60": {
+                "title": "Muril: Multilingual\nrepresentations for indian languages.",
+                "author": "Simran Khanuja, Diksha Bansal, Sarvesh Mehtani, Savya Khosla, Atreyee Dey,\nBalaji Gopalan, Dilip Kumar Margam, Pooja Aggarwal, Rajiv Teja Nagipogu,\nShachi Dave, Shruti Gupta, Subhash Chandra Bose Gali, Vish Subramanian, and\nPartha Talukdar. 2021.",
+                "venue": null,
+                "url": "http://arxiv.org/abs/2103.10730"
+            }
+        },
+        {
+            "61": {
+                "title": "The sfu opinion\nand comments corpus: A corpus for the analysis of online news comments.",
+                "author": "Varada Kolhatkar, Hanhan Wu, Luca Cavasso, Emilie Francis, Kavan Shukla, and\nMaite Taboada. 2020.",
+                "venue": "Corpus Pragmatics, 4.",
+                "url": "https://doi.org/10.1007/s41701-019-00065-w"
+            }
+        },
+        {
+            "62": {
+                "title": "Analyzing grammar: An introduction.",
+                "author": "Paul R Kroeger. 2005.",
+                "venue": "Cambridge University Press.",
+                "url": null
+            }
+        },
+        {
+            "63": {
+                "title": "Aggressive and\noffensive language identification in hindi, bangla, and english: A\ncomparative study.",
+                "author": "Ritesh Kumar, Bornini Lahiri, and Atul Ojha. 2021.",
+                "venue": "SN Computer Science, 2.",
+                "url": "https://doi.org/10.1007/s42979-020-00414-6"
+            }
+        },
+        {
+            "64": {
+                "title": "Benchmarking aggression\nidentification in social media.",
+                "author": "Ritesh Kumar, Atul Kr. Ojha, Shervin Malmasi, and Marcos Zampieri.\n2018a.",
+                "venue": "In Proceedings of the First Workshop on Trolling, Aggression\nand Cyberbullying (TRAC-2018), pages 1\u201311, Santa Fe, New Mexico, USA.\nAssociation for Computational Linguistics.",
+                "url": "https://aclanthology.org/W18-4401"
+            }
+        },
+        {
+            "65": {
+                "title": "Evaluating aggression\nidentification in social media.",
+                "author": "Ritesh Kumar, Atul Kr. Ojha, Shervin Malmasi, and Marcos Zampieri. 2020.",
+                "venue": "In Proceedings of the Second Workshop on Trolling, Aggression\nand Cyberbullying, pages 1\u20135, Marseille, France. European Language\nResources Association (ELRA).",
+                "url": "https://aclanthology.org/2020.trac-1.1"
+            }
+        },
+        {
+            "66": {
+                "title": "The ComMA\ndataset v0.2: Annotating aggression and bias in multilingual social media\ndiscourse.",
+                "author": "Ritesh Kumar, Shyam Ratan, Siddharth Singh, Enakshi Nandi, Laishram Niranjana\nDevi, Akash Bhagat, Yogesh Dawer, Bornini Lahiri, Akanksha Bansal, and\nAtul Kr. Ojha. 2022a.",
+                "venue": "In Proceedings of the Thirteenth Language Resources and\nEvaluation Conference, pages 4149\u20134161, Marseille, France. European\nLanguage Resources Association.",
+                "url": "https://aclanthology.org/2022.lrec-1.441"
+            }
+        },
+        {
+            "67": {
+                "title": "The comma dataset\nv0.2: Annotating aggression and bias in multilingual social media discourse.",
+                "author": "Ritesh Kumar, Shyam Ratan, Siddharth Singh, Enakshi Nandi, Laishram Niranjana\nDevi, Akash Bhagat, Yogesh Dawer, bornini lahiri, Akanksha Bansal, and\nAtul Kr. Ojha. 2022b.",
+                "venue": "In Proceedings of the Language Resources and Evaluation\nConference, pages 4149\u20134161, Marseille, France. European Language Resources\nAssociation.",
+                "url": "https://aclanthology.org/2022.lrec-1.441"
+            }
+        },
+        {
+            "68": {
+                "title": "Aggression-annotated\ncorpus of Hindi-English code-mixed data.",
+                "author": "Ritesh Kumar, Aishwarya N. Reganti, Akshit Bhatia, and Tushar Maheshwari.\n2018b.",
+                "venue": "In Proceedings of the Eleventh International Conference on\nLanguage Resources and Evaluation (LREC 2018), Miyazaki, Japan. European\nLanguage Resources Association (ELRA).",
+                "url": "https://aclanthology.org/L18-1226"
+            }
+        },
+        {
+            "69": {
+                "title": "Detecting\nhate speech in social media.",
+                "author": "Shervin Malmasi and Marcos Zampieri. 2017.",
+                "venue": "In Proceedings of the International Conference Recent Advances\nin Natural Language Processing, RANLP 2017, pages 467\u2013472, Varna,\nBulgaria. INCOMA Ltd.",
+                "url": "https://doi.org/10.26615/978-954-452-049-6_062"
+            }
+        },
+        {
+            "70": {
+                "title": "Overview of the hasoc subtrack at fire 2022: Identification of\nconversational hate-speech in hindi-english code-mixed and german language.",
+                "author": "Thomas Mandl, Sandip Modha, Prasenjit Majumder, Shrey Satapara, Tithi Patel,\nand Hiren Madhu. 2022.",
+                "venue": "In Proceedings of the 13th forum for information retrieval\nevaluation (FIRE), pages 475\u2013488, New York, USA. Association for Computing\nMachinery.",
+                "url": null
+            }
+        },
+        {
+            "71": {
+                "title": "Overview of the hasoc track at fire 2020: Hate speech and offensive\ncontent identification in indo-european languages.",
+                "author": "Thomas Mandl, Sandip Modha, Gautam Kishore Shahi, Amit Jaiswal, D Nandini,\nD Patel, P Majumder, and J Sch\u00e4fer. 2020.",
+                "venue": "In Proceedings of the 11th forum for information retrieval\nevaluation (FIRE), page 29\u201332, New York, USA. Association for Computing\nMachinery.",
+                "url": null
+            }
+        },
+        {
+            "72": {
+                "title": "Overview of the hasoc subtrack at fire 2021: Hatespeech and offensive\ncontent identification in english and indo-aryan languages.",
+                "author": "Thomas Mandl, Sandip Modha, Gautam Kishore Shahi, Hiren Madhu, Shrey Satapara,\nPrasenjit Majumder, Johannes Sch\u00e4fer, Tharindu Ranasinghe, Marcos Zampieri,\nDurgesh Nandini, and Amit Kumar Jaiswal. 2021.",
+                "venue": "In Proceedings of the 12th forum for information retrieval\nevaluation (FIRE), pages 1\u201319, New York, USA. Association for Computing\nMachinery.",
+                "url": null
+            }
+        },
+        {
+            "73": {
+                "title": "Hate speech\nclassification in social media using emotional analysis.",
+                "author": "Ricardo Martins, Marco Gomes, Jo\u00e3o Almeida, Paulo Novais, and Pedro Henriques.\n2018.",
+                "venue": "In Proceedings of the 2018 Brazilian conference on intelligent\nsystems, BRACIS 2018, pages 61\u201366.",
+                "url": "https://doi.org/10.1109/BRACIS.2018.00019"
+            }
+        },
+        {
+            "74": {
+                "title": "Detecting offensive\ntweets in Hindi-English code-switched language.",
+                "author": "Puneet Mathur, Rajiv Shah, Ramit Sawhney, and Debanjan Mahata. 2018.",
+                "venue": "In Proceedings of the Sixth International Workshop on Natural\nLanguage Processing for Social Media, pages 18\u201326, Melbourne, Australia.\nAssociation for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/W18-3504"
+            }
+        },
+        {
+            "75": {
+                "title": "Predicting violence within genocide: A model of elite competition and\nethnic segregation from rwanda.",
+                "author": "Omar Shahabudin McDoom. 2014.",
+                "venue": "Political Geography, 42:34\u201345.",
+                "url": null
+            }
+        },
+        {
+            "76": {
+                "title": "Overview of the hasoc track at fire 2020: Hate speech and offensive\ncontent identification in indo-european languages.",
+                "author": "Sandip Modha, Thomas Mandl, Prasenjit Majumder, and Daksh Patel. 2019.",
+                "venue": "In Proceedings of the 10th forum for information retrieval\nevaluation (FIRE), pages 167\u2013190, New York, USA. Association for Computing\nMachinery.",
+                "url": null
+            }
+        },
+        {
+            "77": {
+                "title": "Abusive language\ndetection on Arabic social media.",
+                "author": "Hamdy Mubarak, Kareem Darwish, and Walid Magdy. 2017.",
+                "venue": "In Proceedings of the First Workshop on Abusive Language\nOnline, pages 52\u201356, Vancouver, BC, Canada. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/W17-3008"
+            }
+        },
+        {
+            "78": {
+                "title": "Mobile witnessing on whatsapp: Vigilante virality and the anatomy of\nmob lynching.",
+                "author": "Rahul Mukherjee. 2020.",
+                "venue": "South Asian popular culture, 18(1):79\u2013101.",
+                "url": null
+            }
+        },
+        {
+            "79": {
+                "title": "Hate speech\ndetection using brazilian imageboards.",
+                "author": "Gabriel Nascimento, Flavio Carvalho, Alexandre Cunha, Carlos Viana, and Gustavo\nPaiva Guedes. 2019.",
+                "venue": "In Proceedings of the 25th Brazillian symposium on multimedia\nand the web, WebMedia 2019, pages 325\u2013328.",
+                "url": "https://doi.org/10.1145/3323503.3360619"
+            }
+        },
+        {
+            "80": {
+                "title": "\u201cno regret for hacking afrazul to death\u201d: Shambhulal regar releases\nanother video, this time from rajasthan prison.",
+                "author": "Online Desk NewIndianXpress. 2018.",
+                "venue": null,
+                "url": "https://www.newindianexpress.com/nation/2018/feb/19/no-regret-for-hacking-afrazul-to-death-shambhulal-regar-releases-another-video-this-time-from-ra-1775666.html"
+            }
+        },
+        {
+            "81": {
+                "title": "A lexicon-based\napproach for hate speech detection.",
+                "author": "Dennis Njagi, Z. Zuping, Damien Hanyurwimfura, and Jun Long. 2015.",
+                "venue": "International Journal of Multimedia and Ubiquitous\nEngineering, 10:215\u2013230.",
+                "url": "https://doi.org/10.14257/ijmue.2015.10.4.21"
+            }
+        },
+        {
+            "82": {
+                "title": "Abusive language\ndetection in online user content.",
+                "author": "Chikashi Nobata, Joel Tetreault, Achint Thomas, Yashar Mehdad, and Yi Chang.\n2016.",
+                "venue": "In Proceedings of the 25th international conference on world\nwide web (WWW\u201916), pages 145\u2013153. International World Wide Web\nConferences Steering Committee.",
+                "url": "https://doi.org/10.1145/2872427.2883062"
+            }
+        },
+        {
+            "83": {
+                "title": "The Oxford Handbook of Modality and Mood.",
+                "author": "Jan Nuyts and Johan van der Auwera. 2016.",
+                "venue": "Oxford University Press.",
+                "url": "https://doi.org/10.1093/oxfordhb/9780199591435.001.0001"
+            }
+        },
+        {
+            "84": {
+                "title": "Multilingual and\nmulti-aspect hate speech analysis.",
+                "author": "Nedjma Ousidhoum, Zizheng Lin, Hongming Zhang, Yangqiu Song, and Dit-Yan Yeung.\n2019.",
+                "venue": "In Proceedings of the 2019 Conference on Empirical Methods in\nNatural Language Processing and the 9th International Joint Conference on\nNatural Language Processing (EMNLP-IJCNLP), pages 4675\u20134684, Hong Kong,\nChina. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/D19-1474"
+            }
+        },
+        {
+            "85": {
+                "title": "Mood and modality.",
+                "author": "Frank Robert Palmer. 2001.",
+                "venue": "Cambridge university press.",
+                "url": null
+            }
+        },
+        {
+            "86": {
+                "title": "Resources and\nbenchmark corpora for hate speech detection: a systematic review.",
+                "author": "Fabio Poletto, Valerio Basile, Manuela Sanguinetti, Cristina Bosco, and Viviana\nPatti. 2021.",
+                "venue": "Lang. Resour. Evaluation, 55:477\u2013523.",
+                "url": "https://doi.org/10.1007/s10579-020-09502-8"
+            }
+        },
+        {
+            "87": {
+                "title": "To wish or not to wish: Modality and (metalinguistic) negation.",
+                "author": "Genoveva Pusk\u00e1s. 2018.",
+                "venue": "Glossa: a journal of general linguistics, 3(1).",
+                "url": null
+            }
+        },
+        {
+            "88": {
+                "title": "An evaluation of\nmultilingual offensive language identification methods for the languages of\nindia.",
+                "author": "Tharindu Ranasinghe and Marcos Zampieri. 2021.",
+                "venue": "Information, 12(8).",
+                "url": "https://doi.org/10.3390/info12080306"
+            }
+        },
+        {
+            "89": {
+                "title": "Bangla\nabusive language detection using machine learning on radio message gateway.",
+                "author": "Sumaiya Salim Ritu, Joysurya Mondal, Md. Moinu Mia, and Ahmed Al Marouf. 2021.",
+                "venue": "In 2021 6th International Conference on Communication and\nElectronics Systems (ICCES), pages 1725\u20131729.",
+                "url": "https://doi.org/10.1109/ICCES51350.2021.9489131"
+            }
+        },
+        {
+            "90": {
+                "title": "HS-BAN: A benchmark\ndataset of social media comments for hate speech detection in bangla.",
+                "author": "Nauros Romim, Mosahed Ahmed, Md Saiful Islam, Arnab Sen Sharma, Hriteshwar\nTalukder, and Mohammad Ruhul Amin. 2021a.",
+                "venue": "CoRR, abs/2112.01902.",
+                "url": "http://arxiv.org/abs/2112.01902"
+            }
+        },
+        {
+            "91": {
+                "title": "Bd-shs: A\nbenchmark dataset for learning to detect online bangla hate speech in\ndifferent social contexts.",
+                "author": "Nauros Romim, Mosahed Ahmed, Md. Saiful Islam, Arnab Sen Sharma, Hriteshwar\nTalukder, and Mohammad Ruhul Amin. 2022.",
+                "venue": null,
+                "url": "https://doi.org/10.48550/ARXIV.2206.00372"
+            }
+        },
+        {
+            "92": {
+                "title": "Hate speech detection in the bengali language: A dataset and its\nbaseline evaluation.",
+                "author": "Nauros Romim, Mosahed Ahmed, Hriteshwar Talukder, and Md. Saiful Islam.\n2021b.",
+                "venue": "In Proceedings of International Joint Conference on Advances in\nComputational Intelligence, pages 457\u2013468, Singapore. Springer Singapore.",
+                "url": null
+            }
+        },
+        {
+            "93": {
+                "title": "Solid: A\nlarge-scale semi-supervised dataset for offensive language identification.",
+                "author": "Sara Rosenthal, Pepa Atanasova, Georgi Karadzhov, Marcos Zampieri, and Preslav\nNakov. 2021.",
+                "venue": "pages 915\u2013928.",
+                "url": "https://doi.org/10.18653/v1/2021.findings-acl.80"
+            }
+        },
+        {
+            "94": {
+                "title": "Measuring the\nreliability of hate speech annotations: The case of the european refugee\ncrisis.",
+                "author": "Bj\u00f6rn Ross, Michael Rist, Guillermo Carbonell, Benjamin Cabrera, Nils\nKurowsky, and Michael Wojatzki. 2017.",
+                "venue": "In NLP4CMC III: 3rd workshop on natural language processing for\ncomputer-mediated communication.",
+                "url": "https://doi.org/10.17185/duepublico/42132"
+            }
+        },
+        {
+            "95": {
+                "title": "Hate speech against\ndalits on social media: Would a penny sparrow be prosecuted in india for\nonline hate speech?",
+                "author": "Devanshu Sajlan. 2021.",
+                "venue": "CASTE / A Global Journal on Social Exclusion, 2(1):77\u201396.",
+                "url": "https://doi.org/10.26812/caste.v2i1.260"
+            }
+        },
+        {
+            "96": {
+                "title": "An Italian Twitter\ncorpus of hate speech against immigrants.",
+                "author": "Manuela Sanguinetti, Fabio Poletto, Cristina Bosco, Viviana Patti, and Marco\nStranisci. 2018.",
+                "venue": "In Proceedings of the Eleventh International Conference on\nLanguage Resources and Evaluation (LREC 2018), page 2798\u20132895, Miyazaki,\nJapan. European Language Resources Association (ELRA).",
+                "url": "https://aclanthology.org/L18-1443"
+            }
+        },
+        {
+            "97": {
+                "title": "Distilbert, a distilled version of bert: smaller, faster, cheaper and\nlighter.",
+                "author": "Victor Sanh, Lysandre Debut, Julien Chaumond, and Thomas Wolf. 2019.",
+                "venue": "ArXiv, abs/1910.01108.",
+                "url": null
+            }
+        },
+        {
+            "98": {
+                "title": "Abusive content\ndetection in transliterated Bengali-English social media corpus.",
+                "author": "Salim Sazzed. 2021a.",
+                "venue": "In Proceedings of the Fifth Workshop on Computational\nApproaches to Linguistic Code-Switching, pages 125\u2013130, Online. Association\nfor Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2021.calcs-1.16"
+            }
+        },
+        {
+            "99": {
+                "title": "Identifying vulgarity\nin bengali social media textual content.",
+                "author": "Salim Sazzed. 2021b.",
+                "venue": "PeerJ Comput Sci.",
+                "url": "https://doi.org/10.7717/peerj-cs.665"
+            }
+        },
+        {
+            "100": {
+                "title": "Offence in\ndialogues: A corpus-based study.",
+                "author": "Johannes Sch\u00e4fer and Ben Burtenshaw. 2019.",
+                "venue": "In Proceedings of the International Conference on Recent\nAdvances in Natural Language Processing (RANLP 2019), pages 1085\u20131093,\nVarna, Bulgaria. INCOMA Ltd.",
+                "url": "https://doi.org/10.26615/978-954-452-056-4_125"
+            }
+        },
+        {
+            "101": {
+                "title": "Empirically sampling\nUniversal Dependencies.",
+                "author": "Natalie Schluter and \u017deljko Agi\u0107. 2017.",
+                "venue": "In Proceedings of the NoDaLiDa 2017 Workshop on\nUniversal Dependencies (UDW 2017), pages 117\u2013122, Gothenburg, Sweden.\nAssociation for Computational Linguistics.",
+                "url": "https://aclanthology.org/W17-0415"
+            }
+        },
+        {
+            "102": {
+                "title": "A survey on hate speech\ndetection using natural language processing.",
+                "author": "Anna Schmidt and Michael Wiegand. 2017.",
+                "venue": "In Proceedings of the Fifth International Workshop on Natural\nLanguage Processing for Social Media, pages 1\u201310, Valencia, Spain.\nAssociation for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/W17-1101"
+            }
+        },
+        {
+            "103": {
+                "title": "Palghar lynching: A recap of what happened.",
+                "author": "Zeeshan Shaikh. 2020.",
+                "venue": null,
+                "url": "https://indianexpress.com/article/explained/palghar-mob-lynching-mahant-kalpavruksha-giri-6370528/"
+            }
+        },
+        {
+            "104": {
+                "title": "Identification and classification of textual aggression in social\nmedia: Resource creation and evaluation.",
+                "author": "Omar Sharif and Mohammed Moshiul Hoque. 2021.",
+                "venue": "In Combating Online Hostile Posts in Regional Languages during\nEmergency Situation, pages 9\u201320, Cham. Springer International Publishing.",
+                "url": null
+            }
+        },
+        {
+            "105": {
+                "title": "Tackling cyber-aggression: Identification and fine-grained categorization of\naggressive texts on social media using weighted ensemble of transformers.",
+                "author": "Omar Sharif and Mohammed Moshiul Hoque. 2022.",
+                "venue": "Neurocomputing, 490:462\u2013481.",
+                "url": "https://doi.org/https://doi.org/10.1016/j.neucom.2021.12.022"
+            }
+        },
+        {
+            "106": {
+                "title": "Casteing gender: Intersectional oppression of dalit women.",
+                "author": "Bhushan Sharma and KA Geetha. 2021.",
+                "venue": "Journal of International Women\u2019s Studies, 22(10):0\u20137.",
+                "url": null
+            }
+        },
+        {
+            "107": {
+                "title": "Beyond fair\npay: Ethical implications of NLP crowdsourcing.",
+                "author": "Boaz Shmueli, Jan Fell, Soumya Ray, and Lun-Wei Ku. 2021.",
+                "venue": "In Proceedings of the 2021 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, page 3758\u20133769.",
+                "url": "https://aclanthology.org/2021.naacl-main.295"
+            }
+        },
+        {
+            "108": {
+                "title": "# no2sectarianism: Experimental approaches to reducing sectarian\nhate speech online.",
+                "author": "Alexandra A Siegel and Vivienne Badaan. 2020.",
+                "venue": "American Political Science Review, 114(3):837\u2013855.",
+                "url": null
+            }
+        },
+        {
+            "109": {
+                "title": "A history of technology.",
+                "author": "Charles Joseph Singer, E. J. Holmyard, and A. R. Hall, editors. 1954\u201358.",
+                "venue": "Oxford University Press, London.",
+                "url": null
+            }
+        },
+        {
+            "110": {
+                "title": "Towards a unified\ntool for the management of data and technologies in field linguistics and\ncomputational linguistics - LiFE.",
+                "author": "Siddharth Singh, Ritesh Kumar, Shyam Ratan, and Sonal Sinha. 2022.",
+                "venue": "In Proceedings of the Workshop on Resources and Technologies\nfor Indigenous, Endangered and Lesser-resourced Languages in Eurasia within\nthe 13th Language Resources and Evaluation Conference, pages 90\u201394,\nMarseille, France. European Language Resources Association.",
+                "url": "https://aclanthology.org/2022.eurali-1.16"
+            }
+        },
+        {
+            "111": {
+                "title": "Una case: Victims ask president to deport them to country where they will\nnot face discrimination.",
+                "author": "Scroll Staff. 2020.",
+                "venue": null,
+                "url": "https://scroll.in/latest/949695/una-case-victim-asks-president-to-deport-them-to-country-where-they-will-not-face-discrimination"
+            }
+        },
+        {
+            "112": {
+                "title": "Predicting family violence recidivism using the dvsi-r: Integrating\nsurvival analysis and perpetrator characteristics.",
+                "author": "Richard Stansfield and Kirk R Williams. 2014.",
+                "venue": "Criminal Justice and Behavior, 41(2):163\u2013180.",
+                "url": null
+            }
+        },
+        {
+            "113": {
+                "title": "Cross-lingual\nflames detection in news discussions.",
+                "author": "Josef Steinberger, Tom\u00e1\u0161 Brychc\u00edn, Tom\u00e1\u0161 Hercig, and\nPeter Krejzl. 2017.",
+                "venue": "In Proceedings of the International Conference Recent Advances\nin Natural Language Processing, RANLP 2017, pages 694\u2013700, Varna,\nBulgaria. INCOMA Ltd.",
+                "url": "https://doi.org/10.26615/978-954-452-049-6_089"
+            }
+        },
+        {
+            "114": {
+                "title": "Temporal tagging on different domains: Challenges, strategies, and\ngold standards.",
+                "author": "Jannik Str\u00f6tgen and Michael Gertz. 2012.",
+                "venue": "In Proceedings of the Eight International Conference on\nLanguage Resources and Evaluation (LREC\u201912), pages 3746\u20133753, Istanbul,\nTurkey. European Language Resource Association (ELRA).",
+                "url": null
+            }
+        },
+        {
+            "115": {
+                "title": "Superheroes experiences with books, 20th edition.",
+                "author": "S. Superman, B. Batman, C. Catwoman, and S. Spiderman. 2000.",
+                "venue": "The Phantom Editors Associates, Gotham City.",
+                "url": null
+            }
+        },
+        {
+            "116": {
+                "title": "Directions in\nabusive language training data, a systematic review: Garbage in, garbage\nout.",
+                "author": "Bertram Vidgen and Leon Derczynski. 2020.",
+                "venue": "PLOS ONE, 15:e0243300.",
+                "url": "https://doi.org/10.1371/journal.pone.0243300"
+            }
+        },
+        {
+            "117": {
+                "title": "Detecting weak\nand strong islamophobic hate speech on social media.",
+                "author": "Bertram Vidgen and Taha Yasseri. 2020.",
+                "venue": "Journal of Information Technology & Politics, 17:66\u201378.",
+                "url": "https://doi.org/10.1080/19331681.2019.1702607"
+            }
+        },
+        {
+            "118": {
+                "title": "Modality and language.",
+                "author": "Kai Von Fintel. 2006.",
+                "venue": null,
+                "url": null
+            }
+        },
+        {
+            "119": {
+                "title": "Galileo at\nSemEval-2020 task 12: Multi-lingual learning for offensive language\nidentification using pre-trained language models.",
+                "author": "Shuohuan Wang, Jiaxiang Liu, Xuan Ouyang, and Yu Sun. 2020.",
+                "venue": "In Proceedings of the Fourteenth Workshop on Semantic\nEvaluation, pages 1448\u20131455, Barcelona (online). International Committee\nfor Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.semeval-1.189"
+            }
+        },
+        {
+            "120": {
+                "title": "Are you a racist or am\ni seeing things? annotator influence on hate speech detection on twitter.",
+                "author": "Zeerak Waseem. 2016.",
+                "venue": "In Proceedings of the first workshop on NLP and computational\nsocial science, pages 138\u2013142. Association for Computational Linguistics\n(ACL).",
+                "url": "https://doi.org/10.18653/v1/W16-5618"
+            }
+        },
+        {
+            "121": {
+                "title": "Understanding abuse: A\ntypology of abusive language detection subtasks.",
+                "author": "Zeerak Waseem, Thomas Davidson, Dana Warmsley, and Ingmar Weber. 2017.",
+                "venue": "In Proceedings of the First Workshop on Abusive Language\nOnline, pages 78\u201384, Vancouver, BC, Canada. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/W17-3012"
+            }
+        },
+        {
+            "122": {
+                "title": "Hateful symbols or\nhateful people? predictive features for hate speech detection on Twitter.",
+                "author": "Zeerak Waseem and Dirk Hovy. 2016.",
+                "venue": "In Proceedings of the NAACL Student Research Workshop, pages\n88\u201393, San Diego, California. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/N16-2013"
+            }
+        },
+        {
+            "123": {
+                "title": "Online aggression from\na sociological perspective: An integrative view on determinants and possible\ncountermeasures.",
+                "author": "Sebastian Weingartner and Lea Stahel. 2019.",
+                "venue": "In Proceedings of the Third Workshop on Abusive Language\nOnline, pages 181\u2013187, Florence, Italy. Association for Computational\nLinguistics.",
+                "url": "https://doi.org/10.18653/v1/W19-3520"
+            }
+        },
+        {
+            "124": {
+                "title": "Politics of god or politics of man? the role of religion and\ndeprivation in predicting support for political violence in israel.",
+                "author": "Eran Zaidise, Daphna Canetti-Nisim, and Ami Pedahzur. 2007.",
+                "venue": "Political Studies, 55(3):499\u2013521.",
+                "url": null
+            }
+        },
+        {
+            "125": {
+                "title": "Predicting the type and\ntarget of offensive posts in social media.",
+                "author": "Marcos Zampieri, Shervin Malmasi, Preslav Nakov, Sara Rosenthal, Noura Farra,\nand Ritesh Kumar. 2019a.",
+                "venue": "In Proceedings of the 2019 Conference of the North American\nChapter of the Association for Computational Linguistics: Human Language\nTechnologies, Volume 1 (Long and Short Papers), pages 1415\u20131420,\nMinneapolis, Minnesota. Association for Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/N19-1144"
+            }
+        },
+        {
+            "126": {
+                "title": "SemEval-2019 task\n6: Identifying and categorizing offensive language in social media\n(OffensEval).",
+                "author": "Marcos Zampieri, Shervin Malmasi, Preslav Nakov, Sara Rosenthal, Noura Farra,\nand Ritesh Kumar. 2019b.",
+                "venue": "In Proceedings of the 13th International Workshop on Semantic\nEvaluation, pages 75\u201386, Minneapolis, Minnesota, USA. Association for\nComputational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/S19-2010"
+            }
+        },
+        {
+            "127": {
+                "title": "SemEval-2020 task 12: Multilingual offensive language identification in\nsocial media (OffensEval 2020).",
+                "author": "Marcos Zampieri, Preslav Nakov, Sara Rosenthal, Pepa Atanasova, Georgi\nKaradzhov, Hamdy Mubarak, Leon Derczynski, Zeses Pitenis, and\n\u00c7a\u011fr\u0131 \u00c7\u00f6ltekin. 2020.",
+                "venue": "In Proceedings of the Fourteenth Workshop on Semantic\nEvaluation, pages 1425\u20131447, Barcelona (online). International Committee\nfor Computational Linguistics.",
+                "url": "https://doi.org/10.18653/v1/2020.semeval-1.188"
+            }
+        }
+    ],
+    "url": "http://arxiv.org/html/2403.11108v1",
+    "segmentation": {
+        "research_background_sections": [
+            "1"
+        ],
+        "methodology_sections": [
+            "2",
+            "2.1",
+            "2.2",
+            "2.3",
+            "2.4",
+            "2.5"
+        ],
+        "main_experiment_and_results_sections": [
+            "3",
+            "3.1",
+            "3.2"
+        ]
+    },
+    "ablation_segmentation": {
+        "ablation_sections": [
+            "3.1",
+            "3.2",
+            "4.1",
+            "4.2",
+            "4.3"
+        ]
+    },
+    "research_context": {
+        "paper_id": "2403.11108v1",
+        "paper_title": "HarmPot: An Annotation Framework for Evaluating Offline Harm Potential of Social Media Text",
+        "research_background": "**Motivation:**\nThe motivation for this paper stems from the rapid growth of social media usage in India, which concomitantly experiences low levels of digital media literacy. With over 700 million users, including a significant number of teens, the spread of misinformation and the consequent real-world violence have become increasingly problematic. Incidents like mob killings based on false accusations spread over social media underscore this urgent issue. Existing frameworks and datasets focus on identifying various forms of abusive, toxic, aggressive, and offensive language, but there is a lack of framework that directly addresses the relationship between online content and offline harm.\n\n**Research Problem:**\nThe primary research problem this paper aims to tackle is the absence of a dataset or framework that can model the relationship and interdependence between online content and real-world incidents of harm and violence. Despite the plethora of datasets identifying abusive language, the gap remains in annotating text based on its potential to cause offline harm. The paper proposes to fill this gap by developing HarmPot, a framework for annotating text with the necessary textual and contextual information to predict the offline harm potential of social media content.\n\n**Relevant Prior Work:**\n1. **Digital Media Literacy in India:**\n   - Guess et al. (2020) found that roughly 50% of a highly educated online sample of Indians judged fake news as \u201caccurate\u201d or \u201cvery accurate.\u201d\n   \n2. **Impact of Social Media on Communalism and Violence:**\n   - Studies such as Al-Zaman (2019) explore communalism in India.\n   - Mukherjee (2020) discusses the impact of online groupthink on mob violence.\n   - Other contextual triggers include elections (Deka, 2019) and global crises like the COVID-19 pandemic (Al-Zaman, 2021).\n\n3. **Existing Annotative Datasets and Tools:**\n   - Over 60 datasets have been released focusing on abusive language (Vidgen and Derczynski, 2020; Poletto et al., 2021).\n   - Various tools and studies have centered on abusive language (Nobata et al., 2016; Waseem et al., 2017), toxic language (Kolhatkar et al., 2020), aggressive language (Haddad et al., 2019; Kumar et al., 2018b; Bhattacharya et al., 2020), offensive language (Chen et al., 2012; Mubarak et al., 2017; Nascimento et al., 2019), hate speech (Akhtar et al., 2019; Albadi et al., 2018; Davidson et al., 2017), and narrower dimensions such as sexism (Waseem, 2016), misogyny, Islamophobia (Chung et al., 2019), and homophobia (Akhtar et al., 2019).\n\nThe HarmPot framework, therefore, aims to introduce a novel dimension by focusing on the annotation of text for its potential offline harm, bridging the gap left by previous works.",
+        "methodology": "The proposed method in the HarmPot framework evaluates the offline harm potential of social media text content. The objective is to determine the likelihood of a given text causing real-world physical harm, such as violence, which is often triggered by a combination of online tactics and pre-existing societal divides.\n\n### Key Components and Innovations:\n1. **Broad Focus**:\n    - Unlike traditional approaches that focus on single aspects like hate speech or mis/disinformation, HarmPot evaluates the harm potential within a broader intersectional context. It considers:\n      - Identity factors (caste, gender, religion).\n      - Contextual triggers irrespective of whether the text is explicitly hateful.\n\n2. **Contextual Evaluation**:\n    - The framework assesses:\n      - Who is being addressed.\n      - The timing, manner, and reasons behind the text.\n      - The resulting magnitude of harm potential for the addressed party.\n\n3. **Tagset Parameters**:\n    - Harm potential is marked using a specific set of parameters outlined in a tagset, which answers core questions regarding the contextual factors influencing harm potential.\n\n4. **Harm Potential Scale**:\n    - Texts are categorized on a scale of 0 to 3:\n      - **0: No Harm Potential:** Texts unrelated to any violent incident or narrative campaign, or criticism of public but not protected identities.\n      - **1: Low Harm Potential:** Texts that might lead to harm in specific contexts but generally do not incite offline harm. Examples include the use of slurs or reinforcing negative stereotypes.\n      - **2: Moderate Harm Potential:** Texts likely to trigger offline harm in most contexts, such as explicit attacks or justifications of violence.\n      - **3: High Harm Potential:** Texts that clearly call for or instigate violence regardless of the context.\n\n5. **Dual-Level Magnitude Assessment**:\n    - **Text Span Level:** Evaluates the potential of specific spans of text to incite offline harm against specific identities.\n    - **Document Level:** Assesses the overall harm potential of the document, which can be based on individual spans or independently determined if no specific spans target certain identities.\n\nBy providing a comprehensive and context-sensitive evaluation of social media texts, HarmPot aims to identify and mitigate content with high offline harm potential, facilitating better regulatory and monitoring mechanisms to prevent real-world violence stemming from online interactions.",
+        "main_experiment_and_results": "### Main Experiment Setup and Results:\n\n**Dataset:**\nTo test the reliability and validity of the HarmPot framework, a dataset was collected from various social media platforms. The collected data focused on incidents of physical harm (such as riots and lynchings) linked to online disinformation and hate campaigns between 2016 and 2022. This time period was chosen due to the significant increase in data usage following the introduction of low-cost data and smartphones by Reliance Jio in 2016. Given the lack of government-collected data on hate crimes after 2017, the study used databases from non-governmental organizations, notably Documentation of the Oppressed (DOTO), which lists over 1,100 incidents of offline hate crimes and violence since 2016. From this list, a sample of over 150 crimes linked to social media discourse was selected. Social media data related to these incidents were extracted from platforms such as Twitter, YouTube, Facebook, Telegram, and WhatsApp, with data collected before and after the incidents. This approach aimed to capture potential triggers for offline harm incidents and related post-event incidents. A total of over 417,000 data points in both Hindi and English were collected using this methodology.\n\n**Baselines:**\nThe document in question does not explicitly mention any specific baselines used for comparison in the main experiment. However, baseline models or methods typically entail existing techniques or frameworks against which the new framework is evaluated for performance benchmarks.\n\n**Evaluation Metrics:**\nThe main purpose of the experiment is to test the reliability and validity of the HarmPot framework. Although specific evaluation metrics are not detailed in the provided text, reliability and validity generally imply the use of inter-rater agreement measures (such as Cohen's Kappa) and validity checks (like content and construct validity) to assess the consistency and accuracy of the annotations made using the framework.\n\n**Main Experimental Results:**\nThe document does not provide detailed main experimental results. Instead, it explains the process and scope of data collection and mentions that the complete dataset, along with the hate crimes they were associated with, will be released publicly for further research. Since specific findings, accuracy rates, or comparative results are not delineated in the provided text, the outcomes related to the framework's performance remain unspecified based on the given content."
+    },
+    "reference_ablation_studies": [
+        {
+            "research_objective": "To improve the inter-annotator agreement in evaluating the offline harm potential of social media texts using Krippendorff's Kappa.",
+            "experiment_process": "Approximately 5 - 10 data points were selected from around 50 incidents for inter-annotator agreement experiments, with each data point annotated by 3 annotators. Krippendorff\u2019s Kappa was calculated to measure the magnitude of harm potential. Initial experiments with 500 data points resulted in a low Kappa of 0.25. Subsequently, the tagset was modified to reduce category overlaps, and new categories were introduced for better classification. Annotation guidelines were also clarified. This led to a second round of experiments, which resulted in a Kappa value of 0.53. To further understand disagreements, focus group discussions were conducted.",
+            "result_discussion": "Though the Kappa value remained low, it was deemed reasonably good for a highly subjective task. Most disagreements were found to be reasonable, and it was decided not to push for further agreement. Instead, disaggregated annotations by different annotators will be made publicly available.",
+            "ablation_id": "2403.11108v1.No1"
+        },
+        {
+            "research_objective": "To demonstrate the validity of the presented framework for annotating harm potential in social media texts.",
+            "experiment_process": "A total dataset of approximately 2,000 data points from over 100 incidents was annotated using an online app called LiFE App, which allowed for simultaneous annotation at the document and span level. Each data point was annotated independently by 3 annotators.",
+            "result_discussion": "No explicit discussion of the results was provided in the given text.",
+            "ablation_id": "2403.11108v1.No2"
+        },
+        {
+            "research_objective": "To understand the interrelationship between the HarmPot framework and the existing HASOC framework.",
+            "experiment_process": "A total of 1,000 texts were taken from the 2019 and 2023 editions of HASOC and annotated using the HarmPot framework. The comparison involved analyzing the labels and their corresponding harm potentials, evaluating the mapping at both the first and second level schema of HASOC.",
+            "result_discussion": "The study found that most NOT texts had '0' harm potential, while many offensive texts in HASOC had '1' or '0' harm potential due to a broad definition of HOF. The second level showed a clear mapping where 'Profane' texts were marked with '1' or '0' harm potential, and 'hate' texts were marked with '3' (or '2'). The spans marked using HarmPot often encompassed larger segments than those marked in the HateNorm task due to different annotation focuses.",
+            "ablation_id": "2403.11108v1.No3"
+        },
+        {
+            "research_objective": "To compare the HarmPot framework with the OLID framework to understand their mappings and similarities.",
+            "experiment_process": "The OLID dataset includes over 14k annotated English tweets with a three-level annotation framework. The comparison study assessed the results of HarmPot annotations at Level A (Offensive vs. Non-offensive), Level B (Targeted vs. Untargeted insults), and Level C (Individual, Group, and Other targets).",
+            "result_discussion": "Results at Level A mirrored those in HASOC. For Levels B and C, HarmPot's annotations for targeted insults at different levels of harm potential were mapped to OLID's targeted insult categories. Many 'Untargeted' texts had varying harm potentials ('0', '1', or '2'). The mapping for 'Individual' and 'Group' generally corresponded well, whereas 'Other' had unpredictable mappings to harm potential.",
+            "ablation_id": "2403.11108v1.No4"
+        },
+        {
+            "research_objective": "To compare the HarmPot framework with the ComMA framework to explore their mappings and similarities.",
+            "experiment_process": "The ComMA framework distinguishes between overtly, covertly, and non-aggressive texts, and marks aggression intensity and bias/threats. It also annotates discursive roles like attack, defend, counterspeech, abet, and gaslighting. A comparative study was conducted to understand the mapping of HarmPot to ComMA framework annotations.",
+            "result_discussion": "Results showed that non-aggressive texts were often marked with '0' harm potential, while covertly aggressive texts had '1'. Physical and sexual threats were usually scored '2' or '3' harm potential, and non-threatening aggression as '1'. Biases related to religion, caste, and gender in HarmPot often carried '1' or '2' harm potential. Some non-biased texts in ComMA still had '1' or '2' harm potential in HarmPot, indicating differences in annotation granularity and focus.",
+            "ablation_id": "2403.11108v1.No5"
+        }
+    ]
+}
