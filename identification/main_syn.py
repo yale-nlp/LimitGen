@@ -22,9 +22,9 @@ def prepare_messages(error_type, paper_content, figures, retrieval):
     else:
         print("invalid subtype")
         return None
-    SYSTEM_INPUT = f"Read the following scientific paper and generate 3 major limitations in this paper about its {aspect}. Do not include any limitation mentioned in the paper itself. Return the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
+    SYSTEM_INPUT = f"Read the following scientific paper and generate 3 major limitations in this paper about its {aspect}. Do not include any limitation explicitly mentioned in the paper itself. Return the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
     if retrieval:
-        SYSTEM_INPUT = f"Read the following content from several papers to gain knowledge in the relevant field. Using this knowledge, review a new scientific paper in this field. Based on existing research, identify the limitations of the 'Paper to Review'. Generate three major limitations related to its {aspect} in this paper. Do not include any limitation mentioned in the paper itself. Return the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
+        SYSTEM_INPUT = f"Read the following content from several papers to gain knowledge in the relevant field. Using this knowledge, review a new scientific paper in this field. Based on existing research, identify the limitations of the 'Paper to Review'. Generate three major limitations related to its {aspect} in this paper. Do not include any limitation explicitly mentioned in the paper itself. Return the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
     # print(user_prompt)
     if figures == []:
         return prepare_message(SYSTEM_INPUT, paper_content)
