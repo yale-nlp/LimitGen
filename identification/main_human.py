@@ -20,9 +20,9 @@ def prepare_messages(aspect, paper_content, is_retrieval):
         hint = "result analysis"
     elif "literature":
         hint = "literature review"
-    SYSTEM_INPUT = f"Read the following scientific paper and generate 3 major limitations in this paper about its {hint}. Do not include any limitation mentioned in the paper itself. Return only the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
+    SYSTEM_INPUT = f"Read the following scientific paper and generate major limitations in this paper about its {hint}. Do not include any limitation explicitly mentioned in the paper itself. Return only the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
     if is_retrieval:
-        SYSTEM_INPUT = f"Read the following content from several papers to gain knowledge in the relevant field. Using this knowledge, review a new scientific paper in this field. Based on existing research, identify the limitations of the 'Paper to Review'. Generate three major limitations related to its {hint} in this paper. Do not include any limitation mentioned in the paper itself. Return only the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
+        SYSTEM_INPUT = f"Read the following content from several papers to gain knowledge in the relevant field. Using this knowledge, review a new scientific paper in this field. Based on existing research, identify the limitations of the 'Paper to Review'. Generate major limitations related to its {hint} in this paper. Do not include any limitation explicitly mentioned in the paper itself. Return only the limitations in the following JSON format: {{\"limitations\": <a list of 3 limitations>}}."
     # print(user_prompt)
     return prepare_message(SYSTEM_INPUT, paper_content)
 
