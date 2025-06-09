@@ -13,11 +13,9 @@
 ## 📰 News
 - **2025-xx-xx**: We are excited to release the LimitGen paper, dataset, and code!
 
-## 👋 Overview
-![Local Image](./assets/overview.png)
+## LimitGen Benchmark
 
-### Why LimitGen Benchmark?
-
+While LLMs show promise in various scientific tasks, their potential to assist with peer review, particularly in identifying paper limitations, remains understudied. LimitGen, the first comprehensive benchmark for evaluating LLMs' capability to support early-stage feedback and complement human peer review. Our benchmark consists of two subsets: LimitGen-Syn, a synthetic dataset carefully created through controlled perturbations of papers, and LimitGen-Human, a collection of real human-written limitations.
 
 ## 🚀 Quickstart
 ### 1. Setup
