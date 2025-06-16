@@ -26,6 +26,15 @@ pip install -r requirements.txt
 
 
 ### 2. Limitation Generation
+As detailed in Section 5.1 of our paper, we evaluate the performance of four frontier LLMs on our benchmark. To run the experiments on different subsets, navigate to the `identification` directory and execute:
+
+```bash
+cd identification
+python main_human.py    # for the human subset
+# or
+python main_syn.py      # for the synthetic subset
+```
+Make sure to modify the data paths, specify the model name and API key, and choose whether to enable RAG before running.
 
 ### 3. RAG
 
