@@ -19,7 +19,10 @@ While LLMs show promise in various scientific tasks, their potential to assist w
 
 ## 🚀 Quickstart
 ### 1. Setup
-
+Install the required packages
+```bash
+pip install -r requirements.txt
+```
 
 
 ### 2. Limitation Generation
