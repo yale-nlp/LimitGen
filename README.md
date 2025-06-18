@@ -61,7 +61,27 @@ Make sure to modify the data paths, specify the model name and API key, and choo
 
 
 ### 4. Evaluation
+1. To evaluate the LimitGen-Syn subset, follow the steps below:
 
+```
+  cd evaluation/syn
+  python aspect_check.py --error_type <error_type>
+  python subtype_classification.py --error_type <error_type>
+  python coarse_accuracy.py
+  python rating.py --error_type <error_type>
+```
+  
+
+2. To evaluate the LimitGen-Human subset, follow the steps below:
+   
+```
+  cd evaluation/human
+  python measure_overlap.py
+  python match_calculate.py
+  python rating.py
+```
+
+Make sure to modify the data paths, specify the model name, API key, and other necessary configurations.
 
 ## ✍️ Citation
 If you use our work and are inspired by our work, please consider cite us (available soon):
