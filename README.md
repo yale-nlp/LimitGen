@@ -37,6 +37,27 @@ python main_syn.py      # for the synthetic subset
 Make sure to modify the data paths, specify the model name and API key, and choose whether to enable RAG before running.
 
 ### 3. RAG
+1. Run the following scripts in order to obtain a list of relevant papers:
+```
+   cd retrieval
+   python query_gen.py
+   python search.py
+   python recommendation.py
+   python rerank.py
+```
+
+   This process will generate a list of recommended papers. You will need to download the PDFs.
+
+2. (Optional) Use MMDA to preprocess the downloaded PDFs.
+
+3. After downloading and preprocessing the papers, run:
+
+   ```
+   python section_locate.py
+   python rewrite.py
+   ```
+
+   These scripts will generate reference content based on the selected papers.
 
 
 ### 4. Evaluation
