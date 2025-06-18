@@ -32,7 +32,7 @@ As detailed in Section 5.1 of our paper, we evaluate the performance of four fro
 cd identification
 python main_human.py    # for the human subset
 # or
-python main_syn.py      # for the synthetic subset
+python main_syn.py --error_type <error_type>     # for the synthetic subset
 ```
 Make sure to modify the data paths, specify the model name and API key, and choose whether to enable RAG before running.
 
