@@ -11,7 +11,7 @@
 
 
 ## 📰 News
-- **2025-xx-xx**: We are excited to release the LimitGen paper, dataset, and code!
+- **2025-07-03**: We are excited to release the LimitGen paper, dataset, and code!
 
 ## LimitGen Benchmark
 
@@ -86,5 +86,13 @@ Make sure to modify the data paths, specify the model name, API key, and other n
 ## ✍️ Citation
 If you use our work and are inspired by our work, please consider cite us (available soon):
 ```
-
+@misc{xu2025llmsidentifycriticallimitations,
+      title={Can LLMs Identify Critical Limitations within Scientific Research? A Systematic Evaluation on AI Research Papers}, 
+      author={Zhijian Xu and Yilun Zhao and Manasi Patwardhan and Lovekesh Vig and Arman Cohan},
+      year={2025},
+      eprint={2507.02694},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2507.02694}, 
+}
 ```
